@@ -1,333 +1,348 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FinPro - Gestão Inteligente</title>
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome (Ícones) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .app-header { background-color: #0d6efd; color: white; padding: 15px 0; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .card-custom { border: none; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: transform 0.2s; }
-        .btn-circle { width: 50px; height: 50px; border-radius: 25px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
-        .floating-action { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
-        .mes-nav a { color: white; text-decoration: none; font-weight: bold; font-size: 1.2rem; }
-        .mes-nav span { font-size: 1.2rem; font-weight: bold; margin: 0 15px; }
-        .list-group-item { border: none; border-bottom: 1px solid #f0f0f0; padding: 15px 10px; }
-        .icon-box { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background-color: #f8fafc; 
+            color: #0f172a;
+            padding-bottom: 90px;
+        }
+        
+        .scroll-horizontal {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 1rem;
+            padding: 4px 2px 16px 2px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .scroll-horizontal::-webkit-scrollbar { display: none; }
+        
+        .card-resumo {
+            min-width: 280px;
+            background: #ffffff;
+            border-radius: 24px;
+            border: none;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.04);
+        }
+
+        .card-alerta-negativo {
+            border: 2px solid #ef4444 !important;
+            background-color: #fef2f2 !important;
+        }
+
+        .transacao-item {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #f1f5f9;
+        }
+        .transacao-icon {
+            width: 46px; height: 46px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+            margin-right: 14px;
+        }
+
+        .filter-chip {
+            border-radius: 50px;
+            padding: 6px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #64748b;
+            text-decoration: none;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .filter-chip.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .fab-button {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 64px;
+            height: 64px;
+            border-radius: 32px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+            border: none;
+            z-index: 1000;
+        }
+        .fab-button:active { transform: scale(0.92); }
+
+        .chart-container { height: 240px; width: 100%; position: relative; }
     </style>
 </head>
 <body>
 
-    <!-- CABEÇALHO COM NAVEGAÇÃO DE MESES -->
-    <header class="app-header text-center mb-4">
-        <div class="container d-flex justify-content-between align-items-center mes-nav">
-            <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}"><i class="fas fa-chevron-left"></i></a>
-            <span>{{ mes_atual|stringformat:"02d" }} / {{ ano_atual }}</span>
-            <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}"><i class="fas fa-chevron-right"></i></a>
+<!-- Header Topo -->
+<div class="bg-white sticky-top shadow-sm py-3 mb-4 rounded-bottom-5">
+    <div class="container d-flex justify-content-between align-items-center px-4">
+        <h4 class="fw-bold text-primary mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-wallet2"></i> FinPro
+        </h4>
+        <div class="d-flex align-items-center bg-light rounded-pill px-3 py-1 border">
+            <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}{% if filtra_pessoa_id %}&pessoa={{ filtra_pessoa_id }}{% endif %}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-left"></i></a>
+            <span class="fw-bold small mx-3 text-dark">{{ mes_atual }}/{{ ano_atual }}</span>
+            <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}{% if filtra_pessoa_id %}&pessoa={{ filtra_pessoa_id }}{% endif %}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-right"></i></a>
         </div>
-    </header>
+    </div>
+</div>
 
-    <div class="container pb-5">
+<div class="container px-3">
+    
+    <!-- Cartões de Resumo Deslizantes -->
+    <div class="scroll-horizontal mb-3">
         
-        <!-- CARDS DE RESUMO FINANCEIRO -->
-        <div class="row g-3 mb-4">
-            <div class="col-6">
-                <div class="card card-custom bg-primary text-white h-100">
-                    <div class="card-body p-3">
-                        <small>Meus Gastos</small>
-                        <h4 class="mb-0 mt-1">R$ {{ meus_gastos|floatformat:2 }}</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="card card-custom bg-success text-white h-100">
-                    <div class="card-body p-3">
-                        <small>Saldo da Meta</small>
-                        <h4 class="mb-0 mt-1">R$ {{ saldo_restante|floatformat:2 }}</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12">
-                <div class="card card-custom bg-warning text-dark h-100">
-                    <div class="card-body p-3 d-flex justify-content-between align-items-center">
+        <!-- Saldo com Alerta Dinâmico -->
+        <div class="card-resumo p-4 {% if saldo_restante < 0 %}card-alerta-negativo{% endif %}">
+            <p class="text-muted small fw-bold mb-1 text-uppercase tracking-wider">
+                {% if saldo_restante < 0 %}⚠️ Orçamento Estourado{% else %}Saldo Disponível{% endif %}
+            </p>
+            <h2 class="fw-bold mb-0 {% if saldo_restante < 0 %}text-danger{% else %}text-success{% endif %}">
+                R$ {{ saldo_restante }}
+            </h2>
+            <span class="small text-muted mt-2 d-block">
+                {% if saldo_restante < 0 %}Você gastou mais que a meta!{% else %}Dentro do limite planejado{% endif %}
+            </span>
+        </div>
+
+        <!-- A Receber da Família com Botão WhatsApp -->
+        <div class="card-resumo p-4">
+            <p class="text-muted small fw-bold mb-1 text-uppercase tracking-wider">A Receber (Família)</p>
+            <h2 class="fw-bold mb-3 text-dark">R$ {{ gastos_terceiros }}</h2>
+            {% if dividas_detalhadas %}
+                {% for divida in dividas_detalhadas %}
+                    <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-1 small">
                         <div>
-                            <small class="fw-bold">A Receber (Terceiros)</small>
-                            <h4 class="mb-0 mt-1">R$ {{ gastos_terceiros|floatformat:2 }}</h4>
+                            <span class="text-secondary fw-bold">{{ divida.nome }}:</span>
+                            <span class="fw-bold {% if divida.saldo > 0 %}text-danger{% else %}text-success{% endif %}">R$ {{ divida.saldo }}</span>
                         </div>
-                        <i class="fas fa-hand-holding-dollar fa-2x opacity-50"></i>
+                        {% if divida.saldo > 0 %}
+                            <a href="{{ divida.whatsapp_link }}" target="_blank" class="btn btn-sm btn-success rounded-pill px-2 py-0" style="font-size: 11px;" title="Cobrar no WhatsApp">
+                                <i class="bi bi-whatsapp"></i> Cobrar
+                            </a>
+                        {% endif %}
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- PAINEL DE AÇÕES RÁPIDAS (CADASTRAR PESSOA/CARTÃO/META) -->
-        <div class="row g-2 mb-4 text-center">
-            <div class="col-4">
-                <button class="btn btn-outline-secondary w-100 p-2" data-bs-toggle="modal" data-bs-target="#modalPessoa">
-                    <i class="fas fa-user-plus mb-1"></i><br><small>Pessoa</small>
-                </button>
-            </div>
-            <div class="col-4">
-                <button class="btn btn-outline-secondary w-100 p-2" data-bs-toggle="modal" data-bs-target="#modalCartao">
-                    <i class="fas fa-credit-card mb-1"></i><br><small>Cartão</small>
-                </button>
-            </div>
-            <div class="col-4">
-                <button class="btn btn-outline-secondary w-100 p-2" data-bs-toggle="modal" data-bs-target="#modalMeta">
-                    <i class="fas fa-bullseye mb-1"></i><br><small>Meta</small>
-                </button>
-            </div>
-        </div>
-
-        <!-- ÁREA DE COBRANÇAS VIA WHATSAPP -->
-        {% if dividas_detalhadas %}
-        <h6 class="fw-bold text-muted mt-4 mb-3">Fechamento do Mês (Cobranças)</h6>
-        <div class="row g-2 mb-4">
-            {% for divida in dividas_detalhadas %}
-            <div class="col-12">
-                <div class="card card-custom">
-                    <div class="card-body p-3 d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-0 fw-bold">{{ divida.nome }}</h6>
-                            <small class="text-danger">Deve: R$ {{ divida.saldo|floatformat:2 }}</small>
-                        </div>
-                        <a href="{{ divida.whatsapp_link }}" target="_blank" class="btn btn-success btn-sm rounded-pill px-3">
-                            <i class="fab fa-whatsapp me-1"></i> Cobrar
-                        </a>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- GRÁFICO DE GASTOS -->
-        <h6 class="fw-bold text-muted mb-3">Onde você gastou</h6>
-        <div class="card card-custom mb-4">
-            <div class="card-body">
-                <canvas id="graficoDespesas"></canvas>
-            </div>
-        </div>
-
-        <!-- LISTA DE TRANSAÇÕES -->
-        <h6 class="fw-bold text-muted mb-3">Histórico do Mês</h6>
-        <div class="card card-custom mb-5">
-            <ul class="list-group list-group-flush">
-                {% for t in transacoes %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                        <!-- Ícone dinâmico -->
-                        <div class="icon-box {% if t.tipo == 'DESPESA' %}bg-danger-subtle text-danger{% else %}bg-success-subtle text-success{% endif %} me-3">
-                            <i class="fas {% if t.tipo == 'DESPESA' %}fa-arrow-down{% else %}fa-arrow-up{% endif %}"></i>
-                        </div>
-                        <div>
-                            <h6 class="mb-0 fw-bold">{{ t.descricao }}</h6>
-                            <small class="text-muted">{{ t.data|date:"d/m/Y" }} • {{ t.dono.nome }}</small>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <span class="fw-bold d-block {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %}">
-                            {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
-                        </span>
-                        <a href="{% url 'excluir_transacao' t.id %}" class="text-danger text-decoration-none" onclick="return confirm('Apagar este lançamento?')"><small><i class="fas fa-trash"></i></small></a>
-                    </div>
-                </li>
-                {% empty %}
-                <li class="list-group-item text-center text-muted p-4">
-                    Nenhuma movimentação neste mês.
-                </li>
                 {% endfor %}
-            </ul>
+            {% else %}
+                <span class="small text-muted">Nenhum saldo pendente.</span>
+            {% endif %}
         </div>
 
-    </div>
+        <!-- Meus Gastos -->
+        <div class="card-resumo p-4">
+            <p class="text-muted small fw-bold mb-1 text-uppercase tracking-wider">Meus Gastos Pessoais</p>
+            <h2 class="fw-bold mb-0 text-dark">R$ {{ meus_gastos }}</h2>
+            <span class="small text-muted mt-2 d-block">Lançados no seu cartão</span>
+        </div>
 
-    <!-- BOTÃO FLUTUANTE DE NOVA TRANSAÇÃO -->
-    <div class="floating-action">
-        <button class="btn btn-primary btn-circle shadow-lg" data-bs-toggle="modal" data-bs-target="#modalTransacao">
-            <i class="fas fa-plus"></i>
-        </button>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- MODAIS (JANELAS POP-UP) DOS FORMULÁRIOS    -->
-    <!-- ========================================== -->
-
-    <!-- Modal Nova Transação -->
-    <div class="modal fade" id="modalTransacao" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 rounded-4">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold">Nova Movimentação</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <!-- Meta -->
+        <div class="card-resumo p-4">
+            <p class="text-muted small fw-bold mb-1 text-uppercase tracking-wider">Meta do Mês</p>
+            <h2 class="fw-bold mb-2 text-primary">R$ {{ valor_meta }}</h2>
+            <form method="POST" action="?mes={{ mes_atual }}&ano={{ ano_atual }}">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="atualizar_meta">
+                <div class="input-group input-group-sm">
+                    <input type="number" step="0.01" name="valor_meta" class="form-control bg-light border-0 rounded-start-pill ps-3" placeholder="Nova meta..." required>
+                    <button type="submit" class="btn btn-primary rounded-end-pill px-3 shadow-none"><i class="bi bi-check2"></i></button>
                 </div>
-                <div class="modal-body">
-                    <form method="POST" action="{% url 'dashboard' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="form_type" value="nova_transacao">
-                        
-                        <div class="mb-3">
-                            <label class="small text-muted mb-1">Data da Compra</label>
-                            <input type="date" class="form-control bg-light border-0 py-2" name="data" required>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="small text-muted mb-1">Descrição</label>
-                            <input type="text" class="form-control bg-light border-0 py-2" name="descricao" placeholder="Ex: Posto, Mercado" required>
-                        </div>
+            </form>
+        </div>
+    </div>
 
-                        <div class="mb-3">
-                            <label class="small text-muted mb-1">Valor (R$)</label>
-                            <input type="number" step="0.01" class="form-control bg-light border-0 py-2" name="valor" placeholder="0,00" required>
-                        </div>
+    <!-- Seção do Gráfico -->
+    <div class="bg-white rounded-4 p-4 shadow-sm mb-4 border">
+        <h6 class="fw-bold text-dark mb-3"><i class="bi bi-pie-chart-fill text-primary me-2"></i> Raio-X dos Seus Gastos</h6>
+        <div class="chart-container">
+            <canvas id="meuGrafico"></canvas>
+        </div>
+    </div>
 
-                        <div class="mb-3">
-                            <label class="small text-muted mb-1">Cartão Utilizado</label>
-                            <select name="cartao_id" class="form-select bg-light border-0 py-2">
-                                <option value="">Dinheiro / PIX (Sem cartão)</option>
-                                {% for cartao in cartoes %}
+    <!-- Filtros Rápidos por Pessoa (Pills) -->
+    <div class="d-flex align-items-center gap-2 overflow-auto pb-2 mb-3 scroll-horizontal">
+        <a href="?mes={{ mes_atual }}&ano={{ ano_atual }}" class="filter-chip {% if not filtra_pessoa_id %}active{% endif %}">
+            🔍 Todos
+        </a>
+        {% for pessoa in pessoas %}
+            <a href="?mes={{ mes_atual }}&ano={{ ano_atual }}&pessoa={{ pessoa.id }}" class="filter-chip {% if filtra_pessoa_id == pessoa.id %}active{% endif %}">
+                👤 {{ pessoa.nome }}
+            </a>
+        {% endfor %}
+    </div>
+
+    <!-- Lista de Movimentações -->
+    <div class="mb-5">
+        {% for item in transacoes %}
+            <div class="transacao-item">
+                <div class="d-flex align-items-center">
+                    <div class="transacao-icon {% if item.tipo == 'PAGAMENTO' %}bg-success bg-opacity-10 text-success{% else %}bg-danger bg-opacity-10 text-danger{% endif %}">
+                        {% if item.tipo == 'PAGAMENTO' %}
+                            <i class="bi bi-arrow-down-left"></i>
+                        {% else %}
+                            <i class="bi bi-arrow-up-right"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-0 text-dark">{{ item.descricao }}</h6>
+                        <!-- Exibe Data, Pessoa e o Cartão utilizado -->
+                        <small class="text-muted">
+                            {{ item.data|date:"d/m" }} • <span class="fw-medium text-secondary">{{ item.dono.nome }}</span>
+                            {% if item.cartao %}
+                                • <span class="badge bg-light text-dark border" style="font-size: 10px;">{{ item.cartao.nome }}</span>
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <h6 class="fw-bold mb-1 {% if item.tipo == 'PAGAMENTO' %}text-success{% else %}text-dark{% endif %}">
+                        R$ {{ item.valor }}
+                    </h6>
+                    <a href="{% url 'excluir_transacao' item.id %}?mes={{ mes_atual }}&ano={{ ano_atual }}{% if filtra_pessoa_id %}&pessoa={{ filtra_pessoa_id }}{% endif %}" class="text-danger small text-decoration-none p-1" onclick="return confirm('Deseja realmente excluir este registro?');" title="Excluir">
+                        <i class="bi bi-trash3"></i>
+                    </a>
+                </div>
+            </div>
+        {% empty %}
+            <div class="text-center text-muted py-5 bg-white rounded-4 border">
+                <i class="bi bi-inbox fs-1 opacity-25 mb-2 d-block"></i>
+                <p class="mb-0 small">Nenhuma movimentação encontrada com este filtro.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Botão Flutuante (FAB) -->
+<button class="fab-button shadow" data-bs-toggle="modal" data-bs-target="#modalLancamento" title="Adicionar Novo">
+    <i class="bi bi-plus"></i>
+</button>
+
+<!-- Modal de Novo Lançamento (Com a seleção de Cartão) -->
+<div class="modal fade" id="modalLancamento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold">Nova Movimentação</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form method="POST" action="?mes={{ mes_atual }}&ano={{ ano_atual }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="nova_transacao">
+                    
+                    <div class="form-floating mb-3">
+                        <input type="date" name="data" class="form-control bg-light border-0 rounded-4" id="dataInput" required>
+                        <label for="dataInput" class="text-muted">Data da Compra</label>
+                    </div>
+                    
+                    <div class="form-floating mb-3">
+                        <input type="text" name="descricao" class="form-control bg-light border-0 rounded-4" id="descInput" placeholder="Ex: Supermercado" required>
+                        <label for="descInput" class="text-muted">Descrição (Ex: Posto, Mercado)</label>
+                    </div>
+                    
+                    <div class="form-floating mb-3">
+                        <input type="number" step="0.01" name="valor" class="form-control bg-light border-0 rounded-4" id="valorInput" placeholder="0.00" required>
+                        <label for="valorInput" class="text-muted">Valor (R$)</label>
+                    </div>
+
+                    <!-- NOVO CAMPO: Escolha do Cartão -->
+                    <div class="form-floating mb-3">
+                        <select name="cartao_id" class="form-select bg-light border-0 rounded-4" required>
+                            <option value="" disabled selected>Selecione o cartão...</option>
+                            {% for cartao in cartoes %}
                                 <option value="{{ cartao.id }}">{{ cartao.nome }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="row g-2 mb-4">
-                            <div class="col-6">
-                                <label class="small text-muted mb-1">Envolvido</label>
-                                <select name="dono_id" class="form-select bg-light border-0 py-2" required>
+                            {% endfor %}
+                        </select>
+                        <label class="text-muted">Cartão Utilizado</label>
+                    </div>
+                    
+                    <div class="row g-2 mb-4">
+                        <div class="col-6">
+                            <div class="form-floating">
+                                <select name="dono_id" class="form-select bg-light border-0 rounded-4" required>
                                     <option value="" disabled selected>Quem?</option>
                                     {% for pessoa in pessoas %}
-                                    <option value="{{ pessoa.id }}">{{ pessoa.nome }}</option>
+                                        <option value="{{ pessoa.id }}">{{ pessoa.nome }}</option>
                                     {% endfor %}
                                 </select>
+                                <label class="text-muted">Envolvido</label>
                             </div>
-                            <div class="col-6">
-                                <label class="small text-muted mb-1">Tipo</label>
-                                <select name="tipo" class="form-select bg-light border-0 py-2" required>
-                                    <option value="DESPESA">Gasto (-)</option>
-                                    <option value="PAGAMENTO">Pagamento (+)</option>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-floating">
+                                <select name="tipo" class="form-select bg-light border-0 rounded-4" required>
+                                    <option value="DESPESA">Gasto (-) </option>
+                                    <option value="PAGAMENTO">Recebi (+)</option>
                                 </select>
+                                <label class="text-muted">Tipo</label>
                             </div>
                         </div>
-
-                        <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold">Salvar Lançamento</button>
-                    </form>
-                </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm">Salvar Lançamento</button>
+                </form>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Modal Nova Pessoa -->
-    <div class="modal fade" id="modalPessoa" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 rounded-4">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold">Cadastrar Pessoa</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info py-2 small">A primeira pessoa cadastrada será definida como Titular.</div>
-                    <form method="POST" action="{% url 'dashboard' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="form_type" value="nova_pessoa">
-                        <div class="mb-4">
-                            <input type="text" class="form-control bg-light border-0 py-2" name="nome" placeholder="Nome (Ex: Eduardo)" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold">Salvar Pessoa</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Novo Cartão -->
-    <div class="modal fade" id="modalCartao" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 rounded-4">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold">Cadastrar Cartão</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form method="POST" action="{% url 'dashboard' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="form_type" value="novo_cartao">
-                        <div class="mb-4">
-                            <input type="text" class="form-control bg-light border-0 py-2" name="nome" placeholder="Nome do Cartão (Ex: Nubank)" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold">Salvar Cartão</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Configurar Meta -->
-    <div class="modal fade" id="modalMeta" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 rounded-4">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold">Configurar Meta Mensal</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form method="POST" action="{% url 'dashboard' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="form_type" value="atualizar_meta">
-                        <div class="mb-4">
-                            <label class="small text-muted mb-1">Qual é o seu limite de gastos?</label>
-                            <input type="number" step="0.01" class="form-control bg-light border-0 py-2" name="valor_meta" value="{{ valor_meta }}" required>
-                        </div>
-                        <button type="submit" class="btn btn-success w-100 rounded-pill fw-bold">Salvar Meta</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts Bootstrap -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const labels = {{ labels_grafico|safe }};
+    const dados = {{ valores_grafico|safe }};
+    const ctx = document.getElementById('meuGrafico').getContext('2d');
     
-    <!-- Script do Gráfico -->
-    <script>
-        const ctx = document.getElementById('graficoDespesas').getContext('2d');
-        const labelsGrafico = JSON.parse('{{ labels_grafico|safe }}');
-        const valoresGrafico = JSON.parse('{{ valores_grafico|safe }}');
-
-        if(valoresGrafico.length > 0) {
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labelsGrafico,
-                    datasets: [{
-                        data: valoresGrafico,
-                        backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6c757d', '#0dcaf0'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    },
-                    cutout: '70%'
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: dados,
+                backgroundColor: ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#059669', '#0284c7'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: {
+                legend: { 
+                    position: 'right', 
+                    labels: { usePointStyle: true, boxWidth: 6, font: { size: 11, family: "'Poppins', sans-serif" } } 
                 }
-            });
-        } else {
-            // Se não houver dados, exibe um gráfico vazio e cinza
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: { labels: ['Sem dados'], datasets: [{ data: [1], backgroundColor: ['#e9ecef'] }] },
-                options: { responsive: true, plugins: { legend: { display: false }, tooltip: { enabled: false } }, cutout: '70%' }
-            });
+            }
         }
-    </script>
+    });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
