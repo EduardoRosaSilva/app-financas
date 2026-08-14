@@ -1,8 +1,17 @@
 from django.db import models
+import uuid
+
+class Conta(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Conta Anonima - {str(self.id)[:8]}"
 
 class Pessoa(models.Model):
     nome = models.CharField(max_length=100)
     is_titular = models.BooleanField(default=False)  # True se for você, False se for familiar
+    conta = models.ForeignKey(Conta, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.nome
@@ -10,6 +19,7 @@ class Pessoa(models.Model):
 # --- NOVO MODELO: Cartões ---
 class Cartao(models.Model):
     nome = models.CharField(max_length=50) # Ex: Nubank, Inter, Mastercard Black
+    conta = models.ForeignKey(Conta, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.nome
@@ -25,6 +35,7 @@ class Transacao(models.Model):
     data = models.DateField()
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='DESPESA')
     dono = models.ForeignKey(Pessoa, on_delete=models.CASCADE)
+    conta = models.ForeignKey(Conta, on_delete=models.CASCADE, null=True, blank=True)
     
     # --- NOVA COLUNA: Ligação com o Cartão ---
     cartao = models.ForeignKey(Cartao, on_delete=models.SET_NULL, null=True, blank=True)
@@ -34,6 +45,7 @@ class Transacao(models.Model):
 
 class MetaMensal(models.Model):
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    conta = models.ForeignKey(Conta, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"Meta: R$ {self.valor}"
