@@ -9,7 +9,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
         body { 
             font-family: 'Poppins', sans-serif; 
@@ -35,12 +34,10 @@
             border: none;
             box-shadow: 0 10px 25px -5px rgba(0,0,0,0.04);
         }
-
         .card-alerta-negativo {
             border: 2px solid #ef4444 !important;
             background-color: #fef2f2 !important;
         }
-
         .transacao-item {
             background: #ffffff;
             border-radius: 18px;
@@ -59,7 +56,6 @@
             font-size: 1.2rem;
             margin-right: 14px;
         }
-
         .filter-chip {
             border-radius: 50px;
             padding: 6px 16px;
@@ -77,7 +73,6 @@
             color: white;
             border-color: #2563eb;
         }
-
         .fab-button {
             position: fixed;
             bottom: 24px;
@@ -96,12 +91,10 @@
             z-index: 1000;
         }
         .fab-button:active { transform: scale(0.92); }
-
         .chart-container { height: 240px; width: 100%; position: relative; }
     </style>
 </head>
 <body>
-
 <!-- Header Topo -->
 <div class="bg-white sticky-top shadow-sm py-3 mb-4 rounded-bottom-5">
     <div class="container d-flex justify-content-between align-items-center px-4">
@@ -115,16 +108,15 @@
         </div>
     </div>
 </div>
-
 <div class="container px-3">
     
     <!-- Cartões de Resumo Deslizantes -->
-    <div class="scroll-horizontal mb-3">
+    <div class="scroll-horizontal mb-2">
         
         <!-- Saldo com Alerta Dinâmico -->
         <div class="card-resumo p-4 {% if saldo_restante < 0 %}card-alerta-negativo{% endif %}">
             <p class="text-muted small fw-bold mb-1 text-uppercase tracking-wider">
-                {% if saldo_restante < 0 %}⚠️ Orçamento Estourado{% else %}Saldo Disponível{% endif %}
+                {% if saldo_restante < 0 %}Orçamento Estourado{% else %}Saldo Disponível{% endif %}
             </p>
             <h2 class="fw-bold mb-0 {% if saldo_restante < 0 %}text-danger{% else %}text-success{% endif %}">
                 R$ {{ saldo_restante }}
@@ -133,7 +125,6 @@
                 {% if saldo_restante < 0 %}Você gastou mais que a meta!{% else %}Dentro do limite planejado{% endif %}
             </span>
         </div>
-
         <!-- A Receber da Família com Botão WhatsApp -->
         <div class="card-resumo p-4">
             <p class="text-muted small fw-bold mb-1 text-uppercase tracking-wider">A Receber (Família)</p>
@@ -156,14 +147,12 @@
                 <span class="small text-muted">Nenhum saldo pendente.</span>
             {% endif %}
         </div>
-
         <!-- Meus Gastos -->
         <div class="card-resumo p-4">
             <p class="text-muted small fw-bold mb-1 text-uppercase tracking-wider">Meus Gastos Pessoais</p>
             <h2 class="fw-bold mb-0 text-dark">R$ {{ meus_gastos }}</h2>
             <span class="small text-muted mt-2 d-block">Lançados no seu cartão</span>
         </div>
-
         <!-- Meta -->
         <div class="card-resumo p-4">
             <p class="text-muted small fw-bold mb-1 text-uppercase tracking-wider">Meta do Mês</p>
@@ -179,6 +168,16 @@
         </div>
     </div>
 
+    <!-- NOVOS BOTOES DE CADASTRO -->
+    <div class="d-flex gap-2 mb-4 scroll-horizontal px-1">
+        <button type="button" class="btn btn-white border bg-white rounded-pill px-3 shadow-sm text-secondary fw-medium" style="font-size: 0.85rem;" data-bs-toggle="modal" data-bs-target="#modalPessoa">
+            <i class="bi bi-person-plus text-primary me-1"></i> Nova Pessoa
+        </button>
+        <button type="button" class="btn btn-white border bg-white rounded-pill px-3 shadow-sm text-secondary fw-medium" style="font-size: 0.85rem;" data-bs-toggle="modal" data-bs-target="#modalCartao">
+            <i class="bi bi-credit-card text-primary me-1"></i> Novo Cartão
+        </button>
+    </div>
+
     <!-- Seção do Gráfico -->
     <div class="bg-white rounded-4 p-4 shadow-sm mb-4 border">
         <h6 class="fw-bold text-dark mb-3"><i class="bi bi-pie-chart-fill text-primary me-2"></i> Raio-X dos Seus Gastos</h6>
@@ -186,19 +185,17 @@
             <canvas id="meuGrafico"></canvas>
         </div>
     </div>
-
     <!-- Filtros Rápidos por Pessoa (Pills) -->
     <div class="d-flex align-items-center gap-2 overflow-auto pb-2 mb-3 scroll-horizontal">
         <a href="?mes={{ mes_atual }}&ano={{ ano_atual }}" class="filter-chip {% if not filtra_pessoa_id %}active{% endif %}">
-            🔍 Todos
+             Todos
         </a>
         {% for pessoa in pessoas %}
             <a href="?mes={{ mes_atual }}&ano={{ ano_atual }}&pessoa={{ pessoa.id }}" class="filter-chip {% if filtra_pessoa_id == pessoa.id %}active{% endif %}">
-                👤 {{ pessoa.nome }}
+                 {{ pessoa.nome }}
             </a>
         {% endfor %}
     </div>
-
     <!-- Lista de Movimentações -->
     <div class="mb-5">
         {% for item in transacoes %}
@@ -217,14 +214,14 @@
                         <small class="text-muted">
                             {{ item.data|date:"d/m" }} • <span class="fw-medium text-secondary">{{ item.dono.nome }}</span>
                             {% if item.cartao %}
-                                • <span class="badge bg-light text-dark border" style="font-size: 10px;">{{ item.cartao.nome }}</span>
+                                 <span class="badge bg-light text-dark border" style="font-size: 10px;">{{ item.cartao.nome }}</span>
                             {% endif %}
                         </small>
                     </div>
                 </div>
                 <div class="text-end">
                     <h6 class="fw-bold mb-1 {% if item.tipo == 'PAGAMENTO' %}text-success{% else %}text-dark{% endif %}">
-                        R$ {{ item.valor }}
+                        R$ {{ item.valor|floatformat:2 }}
                     </h6>
                     <a href="{% url 'excluir_transacao' item.id %}?mes={{ mes_atual }}&ano={{ ano_atual }}{% if filtra_pessoa_id %}&pessoa={{ filtra_pessoa_id }}{% endif %}" class="text-danger small text-decoration-none p-1" onclick="return confirm('Deseja realmente excluir este registro?');" title="Excluir">
                         <i class="bi bi-trash3"></i>
@@ -239,13 +236,14 @@
         {% endfor %}
     </div>
 </div>
-
 <!-- Botão Flutuante (FAB) -->
 <button class="fab-button shadow" data-bs-toggle="modal" data-bs-target="#modalLancamento" title="Adicionar Novo">
     <i class="bi bi-plus"></i>
 </button>
 
-<!-- Modal de Novo Lançamento (Com a seleção de Cartão) -->
+<!-- ================= MODAIS ================= -->
+
+<!-- Modal de Novo Lançamento -->
 <div class="modal fade" id="modalLancamento" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0 shadow-lg">
@@ -268,22 +266,40 @@
                         <label for="descInput" class="text-muted">Descrição (Ex: Posto, Mercado)</label>
                     </div>
                     
-                    <div class="form-floating mb-3">
-                        <input type="number" step="0.01" name="valor" class="form-control bg-light border-0 rounded-4" id="valorInput" placeholder="0.00" required>
-                        <label for="valorInput" class="text-muted">Valor (R$)</label>
+                    <!-- CAMPOS LADO A LADO PARA MELHORAR UX -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="form-floating">
+                                <input type="text" name="valor" class="form-control bg-light border-0 rounded-4" id="valorInput" placeholder="0.00" required>
+                                <label for="valorInput" class="text-muted">Valor Total (R$)</label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-floating">
+                                <input type="number" name="parcelas" class="form-control bg-light border-0 rounded-4" id="parcelasInput" value="1" min="1" required>
+                                <label for="parcelasInput" class="text-muted">Repetir (Meses)</label>
+                            </div>
+                        </div>
                     </div>
-
-                    <!-- NOVO CAMPO: Escolha do Cartão -->
+                    
                     <div class="form-floating mb-3">
-                        <select name="cartao_id" class="form-select bg-light border-0 rounded-4" required>
-                            <option value="" disabled selected>Selecione o cartão...</option>
+                        <select name="tipo_repeticao" class="form-select bg-light border-0 rounded-4" required>
+                            <option value="dividir">Parcelado (O valor será dividido pelos meses)</option>
+                            <option value="fixo">Fixo mensalista (O mesmo valor repetido todo mês)</option>
+                        </select>
+                        <label class="text-muted">Modo de Repetição</label>
+                    </div>
+                    
+                    <div class="form-floating mb-3">
+                        <select name="cartao_id" class="form-select bg-light border-0 rounded-4">
+                            <option value="">Dinheiro / PIX (S/ Cartão)</option>
                             {% for cartao in cartoes %}
                                 <option value="{{ cartao.id }}">{{ cartao.nome }}</option>
                             {% endfor %}
                         </select>
                         <label class="text-muted">Cartão Utilizado</label>
                     </div>
-                    
+
                     <div class="row g-2 mb-4">
                         <div class="col-6">
                             <div class="form-floating">
@@ -293,7 +309,7 @@
                                         <option value="{{ pessoa.id }}">{{ pessoa.nome }}</option>
                                     {% endfor %}
                                 </select>
-                                <label class="text-muted">Envolvido</label>
+                                <label class="text-muted">Quem pagou?</label>
                             </div>
                         </div>
                         <div class="col-6">
@@ -306,8 +322,76 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- DIVISÃO DINÂMICA (SPLIT) -->
+                    <div class="form-check form-switch mb-3 ms-1 border-top pt-3">
+                        <input class="form-check-input" type="checkbox" id="switchDivisao" onchange="toggleDivisao()">
+                        <label class="form-check-label text-muted small fw-bold" for="switchDivisao">Dividir valor com outras pessoas?</label>
+                    </div>
+
+                    <div id="areaDivisao" style="display: none;">
+                        <div id="divisoesContainer">
+                            <!-- JS vai injetar as linhas aqui com visual padronizado -->
+                        </div>
+                        <div class="d-flex gap-2 mb-4">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" onclick="adicionarDivisao()">
+                                <i class="bi bi-plus-lg"></i> Adicionar pessoa
+                            </button>
+                            <!-- BOTÃO MÁGICO DO SPLIT IGUALITÁRIO -->
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" onclick="dividirIgualmente()">
+                                <i class="bi bi-calculator"></i> Dividir Igualmente
+                            </button>
+                        </div>
+                    </div>
                     
                     <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm">Salvar Lançamento</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nova Pessoa -->
+<div class="modal fade" id="modalPessoa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold">Nova Pessoa</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-primary bg-primary bg-opacity-10 border-0 text-primary small rounded-3 mb-4">A primeira pessoa cadastrada será o Titular.</div>
+                <form method="POST" action="?mes={{ mes_atual }}&ano={{ ano_atual }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="nova_pessoa">
+                    <div class="form-floating mb-4">
+                        <input type="text" name="nome" class="form-control bg-light border-0 rounded-4" id="pessoaInput" placeholder="Nome" required>
+                        <label for="pessoaInput" class="text-muted">Nome (Ex: Eduardo)</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm">Salvar Pessoa</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Cartão -->
+<div class="modal fade" id="modalCartao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold">Novo Cartão</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form method="POST" action="?mes={{ mes_atual }}&ano={{ ano_atual }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="novo_cartao">
+                    <div class="form-floating mb-4">
+                        <input type="text" name="nome" class="form-control bg-light border-0 rounded-4" id="cartaoInput" placeholder="Nome do Cartão" required>
+                        <label for="cartaoInput" class="text-muted">Nome (Ex: Nubank)</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm">Salvar Cartão</button>
                 </form>
             </div>
         </div>
@@ -341,8 +425,80 @@
             }
         }
     });
-</script>
 
+    // ==========================================
+    // SCRIPTS DO SPLIT DINÂMICO E CÁLCULO
+    // ==========================================
+    function adicionarDivisao() {
+        const container = document.getElementById('divisoesContainer');
+        const rowId = 'row_' + Math.random().toString(36).substr(2, 9);
+        const html = `
+            <div id="${rowId}" class="row g-2 mb-3 align-items-center">
+                <div class="col-5">
+                    <div class="form-floating">
+                        <select name="dono_id_extra" class="form-select bg-light border-0 rounded-4" required>
+                            <option value="" disabled selected>Selecione...</option>
+                            {% for pessoa in pessoas %}
+                                <option value="{{ pessoa.id }}">{{ pessoa.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <label class="text-muted">Amigo</label>
+                    </div>
+                </div>
+                <div class="col-5">
+                    <div class="form-floating">
+                        <input type="text" name="valor_extra" class="form-control bg-light border-0 rounded-4" placeholder="0.00" required>
+                        <label class="text-muted">Valor (R$)</label>
+                    </div>
+                </div>
+                <div class="col-2 text-center">
+                    <button type="button" class="btn btn-light text-danger rounded-circle shadow-sm p-2 border-0" onclick="document.getElementById('${rowId}').remove()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    }
+
+    function toggleDivisao() {
+        const area = document.getElementById('areaDivisao');
+        const container = document.getElementById('divisoesContainer');
+        
+        if (document.getElementById('switchDivisao').checked) {
+            area.style.display = 'block';
+            if(container.children.length === 0){
+                adicionarDivisao();
+            }
+        } else {
+            area.style.display = 'none';
+            container.innerHTML = ''; 
+        }
+    }
+
+    // A MÁGICA: Pega o valor total e divide pelas pessoas que estão no split (+1 do Titular)
+    function dividirIgualmente() {
+        const valorTotalStr = document.getElementById('valorInput').value.replace(',', '.');
+        const valorTotal = parseFloat(valorTotalStr);
+        
+        if (isNaN(valorTotal) || valorTotal <= 0) {
+            alert('Por favor, preencha o Valor Total primeiro!');
+            return;
+        }
+
+        const inputsValorExtra = document.querySelectorAll('input[name="valor_extra"]');
+        const qtdPessoasExtras = inputsValorExtra.length;
+        
+        if (qtdPessoasExtras > 0) {
+            const qtdTotalPessoas = qtdPessoasExtras + 1; // Soma o titular que pagou
+            const valorPorPessoa = (valorTotal / qtdTotalPessoas).toFixed(2);
+            
+            inputsValorExtra.forEach(input => {
+                input.value = valorPorPessoa; // Preenche as caixinhas dos amigos
+            });
+        }
+    }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
