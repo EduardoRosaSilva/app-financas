@@ -37,6 +37,7 @@ class Transacao(models.Model):
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='DESPESA')
     dono = models.ForeignKey(Pessoa, on_delete=models.CASCADE)
     conta = models.CharField(max_length=255)
+    recorrente = models.BooleanField(default=False)  # NOVO: Para despesas fixas mensais
     
     # --- NOVA COLUNA: Ligação com o Cartão ---
     cartao = models.ForeignKey(Cartao, on_delete=models.SET_NULL, null=True, blank=True)

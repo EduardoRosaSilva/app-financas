@@ -11,7 +11,6 @@
         body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; }
         .card { transition: all 0.2s ease-in-out; }
         .card:hover { transform: translateY(-2px); }
-        /* Estilo para esconder a barra de rolagem no celular (App nativo) */
         .scroll-mobile::-webkit-scrollbar { display: none; }
         .scroll-mobile { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -30,7 +29,6 @@
                     <span class="fw-bold small mx-3 text-dark">{{ mes_atual }}/{{ ano_atual }}</span>
                     <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}{% if filtra_pessoa_id %}&pessoa={{ filtra_pessoa_id }}{% endif %}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-right"></i></a>
                 </div>
-                <!-- Botão de Sair -->
                 <a href="{% url 'logout' %}" class="btn btn-light text-danger rounded-pill px-3 fw-bold border shadow-sm" style="font-size: 0.85rem;">
                     <i class="bi bi-box-arrow-right"></i> Sair
                 </a>
@@ -41,7 +39,7 @@
     <!-- Container Principal -->
     <div class="container pb-5 mb-5">
 
-        <!-- Grid Responsivo (Com Carrossel Horizontal no Celular) -->
+        <!-- Grid Responsivo (Carrossel Mobile) -->
         <div class="row flex-nowrap flex-xl-wrap overflow-x-auto pb-3 mb-4 g-3 scroll-mobile">
             
             <!-- Card 1: Saldo Disponível -->
@@ -127,7 +125,7 @@
             </button>
         </div>
 
-        <!-- Raio-X dos Gastos (Gráfico) -->
+        <!-- Raio-X dos Gastos -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4">
                 <h6 class="fw-bold text-dark mb-3"><i class="bi bi-pie-chart text-primary"></i> Raio-X dos Seus Gastos</h6>
@@ -137,19 +135,17 @@
             </div>
         </div>
 
-        <!-- Histórico de Lançamentos (Versão Limpa e Moderna tipo Banco) -->
+        <!-- Histórico de Lançamentos (Layout Otimizado para Celular) -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4">
                 <h6 class="fw-bold text-dark mb-3"><i class="bi bi-list-ul text-primary"></i> Lançamentos do Mês</h6>
                 
                 <div class="list-group list-group-flush">
                     {% for t in transacoes %}
-                    <!-- Item da Lista -->
                     <div class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-center border-bottom">
                         
-                        <!-- Lado Esquerdo: Ícone + Textos Compactos -->
-                        <div class="d-flex align-items-center gap-3">
-                            <!-- Ícone Visual (Vermelho ou Verde) -->
+                        <!-- Lado Esquerdo (Com truncagem segura para mobile) -->
+                        <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1;">
                             <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
                                  style="width: 42px; height: 42px; background-color: {% if t.tipo == 'DESPESA' %}#ffebee{% else %}#e8f5e9{% endif %};">
                                 {% if t.tipo == 'DESPESA' %}
@@ -159,41 +155,33 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- Descrição e Metadados em uma linha limpa -->
-                            <div>
-                                <h6 class="mb-1 fw-bold text-dark">{{ t.descricao }}</h6>
-                                <div class="d-flex align-items-center gap-2 text-muted" style="font-size: 0.75rem;">
-                                    <span>{{ t.data|date:"d/m" }}</span>
+                            <div style="min-width: 0; flex: 1;">
+                                <h6 class="mb-1 fw-bold text-dark text-truncate">{{ t.descricao }}</h6>
+                                <div class="d-flex align-items-center flex-wrap gap-1 text-muted" style="font-size: 0.7rem;">
+                                    <span>{{ t.data_exibicao|date:"d/m" }}</span>
                                     <span>•</span>
-                                    <span><i class="bi bi-person"></i> {{ t.dono.nome }}</span>
+                                    <span>{{ t.dono.nome }}</span>
                                     <span>•</span>
                                     <span>
-                                        {% if t.cartao %}
-                                            <i class="bi bi-credit-card"></i> {{ t.cartao.nome }}
-                                        {% else %}
-                                            <i class="bi bi-cash"></i> Pix/Dinheiro
-                                        {% endif %}
+                                        {% if t.cartao %}{{ t.cartao.nome }}{% else %}Pix/Dinheiro{% endif %}
                                     </span>
+                                    {% if t.recorrente %}
+                                    <span>•</span>
+                                    <span class="text-primary fw-bold">Fixa</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Lado Direito: Valor + Ações Compactas -->
-                        <div class="text-end">
-                            <h6 class="mb-1 fw-bold {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %}" style="font-size: 0.95rem;">
+                        <!-- Lado Direito (Fixo e sem quebrar linha) -->
+                        <div class="text-end flex-shrink-0">
+                            <h6 class="mb-1 fw-bold text-nowrap {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %}" style="font-size: 0.9rem;">
                                 {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
                             </h6>
-                            <!-- Ações horizontais discretas -->
-                            <div class="d-flex gap-2 justify-content-end align-items-center" style="font-size: 0.7rem;">
-                                <a href="#" class="text-secondary text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}">
-                                    <i class="bi bi-pencil-square"></i> Editar
-                                </a>
+                            <div class="d-flex gap-1 justify-content-end align-items-center" style="font-size: 0.65rem;">
+                                <a href="#" class="text-secondary text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}">Editar</a>
                                 <span class="text-muted">|</span>
-                                <a href="{% url 'excluir_transacao' t.id %}?mes={{ mes_atual }}&ano={{ ano_atual }}" 
-                                   class="text-danger text-decoration-none" 
-                                   onclick="return confirm('Excluir este lançamento?')">
-                                    <i class="bi bi-trash3"></i> Excluir
-                                </a>
+                                <a href="{% url 'excluir_transacao' t.id %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="text-danger text-decoration-none" onclick="return confirm('Excluir este lançamento?')">Excluir</a>
                             </div>
                         </div>
                         
@@ -209,15 +197,12 @@
 
     </div>
 
-    <!-- Botão Flutuante (Nova Transação) -->
+    <!-- Botão Flutuante -->
     <button class="btn btn-primary shadow-lg rounded-circle position-fixed bottom-0 end-0 m-4 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; z-index: 1000;" data-bs-toggle="modal" data-bs-target="#modalTransacao">
         <i class="bi bi-plus-lg fs-4"></i>
     </button>
 
-    <!-- ======================= -->
-    <!-- MODAIS DO SISTEMA -->
-    <!-- ======================= -->
-
+    <!-- MODAIS -->
     <!-- Modal Nova Pessoa -->
     <div class="modal fade" id="modalPessoa" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -230,22 +215,17 @@
                     <form method="POST">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="nova_pessoa">
-                        
                         <div class="alert alert-primary bg-primary bg-opacity-10 border-0 text-primary small rounded-3 mb-4">
                             A primeira pessoa cadastrada será o Titular.
                         </div>
-
                         <div class="mb-3">
                             <label for="nome" class="form-label text-secondary fw-bold small">Nome</label>
                             <input type="text" class="form-control bg-light border-0 rounded-4" id="nome" name="nome" required>
                         </div>
-                        
                         <div class="mb-4">
                             <label for="telefone" class="form-label text-secondary fw-bold small">WhatsApp (com DDD)</label>
                             <input type="text" class="form-control bg-light border-0 rounded-4" id="telefone" name="telefone" placeholder="Ex: 34999999999">
-                            <div class="form-text small">Deixe em branco se preferir selecionar o contato na hora de enviar.</div>
                         </div>
-
                         <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Pessoa</button>
                     </form>
                 </div>
@@ -276,7 +256,7 @@
         </div>
     </div>
 
-    <!-- Modal Nova Transação -->
+    <!-- Modal Nova Transação (Com Parcelas e Despesa Fixa) -->
     <div class="modal fade" id="modalTransacao" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow rounded-4">
@@ -292,15 +272,15 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label text-secondary fw-bold small">Descrição</label>
-                                <input type="text" class="form-control bg-light border-0 rounded-4" name="descricao" placeholder="Ex: Mercado, Uber..." required>
+                                <input type="text" class="form-control bg-light border-0 rounded-4" name="descricao" placeholder="Ex: Mercado, Aluguel..." required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label text-secondary fw-bold small">Valor (R$)</label>
+                                <label class="form-label text-secondary fw-bold small">Valor Total (R$)</label>
                                 <input type="text" class="form-control bg-light border-0 rounded-4" id="valorTotalTransacao" name="valor" placeholder="0,00" required>
                             </div>
                             
                             <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Data</label>
+                                <label class="form-label text-secondary fw-bold small">Data / Vencimento</label>
                                 <input type="date" class="form-control bg-light border-0 rounded-4" name="data" required>
                             </div>
                             <div class="col-md-3">
@@ -311,7 +291,7 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Dono</label>
+                                <label class="form-label text-secondary fw-bold small">Quem Pagou</label>
                                 <select class="form-select bg-light border-0 rounded-4" name="dono_id" required>
                                     {% for p in pessoas %}
                                     <option value="{{ p.id }}">{{ p.nome }}</option>
@@ -327,11 +307,24 @@
                                     {% endfor %}
                                 </select>
                             </div>
+
+                            <!-- Parcela e Despesa Fixa -->
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary fw-bold small">Parcelas (Se for financiado)</label>
+                                <input type="number" class="form-control bg-light border-0 rounded-4" name="parcelas" value="1" min="1" max="120">
+                            </div>
+                            <div class="col-md-6 d-flex align-items-center pt-4">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrente" style="width: 2.5em; height: 1.25em; cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrente" style="cursor: pointer;">
+                                        🔄 Despesa Fixa (Repetir todo mês)
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Seção de Divisão com Amigos (Estilo Switch / Flexível) -->
+                        <!-- Divisão com Amigos -->
                         <hr class="my-4 text-muted">
-                        
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" id="toggleDivisao" style="width: 3em; height: 1.5em; cursor: pointer;">
                             <label class="form-check-label fw-bold small text-dark ms-2 pt-1" for="toggleDivisao" style="cursor: pointer;">
@@ -356,20 +349,13 @@
                                         <input type="text" class="form-control bg-white border-0 rounded-4 input-valor-extra" name="valor_extra" placeholder="0,00">
                                     </div>
                                     <div class="col-1 text-center pt-4">
-                                        <button type="button" class="btn btn-sm text-danger border-0 p-1 btn-remover-linha" title="Remover">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
+                                        <button type="button" class="btn btn-sm text-danger border-0 p-1 btn-remover-linha" title="Remover"><i class="bi bi-x-lg"></i></button>
                                     </div>
                                 </div>
                             </div>
-
                             <div class="d-flex gap-2 mt-3">
-                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold small bg-white" id="btnAddPessoaExtra">
-                                    <i class="bi bi-plus"></i> Adicionar pessoa
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold small bg-white" id="btnDividirIgualmente">
-                                    <i class="bi bi-calculator"></i> Dividir Igualmente
-                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold small bg-white" id="btnAddPessoaExtra"><i class="bi bi-plus"></i> Adicionar pessoa</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold small bg-white" id="btnDividirIgualmente"><i class="bi bi-calculator"></i> Dividir Igualmente</button>
                             </div>
                         </div>
 
@@ -384,7 +370,7 @@
         </div>
     </div>
 
-    <!-- Modais de Edição de Transações -->
+    <!-- Modais de Edição -->
     {% for t in transacoes %}
     <div class="modal fade" id="modalEditar{{ t.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -437,6 +423,15 @@
                                     {% endfor %}
                                 </select>
                             </div>
+                            
+                            <div class="col-md-12 d-flex align-items-center pt-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrenteEdit{{ t.id }}" {% if t.recorrente %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrenteEdit{{ t.id }}" style="cursor: pointer;">
+                                        🔄 Despesa Fixa (Repetir todo mês)
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mt-4 pt-2">
@@ -451,18 +446,16 @@
     </div>
     {% endfor %}
 
-    <!-- Scripts do Sistema -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Preencher data de hoje automaticamente
             var dataInput = document.querySelector('#modalTransacao input[type="date"]');
             if (dataInput && !dataInput.value) {
                 var hoje = new Date().toISOString().split('T')[0];
                 dataInput.value = hoje;
             }
 
-            // Lógica da chavinha e divisão flexível
             const toggleDivisao = document.getElementById('toggleDivisao');
             const secaoDivisaoAmigos = document.getElementById('secaoDivisaoAmigos');
             const listaCamposDivisao = document.getElementById('listaCamposDivisao');
@@ -472,11 +465,7 @@
 
             if (toggleDivisao) {
                 toggleDivisao.addEventListener('change', function() {
-                    if (this.checked) {
-                        secaoDivisaoAmigos.style.display = 'block';
-                    } else {
-                        secaoDivisaoAmigos.style.display = 'none';
-                    }
+                    secaoDivisaoAmigos.style.display = this.checked ? 'block' : 'none';
                 });
             }
 
@@ -506,7 +495,7 @@
                 btnDividirIgualmente.addEventListener('click', function() {
                     const valorTotal = parseFloat(valorTotalInput.value.replace(',', '.')) || 0;
                     const linhas = listaCamposDivisao.querySelectorAll('.linha-divisao');
-                    const qtdPessoas = linhas.length + 1; // Titular + Amigos listados
+                    const qtdPessoas = linhas.length + 1;
 
                     if (valorTotal > 0 && qtdPessoas > 1) {
                         const valorPorPessoa = (valorTotal / qtdPessoas).toFixed(2).replace('.', ',');
