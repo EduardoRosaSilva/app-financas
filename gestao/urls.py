@@ -2,9 +2,11 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Quando o usuário acessar a pagina inicial vazia (''), chame a view 'dashboard'
     path('', views.dashboard, name='dashboard'),
-
-    # O '<int:id>' avisa o Django que vamos receber um numero inteiro na URL
     path('excluir/<int:id>/', views.excluir_transacao, name='excluir_transacao'),
+    
+    # Rotas de Segurança
+    path('login/', views.login_view, name='login'),
+    path('registro/', views.registro_view, name='registro'),
+    path('logout/', views.logout_view, name='logout'),
 ]

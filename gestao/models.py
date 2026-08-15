@@ -10,8 +10,9 @@ class Conta(models.Model):
 
 class Pessoa(models.Model):
     nome = models.CharField(max_length=100)
-    is_titular = models.BooleanField(default=False)  # True se for você, False se for familiar
-    conta = models.ForeignKey(Conta, on_delete=models.CASCADE, null=True, blank=True)
+    telefone = models.CharField(max_length=20, blank=True, null=True) # NOVO CAMPO AQUI!
+    is_titular = models.BooleanField(default=False)
+    conta = models.CharField(max_length=255) # O nome de usuário dono deste registro
 
     def __str__(self):
         return self.nome
@@ -19,7 +20,7 @@ class Pessoa(models.Model):
 # --- NOVO MODELO: Cartões ---
 class Cartao(models.Model):
     nome = models.CharField(max_length=50) # Ex: Nubank, Inter, Mastercard Black
-    conta = models.ForeignKey(Conta, on_delete=models.CASCADE, null=True, blank=True)
+    conta = models.CharField(max_length=255)
 
     def __str__(self):
         return self.nome
@@ -35,7 +36,7 @@ class Transacao(models.Model):
     data = models.DateField()
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='DESPESA')
     dono = models.ForeignKey(Pessoa, on_delete=models.CASCADE)
-    conta = models.ForeignKey(Conta, on_delete=models.CASCADE, null=True, blank=True)
+    conta = models.CharField(max_length=255)
     
     # --- NOVA COLUNA: Ligação com o Cartão ---
     cartao = models.ForeignKey(Cartao, on_delete=models.SET_NULL, null=True, blank=True)
@@ -45,7 +46,7 @@ class Transacao(models.Model):
 
 class MetaMensal(models.Model):
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    conta = models.ForeignKey(Conta, on_delete=models.CASCADE, null=True, blank=True)
+    conta = models.CharField(max_length=255)
 
     def __str__(self):
         return f"Meta: R$ {self.valor}"

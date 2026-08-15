@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinPro - Entrar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; }</style>
+</head>
+<body class="d-flex align-items-center justify-content-center vh-100">
+    <div class="card border-0 shadow-lg rounded-4 p-4" style="width: 100%; max-width: 400px; margin: 20px;">
+        <div class="text-center mb-4">
+            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-wallet2"></i> FinPro</h3>
+            <p class="text-muted small">Acesse sua gestão financeira</p>
+        </div>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger rounded-3 small py-2">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            {{ form }}
+            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 mt-3 fw-bold shadow-sm">Entrar no Sistema</button>
+        </form>
+        <div class="text-center mt-4">
+            <a href="{% url 'registro' %}" class="text-decoration-none small text-secondary">Ainda não tem conta? <span class="text-primary fw-bold">Criar agora</span></a>
+        </div>
+    </div>
+    
+    <!-- Script Mágico para deixar o formulário do Django com cara de Bootstrap -->
+    <script>
+        document.querySelectorAll('input').forEach(e => {
+            if(e.type !== 'submit' && e.type !== 'checkbox') {
+                e.classList.add('form-control', 'bg-light', 'border-0', 'rounded-4', 'mb-3', 'py-2');
+            }
+        });
+        document.querySelectorAll('label').forEach(e => e.classList.add('small', 'text-muted', 'fw-bold', 'mb-1', 'ms-1'));
+    </script>
+</body>
+</html>
