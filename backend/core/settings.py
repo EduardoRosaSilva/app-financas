@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure--$b#_vj#9&alf#khqrg3x(93u7wdhqw-w&k=neo=gn=guwu8p6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['finpro-app.onrender.com', 'localhost', '127.0.0.1', '*']
 
 
 # Application definition
