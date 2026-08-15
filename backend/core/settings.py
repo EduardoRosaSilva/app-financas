@@ -27,7 +27,12 @@ SECRET_KEY = 'django-insecure--$b#_vj#9&alf#khqrg3x(93u7wdhqw-w&k=neo=gn=guwu8p6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*'] # Asterisco de segurança local
+
+# Captura automaticamente a URL que o Render criar para você
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 
 # Application definition
