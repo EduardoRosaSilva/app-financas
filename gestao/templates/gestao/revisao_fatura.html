@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revisão de Fatura - FinPro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; }</style>
+</head>
+<body>
+
+    <div class="bg-white sticky-top shadow-sm py-3 mb-4 rounded-bottom-5">
+        <div class="container d-flex justify-content-between align-items-center px-4">
+            <h4 class="fw-bold text-primary mb-0"><i class="bi bi-wallet2"></i> FinPro</h4>
+            <a href="{% url 'dashboard' %}" class="btn btn-light text-secondary rounded-pill px-3 fw-bold border shadow-sm" style="font-size: 0.85rem;">Cancelar Importação</a>
+        </div>
+    </div>
+
+    <div class="container pb-5 mb-5">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-dark mb-1"><i class="bi bi-check2-square text-primary"></i> Conciliação de Fatura</h5>
+                <p class="text-muted small mb-4">Ajuste as categorias, selecione quem pagará cada despesa e desmarque os itens que você não quer importar.</p>
+                
+                <form method="POST" action="{% url 'dashboard' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="salvar_fatura_lote">
+                    
+                    <div class="row mb-4 bg-light p-3 rounded-4 border mx-0">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary fw-bold small">Esses gastos caíram em qual cartão?</label>
+                            <select class="form-select bg-white border-0 rounded-3" name="cartao_lote" required>
+                                {% for c in cartoes %}
+                                <option value="{{ c.id }}">{{ c.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-borderless align-middle">
+                            <thead class="border-bottom">
+                                <tr class="text-secondary small fw-bold">
+                                    <th style="width: 50px;">Imp?</th>
+                                    <th style="width: 140px;">Data</th>
+                                    <th>Estabelecimento</th>
+                                    <th style="width: 160px;">Categoria</th>
+                                    <th style="width: 130px;">Valor (R$)</th>
+                                    <th style="width: 160px;">Dono do Gasto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in transacoes_fatura %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" name="importar_chk" value="{{ t.id_temp }}" checked class="form-check-input" style="width: 1.5em; height: 1.5em; cursor: pointer;">
+                                    </td>
+                                    <td>
+                                        <input type="date" name="data_{{ t.id_temp }}" value="{{ t.data }}" class="form-control bg-light border-0 rounded-3">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="desc_{{ t.id_temp }}" value="{{ t.descricao }}" class="form-control bg-light border-0 rounded-3">
+                                    </td>
+                                    <td>
+                                        <select name="cat_{{ t.id_temp }}" class="form-select bg-light border-0 rounded-3">
+                                            <option value="Alimentação" {% if t.categoria == 'Alimentação' %}selected{% endif %}>Alimentação</option>
+                                            <option value="Mercado" {% if t.categoria == 'Mercado' %}selected{% endif %}>Mercado</option>
+                                            <option value="Transporte" {% if t.categoria == 'Transporte' %}selected{% endif %}>Transporte</option>
+                                            <option value="Moradia" {% if t.categoria == 'Moradia' %}selected{% endif %}>Moradia</option>
+                                            <option value="Saúde" {% if t.categoria == 'Saúde' %}selected{% endif %}>Saúde</option>
+                                            <option value="Lazer" {% if t.categoria == 'Lazer' %}selected{% endif %}>Lazer</option>
+                                            <option value="Compras" {% if t.categoria == 'Compras' %}selected{% endif %}>Compras</option>
+                                            <option value="Assinaturas" {% if t.categoria == 'Assinaturas' %}selected{% endif %}>Assinaturas</option>
+                                            <option value="Outros" {% if t.categoria == 'Outros' %}selected{% endif %}>Outros</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="valor_{{ t.id_temp }}" value="{{ t.valor|floatformat:2 }}" class="form-control bg-light border-0 rounded-3 text-danger fw-bold">
+                                    </td>
+                                    <td>
+                                        <select name="dono_{{ t.id_temp }}" class="form-select bg-light border-0 rounded-3">
+                                            {% for p in pessoas %}
+                                            <option value="{{ p.id }}" {% if p.is_titular %}selected{% endif %}>{{ p.nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4 text-end">
+                        <button type="submit" class="btn btn-primary rounded-pill px-5 py-3 fw-bold shadow-sm">
+                            <i class="bi bi-cloud-arrow-up"></i> Confirmar e Salvar no Banco
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

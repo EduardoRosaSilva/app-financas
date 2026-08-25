@@ -1,16 +1,23 @@
 import os
 from pathlib import Path
 import dj_database_url
+from dotenv import load_dotenv
+
+# Carrega os segredos do arquivo .env
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Chave de segurança padrão (o Render vai aceitar tranquilamente)
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-chave-finpro-segura-123')
+# ==========================================
+# 1. API KEYS E SECRETS
+# ==========================================
+SECRET_KEY = os.environ.get('SECRET_KEY', 'chave-insegura-apenas-para-dev')
 
-DEBUG = True
-
-# AQUI ESTÁ A MÁGICA: O asterisco libera o acesso para qualquer URL do Render
-ALLOWED_HOSTS = ['*']
+# ==========================================
+# 2. DEBUG E HOSTS
+# ==========================================
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -19,18 +26,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'gestao', # O seu aplicativo principal
+    'gestao', 
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # Motor de CSS/JS em nuvem
+    'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'gestao.middleware.ContaInvisivelMiddleware', # Seu middleware protegido
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -53,11 +61,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Configuração automática: SQLite no PC, PostgreSQL na nuvem
+# ==========================================
+# 3. PUBLIC KEY DB E PARAMETRIZAÇÃO
+# ==========================================
 DATABASES = {
     'default': dj_database_url.config(
-        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
-        conn_max_age=600
+        default=os.environ.get('DATABASE_URL', f'sqlite:///{BASE_DIR / "db.sqlite3"}'),
+        conn_max_age=600, 
+        conn_health_checks=True
     )
 }
 
@@ -73,14 +84,35 @@ TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 
-# Arquivos Estáticos (CSS/JS)
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Configurações de Autenticação (Login/Logout)
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+# ==========================================
+# 4. RESTRIÇÃO DE UPLOADS (Proteção DoS)
+# ==========================================
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880
+
+# ==========================================
+# 5. ARSENAL DE PRODUÇÃO: HTTPS, HEADERS E COOKIES
+# ==========================================
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'

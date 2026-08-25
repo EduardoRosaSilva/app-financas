@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FinPro - Dashboard</title>
+    <!-- Adicionando suporte a PWA (Web App) -->
+    <meta name="theme-color" content="#0d6efd">
+    <link rel="manifest" href="/static/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -13,6 +16,9 @@
         .card:hover { transform: translateY(-2px); }
         .scroll-mobile::-webkit-scrollbar { display: none; }
         .scroll-mobile { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Efeito visual para a linha clicável do histórico */
+        .linha-clicavel { transition: background-color 0.2s; }
+        .linha-clicavel:hover { background-color: #f1f5f9 !important; }
     </style>
 </head>
 <body>
@@ -25,9 +31,9 @@
             </h4>
             <div class="d-flex align-items-center gap-2">
                 <div class="d-flex align-items-center bg-light rounded-pill px-3 py-1 border d-none d-md-flex">
-                    <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}{% if filtra_pessoa_id %}&pessoa={{ filtra_pessoa_id }}{% endif %}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-left"></i></a>
+                    <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-left"></i></a>
                     <span class="fw-bold small mx-3 text-dark">{{ mes_atual }}/{{ ano_atual }}</span>
-                    <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}{% if filtra_pessoa_id %}&pessoa={{ filtra_pessoa_id }}{% endif %}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-right"></i></a>
+                    <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-right"></i></a>
                 </div>
                 <a href="{% url 'logout' %}" class="btn btn-light text-danger rounded-pill px-3 fw-bold border shadow-sm" style="font-size: 0.85rem;">
                     <i class="bi bi-box-arrow-right"></i> Sair
@@ -39,10 +45,9 @@
     <!-- Container Principal -->
     <div class="container pb-5 mb-5">
 
-        <!-- Grid Responsivo (Carrossel Mobile) -->
+        <!-- Grid Responsivo -->
         <div class="row flex-nowrap flex-xl-wrap overflow-x-auto pb-3 mb-4 g-3 scroll-mobile">
             
-            <!-- Card 1: Saldo Disponível -->
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
@@ -57,47 +62,40 @@
                 </div>
             </div>
 
-            <!-- Card 2: Acertos Pendentes (WhatsApp) -->
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
                         <h6 class="fw-bold text-dark mb-3"><i class="bi bi-cash-coin text-primary"></i> Acertos Pendentes</h6>
                         {% if dividas_detalhadas %}
                             {% for divida in dividas_detalhadas %}
-                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
                                 <div>
-                                    <span class="fw-bold text-dark">{{ divida.nome }}</span>
-                                    <br>
-                                    <span class="small {% if divida.saldo > 0 %}text-danger{% else %}text-success{% endif %} fw-bold">
-                                        R$ {{ divida.saldo|floatformat:2 }}
-                                    </span>
+                                    <span class="fw-bold text-dark">{{ divida.nome }}</span><br>
+                                    <span class="small {% if divida.saldo > 0 %}text-danger{% else %}text-success{% endif %} fw-bold">R$ {{ divida.saldo|floatformat:2 }}</span>
                                 </div>
-                                <a href="{{ divida.whatsapp_link }}" target="_blank" class="btn btn-sm rounded-pill fw-bold shadow-sm px-3 d-flex align-items-center gap-2" style="background-color: #25D366; color: white; border: none; transition: 0.2s;">
-                                    <i class="bi bi-whatsapp" style="font-size: 1.1rem;"></i> Enviar
-                                </a>
+                                <div class="d-flex flex-column gap-2">
+                                    <a href="{{ divida.whatsapp_link }}" target="_blank" class="btn btn-sm rounded-pill fw-bold shadow-sm px-3 d-flex align-items-center justify-content-center gap-1" style="background-color: #25D366; color: white; border: none; font-size: 0.75rem;"><i class="bi bi-whatsapp"></i> Cobrar</a>
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill fw-bold shadow-sm px-3 d-flex align-items-center justify-content-center gap-1" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalReceber{{ divida.id }}"><i class="bi bi-check2-circle"></i> Receber</button>
+                                </div>
                             </div>
                             {% endfor %}
                         {% else %}
-                            <div class="text-center py-3">
-                                <p class="text-muted small mb-0">Nenhum acerto pendente neste mês. Tudo zerado! 🎉</p>
-                            </div>
+                            <div class="text-center py-3"><p class="text-muted small mb-0">Tudo zerado! 🎉</p></div>
                         {% endif %}
                     </div>
                 </div>
             </div>
 
-            <!-- Card 3: Meus Gastos Pessoais -->
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
                         <h6 class="text-secondary fw-bold small mb-2">MEUS GASTOS PESSOAIS</h6>
                         <h2 class="fw-bold text-dark mb-1">R$ {{ meus_gastos|floatformat:2 }}</h2>
-                        <p class="text-muted small mb-0">Lançados no seu cartão</p>
+                        <p class="text-muted small mb-0">Sua parte nas despesas do mês</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Card 4: Meta do Mês -->
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
@@ -115,81 +113,55 @@
 
         </div>
 
-        <!-- Botões de Ação Rapida -->
-        <div class="d-flex gap-2 mb-4">
-            <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 small fw-bold text-secondary" data-bs-toggle="modal" data-bs-target="#modalPessoa">
-                <i class="bi bi-person-plus"></i> Nova Pessoa
-            </button>
-            <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 small fw-bold text-secondary" data-bs-toggle="modal" data-bs-target="#modalCartao">
-                <i class="bi bi-credit-card"></i> Novo Cartão
-            </button>
+        <!-- Botões de Ação Rapida e Gamificação -->
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 small fw-bold text-secondary" data-bs-toggle="modal" data-bs-target="#modalPessoa"><i class="bi bi-person-plus"></i> Pessoa</button>
+            <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 small fw-bold text-secondary" data-bs-toggle="modal" data-bs-target="#modalCartao"><i class="bi bi-credit-card"></i> Cartão</button>
+            <button class="btn btn-primary shadow-sm rounded-pill px-3 small fw-bold" data-bs-toggle="modal" data-bs-target="#modalFatura"><i class="bi bi-cloud-upload"></i> Importar Nubank</button>
+            <button class="btn btn-dark shadow-sm rounded-pill px-3 small fw-bold ms-auto" data-bs-toggle="modal" data-bs-target="#modalResumoMes"><i class="bi bi-trophy"></i> Fechamento do Mês</button>
         </div>
 
-        <!-- Raio-X dos Gastos -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4">
                 <h6 class="fw-bold text-dark mb-3"><i class="bi bi-pie-chart text-primary"></i> Raio-X dos Seus Gastos</h6>
-                <div style="min-height: 200px;" class="d-flex align-items-center justify-content-center bg-light rounded-4 border border-dashed">
-                    <p class="text-muted small mb-0">Em breve: O gráfico por categorias será exibido aqui!</p>
-                </div>
+                <div style="position: relative; height: 280px; width: 100%;"><canvas id="graficoGastos"></canvas></div>
             </div>
         </div>
 
-        <!-- Histórico de Lançamentos (Layout Otimizado para Celular) -->
+        <!-- Lançamentos -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4">
-                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-list-ul text-primary"></i> Lançamentos do Mês</h6>
-                
+                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-list-ul text-primary"></i> Lançamentos da Fatura ({{ mes_atual }}/{{ ano_atual }})</h6>
                 <div class="list-group list-group-flush">
                     {% for t in transacoes %}
-                    <div class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-center border-bottom">
-                        
-                        <!-- Lado Esquerdo (Com truncagem segura para mobile) -->
-                        <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1;">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
-                                 style="width: 42px; height: 42px; background-color: {% if t.tipo == 'DESPESA' %}#ffebee{% else %}#e8f5e9{% endif %};">
-                                {% if t.tipo == 'DESPESA' %}
-                                    <i class="bi bi-arrow-down-short text-danger fs-4"></i>
-                                {% else %}
-                                    <i class="bi bi-arrow-up-short text-success fs-4"></i>
-                                {% endif %}
+                    <div class="list-group-item bg-transparent px-2 py-3 d-flex justify-content-between align-items-center border-bottom linha-clicavel rounded-3">
+                        <!-- Lado Clicável -->
+                        <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" title="Clique para ver detalhes">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; background-color: {% if t.tipo == 'DESPESA' %}#ffebee{% else %}#e8f5e9{% endif %};">
+                                {% if t.tipo == 'DESPESA' %}<i class="bi bi-arrow-down-short text-danger fs-4"></i>{% else %}<i class="bi bi-arrow-up-short text-success fs-4"></i>{% endif %}
                             </div>
-                            
                             <div style="min-width: 0; flex: 1;">
                                 <h6 class="mb-1 fw-bold text-dark text-truncate">{{ t.descricao }}</h6>
                                 <div class="d-flex align-items-center flex-wrap gap-1 text-muted" style="font-size: 0.7rem;">
-                                    <span>{{ t.data_exibicao|date:"d/m" }}</span>
-                                    <span>•</span>
-                                    <span>{{ t.dono.nome }}</span>
-                                    <span>•</span>
-                                    <span>
-                                        {% if t.cartao %}{{ t.cartao.nome }}{% else %}Pix/Dinheiro{% endif %}
-                                    </span>
-                                    {% if t.recorrente %}
-                                    <span>•</span>
-                                    <span class="text-primary fw-bold">Fixa</span>
-                                    {% endif %}
+                                    <span class="fw-bold text-dark"><i class="bi bi-calendar-event"></i> {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}</span>
+                                    <span> • <i class="bi bi-tag-fill text-primary"></i> {{ t.categoria|default:"Outros" }}</span>
+                                    <span> • {{ t.dono.nome }}</span>
+                                    <span> • {% if t.cartao %}{{ t.cartao.nome }}{% else %}Pix/Dinheiro{% endif %}</span>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Lado Direito (Fixo e sem quebrar linha) -->
-                        <div class="text-end flex-shrink-0">
+                        <!-- Lado Fixo -->
+                        <div class="text-end flex-shrink-0 ps-2">
                             <h6 class="mb-1 fw-bold text-nowrap {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %}" style="font-size: 0.9rem;">
                                 {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
                             </h6>
                             <div class="d-flex gap-1 justify-content-end align-items-center" style="font-size: 0.65rem;">
-                                <a href="#" class="text-secondary text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}">Editar</a>
-                                <span class="text-muted">|</span>
-                                <a href="{% url 'excluir_transacao' t.id %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="text-danger text-decoration-none" onclick="return confirm('Excluir este lançamento?')">Excluir</a>
+                                <a href="{% url 'excluir_transacao' t.id %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="text-danger text-decoration-none" onclick="return confirm('Tem certeza que deseja excluir?')"><i class="bi bi-trash3"></i> Excluir</a>
                             </div>
                         </div>
-                        
                     </div>
                     {% empty %}
-                    <div class="text-center py-4">
-                        <p class="text-muted small mb-0">Nenhum lançamento encontrado neste mês. 🍃</p>
-                    </div>
+                    <div class="text-center py-4"><p class="text-muted small mb-0">Nenhum lançamento encontrado nesta fatura. 🍃</p></div>
                     {% endfor %}
                 </div>
             </div>
@@ -198,65 +170,13 @@
     </div>
 
     <!-- Botão Flutuante -->
-    <button class="btn btn-primary shadow-lg rounded-circle position-fixed bottom-0 end-0 m-4 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; z-index: 1000;" data-bs-toggle="modal" data-bs-target="#modalTransacao">
-        <i class="bi bi-plus-lg fs-4"></i>
-    </button>
+    <button class="btn btn-primary shadow-lg rounded-circle position-fixed bottom-0 end-0 m-4 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; z-index: 1000;" data-bs-toggle="modal" data-bs-target="#modalTransacao"><i class="bi bi-plus-lg fs-4"></i></button>
 
-    <!-- MODAIS -->
-    <!-- Modal Nova Pessoa -->
-    <div class="modal fade" id="modalPessoa" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark">Nova Pessoa</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form method="POST">
-                        {% csrf_token %}
-                        <input type="hidden" name="form_type" value="nova_pessoa">
-                        <div class="alert alert-primary bg-primary bg-opacity-10 border-0 text-primary small rounded-3 mb-4">
-                            A primeira pessoa cadastrada será o Titular.
-                        </div>
-                        <div class="mb-3">
-                            <label for="nome" class="form-label text-secondary fw-bold small">Nome</label>
-                            <input type="text" class="form-control bg-light border-0 rounded-4" id="nome" name="nome" required>
-                        </div>
-                        <div class="mb-4">
-                            <label for="telefone" class="form-label text-secondary fw-bold small">WhatsApp (com DDD)</label>
-                            <input type="text" class="form-control bg-light border-0 rounded-4" id="telefone" name="telefone" placeholder="Ex: 34999999999">
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Pessoa</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- ========================================== -->
+    <!-- MODAIS DO SISTEMA -->
+    <!-- ========================================== -->
 
-    <!-- Modal Novo Cartão -->
-    <div class="modal fade" id="modalCartao" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark">Novo Cartão</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form method="POST">
-                        {% csrf_token %}
-                        <input type="hidden" name="form_type" value="novo_cartao">
-                        <div class="mb-4">
-                            <label for="nomeCartao" class="form-label text-secondary fw-bold small">Nome do Cartão</label>
-                            <input type="text" class="form-control bg-light border-0 rounded-4" id="nomeCartao" name="nome" placeholder="Ex: Nubank, Itaú..." required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Cartão</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Nova Transação (Com Parcelas e Despesa Fixa) -->
+    <!-- Modal Nova Transação (COM TRAVA DE PARCELAS) -->
     <div class="modal fade" id="modalTransacao" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow rounded-4">
@@ -280,14 +200,28 @@
                             </div>
                             
                             <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Data / Vencimento</label>
+                                <label class="form-label text-secondary fw-bold small" id="labelDataTransacao">Data da Compra</label>
                                 <input type="date" class="form-control bg-light border-0 rounded-4" name="data" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label text-secondary fw-bold small">Categoria</label>
+                                <select class="form-select bg-light border-0 rounded-4" name="categoria">
+                                    <option value="Alimentação">Alimentação</option>
+                                    <option value="Mercado">Mercado</option>
+                                    <option value="Transporte">Transporte</option>
+                                    <option value="Moradia">Moradia</option>
+                                    <option value="Saúde">Saúde</option>
+                                    <option value="Lazer">Lazer</option>
+                                    <option value="Compras">Compras</option>
+                                    <option value="Assinaturas">Assinaturas</option>
+                                    <option value="Outros" selected>Outros</option>
+                                </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label text-secondary fw-bold small">Tipo</label>
                                 <select class="form-select bg-light border-0 rounded-4" name="tipo">
                                     <option value="DESPESA">Despesa</option>
-                                    <option value="PAGAMENTO">Pagamento / Receita</option>
+                                    <option value="PAGAMENTO">Pagto/Receita</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -298,26 +232,26 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            
+                            <div class="col-md-4">
                                 <label class="form-label text-secondary fw-bold small">Forma de Pagto</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="cartao_id">
+                                <select class="form-select bg-light border-0 rounded-4" name="cartao_id" id="selectCartaoForma">
                                     <option value="">Pix / Dinheiro</option>
                                     {% for c in cartoes %}
                                     <option value="{{ c.id }}">{{ c.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-
-                            <!-- Parcela e Despesa Fixa -->
-                            <div class="col-md-6">
-                                <label class="form-label text-secondary fw-bold small">Parcelas (Se for financiado)</label>
-                                <input type="number" class="form-control bg-light border-0 rounded-4" name="parcelas" value="1" min="1" max="120">
+                            <div class="col-md-4">
+                                <label class="form-label text-secondary fw-bold small">Parcelas</label>
+                                <!-- ID inputParcelas adicionado aqui -->
+                                <input type="number" class="form-control bg-light border-0 rounded-4" name="parcelas" id="inputParcelas" value="1" min="1" max="120">
                             </div>
-                            <div class="col-md-6 d-flex align-items-center pt-4">
+                            <div class="col-md-4 d-flex align-items-center pt-4">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrente" style="width: 2.5em; height: 1.25em; cursor: pointer;">
                                     <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrente" style="cursor: pointer;">
-                                        🔄 Despesa Fixa (Repetir todo mês)
+                                        🔄 Despesa Fixa
                                     </label>
                                 </div>
                             </div>
@@ -370,13 +304,186 @@
         </div>
     </div>
 
-    <!-- Modais de Edição -->
+    <!-- Modal de Gamificação (Resumo do Mês) -->
+    <div class="modal fade" id="modalResumoMes" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4 text-center p-3">
+                <div class="modal-header border-0 pb-0 justify-content-end">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <h1 class="display-1 mb-3">🏆</h1>
+                    <h4 class="fw-bold text-dark">Fechamento de {{ mes_atual }}/{{ ano_atual }}</h4>
+                    
+                    {% if saldo_restante >= 0 %}
+                    <div class="alert alert-success border-0 rounded-4 mt-4">
+                        <h6 class="fw-bold mb-1">Parabéns! Você fechou no verde.</h6>
+                        <p class="small mb-0">Você economizou <strong>R$ {{ saldo_restante|floatformat:2 }}</strong> da sua meta mensal!</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger border-0 rounded-4 mt-4">
+                        <h6 class="fw-bold mb-1">Atenção! Você estourou a meta.</h6>
+                        <p class="small mb-0">Você passou <strong>R$ {{ saldo_restante|floatformat:2|cut:"-" }}</strong> do limite estipulado.</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="bg-light rounded-4 p-3 mt-3 text-start">
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
+                            <span class="small text-secondary fw-bold">Maior Gasto:</span>
+                            <span class="small text-dark fw-bold">{{ maior_categoria }} (R$ {{ valor_maior_cat|floatformat:2 }})</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="small text-secondary fw-bold">Comprometimento da Meta:</span>
+                            <span class="small text-dark fw-bold">{{ percentual_gasto|floatformat:0 }}% consumido</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Novo Cartão -->
+    <div class="modal fade" id="modalCartao" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">Novo Cartão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="novo_cartao">
+                        <div class="mb-3">
+                            <label class="form-label text-secondary fw-bold small">Nome do Cartão</label>
+                            <input type="text" class="form-control bg-light border-0 rounded-4" name="nome" placeholder="Ex: Nubank" required>
+                        </div>
+                        <div class="row g-2 mb-4">
+                            <div class="col-6">
+                                <label class="form-label text-secondary fw-bold small">Dia do Fechamento</label>
+                                <input type="number" class="form-control bg-light border-0 rounded-4" name="dia_fechamento" placeholder="Ex: 25" min="1" max="31" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary fw-bold small">Dia do Vencimento</label>
+                                <input type="number" class="form-control bg-light border-0 rounded-4" name="dia_vencimento" placeholder="Ex: 5" min="1" max="31" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Cartão</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nova Pessoa -->
+    <div class="modal fade" id="modalPessoa" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">Nova Pessoa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="nova_pessoa">
+                        <div class="alert alert-primary bg-primary bg-opacity-10 border-0 text-primary small rounded-3 mb-4">
+                            A primeira pessoa cadastrada será o Titular.
+                        </div>
+                        <div class="mb-3">
+                            <label for="nome" class="form-label text-secondary fw-bold small">Nome</label>
+                            <input type="text" class="form-control bg-light border-0 rounded-4" id="nome" name="nome" required>
+                        </div>
+                        <div class="mb-4">
+                            <label for="telefone" class="form-label text-secondary fw-bold small">WhatsApp (com DDD)</label>
+                            <input type="text" class="form-control bg-light border-0 rounded-4" id="telefone" name="telefone" placeholder="Ex: 34999999999">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Pessoa</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Upload Fatura -->
+    <div class="modal fade" id="modalFatura" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">Importar Fatura CSV</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="upload_fatura">
+                        <div class="alert alert-secondary border-0 small rounded-3 mb-4">
+                            Exporte a fatura em formato <strong>CSV</strong> direto do aplicativo ou site do Nubank.
+                        </div>
+                        <div class="mb-4">
+                            <input type="file" class="form-control bg-light border-0 rounded-4" name="arquivo_csv" accept=".csv" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Ler Fatura</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modais de Receber Pagamento -->
+    {% if dividas_detalhadas %}
+        {% for divida in dividas_detalhadas %}
+        <div class="modal fade" id="modalReceber{{ divida.id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow rounded-4">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-dark">Registrar Pagamento</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="form_type" value="registrar_pagamento">
+                            <input type="hidden" name="dono_id" value="{{ divida.id }}">
+                            
+                            <p class="text-muted small mb-4">Registrar o pagamento feito por <strong>{{ divida.nome }}</strong>.</p>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-secondary fw-bold small">Referente a qual gasto?</label>
+                                <select class="form-select bg-light border-0 rounded-4" name="referencia_gasto" onchange="atualizarValorPagamento(this, 'valorPagamento{{ divida.id }}')">
+                                    <option value="" data-valor="{{ divida.saldo|stringformat:'s'|default:'0' }}">💰 Abatimento Geral (Dívida total: R$ {{ divida.saldo|floatformat:2 }})</option>
+                                    {% for desp in divida.despesas %}
+                                    <option value="{{ desp.descricao }}" data-valor="{{ desp.saldo|stringformat:'s'|default:'0' }}">🛒 {{ desp.descricao }} (Falta R$ {{ desp.saldo|floatformat:2 }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-secondary fw-bold small">Valor Recebido (R$)</label>
+                                <input type="text" class="form-control bg-light border-0 rounded-4" id="valorPagamento{{ divida.id }}" name="valor" value="{{ divida.saldo|floatformat:2 }}" required>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-label text-secondary fw-bold small">Data do Pagamento</label>
+                                <input type="date" class="form-control bg-light border-0 rounded-4 input-data-hoje" name="data" required>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Confirmar Pagamento</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Modais de Detalhes / Edição -->
     {% for t in transacoes %}
     <div class="modal fade" id="modalEditar{{ t.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark">Editar Transação</h5>
+                    <h5 class="modal-title fw-bold text-dark">Detalhes da Transação</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -400,10 +507,24 @@
                                 <input type="date" class="form-control bg-light border-0 rounded-4" name="data" value="{{ t.data|date:'Y-m-d' }}" required>
                             </div>
                             <div class="col-md-3">
+                                <label class="form-label text-secondary fw-bold small">Categoria</label>
+                                <select class="form-select bg-light border-0 rounded-4" name="categoria">
+                                    <option value="Alimentação" {% if t.categoria == 'Alimentação' %}selected{% endif %}>Alimentação</option>
+                                    <option value="Mercado" {% if t.categoria == 'Mercado' %}selected{% endif %}>Mercado</option>
+                                    <option value="Transporte" {% if t.categoria == 'Transporte' %}selected{% endif %}>Transporte</option>
+                                    <option value="Moradia" {% if t.categoria == 'Moradia' %}selected{% endif %}>Moradia</option>
+                                    <option value="Saúde" {% if t.categoria == 'Saúde' %}selected{% endif %}>Saúde</option>
+                                    <option value="Lazer" {% if t.categoria == 'Lazer' %}selected{% endif %}>Lazer</option>
+                                    <option value="Compras" {% if t.categoria == 'Compras' %}selected{% endif %}>Compras</option>
+                                    <option value="Assinaturas" {% if t.categoria == 'Assinaturas' %}selected{% endif %}>Assinaturas</option>
+                                    <option value="Outros" {% if t.categoria == 'Outros' or not t.categoria %}selected{% endif %}>Outros</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label text-secondary fw-bold small">Tipo</label>
                                 <select class="form-select bg-light border-0 rounded-4" name="tipo">
                                     <option value="DESPESA" {% if t.tipo == 'DESPESA' %}selected{% endif %}>Despesa</option>
-                                    <option value="PAGAMENTO" {% if t.tipo == 'PAGAMENTO' %}selected{% endif %}>Pagamento / Receita</option>
+                                    <option value="PAGAMENTO" {% if t.tipo == 'PAGAMENTO' %}selected{% endif %}>Pagto/Receita</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -414,7 +535,8 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            
+                            <div class="col-md-6">
                                 <label class="form-label text-secondary fw-bold small">Forma de Pagto</label>
                                 <select class="form-select bg-light border-0 rounded-4" name="cartao_id">
                                     <option value="">Pix / Dinheiro</option>
@@ -423,8 +545,7 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            
-                            <div class="col-md-12 d-flex align-items-center pt-2">
+                            <div class="col-md-6 d-flex align-items-center pt-4">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrenteEdit{{ t.id }}" {% if t.recorrente %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
                                     <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrenteEdit{{ t.id }}" style="cursor: pointer;">
@@ -446,14 +567,45 @@
     </div>
     {% endfor %}
 
-    <!-- Scripts -->
+    <!-- Scripts (Bootstrap, Funções Extras e Chart.js) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- DEFESA XSS: Filtro Oficial do Django para JSON seguro -->
+    {{ labels_grafico|json_script:"labels-data" }}
+    {{ valores_grafico|json_script:"valores-data" }}
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            var dataInput = document.querySelector('#modalTransacao input[type="date"]');
-            if (dataInput && !dataInput.value) {
-                var hoje = new Date().toISOString().split('T')[0];
-                dataInput.value = hoje;
+            var inputsData = document.querySelectorAll('input[type="date"]');
+            var hoje = new Date().toISOString().split('T')[0];
+            inputsData.forEach(function(input) {
+                if (!input.value) { input.value = hoje; }
+            });
+
+            const selCartao = document.getElementById('selectCartaoForma');
+            const lblData = document.getElementById('labelDataTransacao');
+            if(selCartao && lblData) {
+                selCartao.addEventListener('change', function() {
+                    if(this.value === "") { lblData.innerHTML = 'Data de Vencimento'; } 
+                    else { lblData.innerHTML = 'Data da Compra'; }
+                });
+                selCartao.dispatchEvent(new Event('change'));
+            }
+
+            const checkRecorrente = document.getElementById('checkRecorrente');
+            const inputParcelas = document.getElementById('inputParcelas');
+            if (checkRecorrente && inputParcelas) {
+                checkRecorrente.addEventListener('change', function() {
+                    if (this.checked) {
+                        inputParcelas.value = 1;
+                        inputParcelas.setAttribute('readonly', 'true');
+                        inputParcelas.style.opacity = '0.5';
+                    } else {
+                        inputParcelas.removeAttribute('readonly');
+                        inputParcelas.style.opacity = '1';
+                    }
+                });
             }
 
             const toggleDivisao = document.getElementById('toggleDivisao');
@@ -507,7 +659,46 @@
                     }
                 });
             }
+
+            // Gráfico Chart.js - Extraindo dados protegidos do DOM
+            const ctx = document.getElementById('graficoGastos');
+            const labelsSeguros = JSON.parse(document.getElementById('labels-data').textContent);
+            const dadosSeguros = JSON.parse(document.getElementById('valores-data').textContent);
+            
+            if (ctx && labelsSeguros.length > 0) {
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labelsSeguros,
+                        datasets: [{
+                            data: dadosSeguros,
+                            backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'],
+                            borderWidth: 0, hoverOffset: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, font: { family: "'Poppins', sans-serif", size: 11 } } } }, cutout: '70%' }
+                });
+            } else if (ctx) {
+                ctx.outerHTML = '<div class="d-flex align-items-center justify-content-center h-100 bg-light rounded-4 border border-dashed"><p class="text-muted small mb-0">Nenhum gasto pessoal registrado neste mês.</p></div>';
+            }
         });
+
+        function atualizarValorPagamento(select, inputId) {
+            var valor = select.options[select.selectedIndex].getAttribute('data-valor');
+            if (valor) {
+                var valorFormatado = parseFloat(valor.replace(',', '.')).toFixed(2).replace('.', ',');
+                document.getElementById(inputId).value = valorFormatado;
+            }
+        }
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js').then(function() {
+                console.log('Service Worker Registrado!');
+            }).catch(function(err) {
+                // Ignora erro no local se não usar HTTPS
+            });
+        }
     </script>
 </body>
 </html>

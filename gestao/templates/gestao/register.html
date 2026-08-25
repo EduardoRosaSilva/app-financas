@@ -18,6 +18,9 @@
         
         <form method="POST">
             {% csrf_token %}
+            <!-- DEFESA CONTRA BOTS (Honeypot) - Invisível para humanos -->
+            <input type="text" name="website_url_honeypot" style="display:none;" tabindex="-1" autocomplete="off">
+
             {{ form }}
             <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 mt-3 fw-bold shadow-sm">Cadastrar e Entrar</button>
         </form>
@@ -28,7 +31,7 @@
     
     <script>
         document.querySelectorAll('input').forEach(e => {
-            if(e.type !== 'submit' && e.type !== 'checkbox') {
+            if(e.type !== 'submit' && e.type !== 'checkbox' && e.name !== 'website_url_honeypot') {
                 e.classList.add('form-control', 'bg-light', 'border-0', 'rounded-4', 'mb-3', 'py-2');
             }
         });

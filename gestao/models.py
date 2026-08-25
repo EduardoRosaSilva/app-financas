@@ -19,8 +19,11 @@ class Pessoa(models.Model):
 
 # --- NOVO MODELO: Cartões ---
 class Cartao(models.Model):
-    nome = models.CharField(max_length=50) # Ex: Nubank, Inter, Mastercard Black
-    conta = models.CharField(max_length=255)
+    nome = models.CharField(max_length=100)
+    conta = models.CharField(max_length=150)
+    # Novos campos de lógica temporal
+    dia_fechamento = models.IntegerField(default=25)
+    dia_vencimento = models.IntegerField(default=5)
 
     def __str__(self):
         return self.nome
@@ -32,6 +35,7 @@ class Transacao(models.Model):
     ]
 
     descricao = models.CharField(max_length=200)
+    categoria = models.CharField(max_length=50, default='Outros')
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     data = models.DateField()
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='DESPESA')
