@@ -692,10 +692,10 @@
             }
         }
 
-        // Register Service Worker for PWA
+        // Register Service Worker for PWA na Raiz
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register("{% static 'sw.js' %}").then(function() {
-                console.log('Service Worker Registrado!');
+            navigator.serviceWorker.register('/sw.js').then(function() {
+                console.log('Service Worker Registrado com Sucesso!');
             }).catch(function(err) {
                 console.log('Erro no SW:', err);
             });
