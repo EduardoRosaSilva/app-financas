@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FinPro - Dashboard</title>
     
-    <!-- Adicionando suporte a PWA (Web App) e Favicons -->
+    <!-- Adicionando suporte a PWA (Web App) e Favicons Locais -->
     <meta name="theme-color" content="#0d6efd">
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3553/3553427.png">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3553/3553427.png">
+    <link rel="icon" type="image/png" href="{% static 'icone.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'icone.png' %}">
     <link rel="manifest" href="{% static 'manifest.json' %}">
     
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -21,7 +21,6 @@
         .card:hover { transform: translateY(-2px); }
         .scroll-mobile::-webkit-scrollbar { display: none; }
         .scroll-mobile { -ms-overflow-style: none; scrollbar-width: none; }
-        /* Efeito visual para a linha clicável do histórico */
         .linha-clicavel { transition: background-color 0.2s; }
         .linha-clicavel:hover { background-color: #f1f5f9 !important; }
     </style>
@@ -115,12 +114,12 @@
             </div>
         </div>
 
-        <!-- Botões de Ação Rapida e Gamificação -->
+        <!-- Botões de Ação Rapida e Gamificação (CORRIGIDOS PARA CELULAR) -->
         <div class="d-flex flex-wrap gap-2 mb-4">
-            <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 small fw-bold text-secondary" data-bs-toggle="modal" data-bs-target="#modalPessoa"><i class="bi bi-person-plus"></i> Pessoa</button>
-            <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 small fw-bold text-secondary" data-bs-toggle="modal" data-bs-target="#modalCartao"><i class="bi bi-credit-card"></i> Cartão</button>
-            <button class="btn btn-primary shadow-sm rounded-pill px-3 small fw-bold" data-bs-toggle="modal" data-bs-target="#modalFatura"><i class="bi bi-cloud-upload"></i> Importar Nubank</button>
-            <button class="btn btn-dark shadow-sm rounded-pill px-3 small fw-bold ms-auto" data-bs-toggle="modal" data-bs-target="#modalResumoMes"><i class="bi bi-trophy"></i> Fechamento do Mês</button>
+            <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 py-2 small fw-bold text-secondary flex-grow-1" data-bs-toggle="modal" data-bs-target="#modalPessoa"><i class="bi bi-person-plus"></i> Pessoa</button>
+            <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 py-2 small fw-bold text-secondary flex-grow-1" data-bs-toggle="modal" data-bs-target="#modalCartao"><i class="bi bi-credit-card"></i> Cartão</button>
+            <button class="btn btn-primary shadow-sm rounded-pill px-3 py-2 small fw-bold flex-grow-1" data-bs-toggle="modal" data-bs-target="#modalFatura"><i class="bi bi-cloud-upload"></i> Importar</button>
+            <button class="btn btn-dark shadow-sm rounded-pill px-3 py-2 small fw-bold flex-grow-1" data-bs-toggle="modal" data-bs-target="#modalResumoMes"><i class="bi bi-trophy"></i> Fechamento</button>
         </div>
 
         <div class="card border-0 shadow-sm rounded-4 mb-4">
@@ -179,7 +178,7 @@
     <!-- MODAIS DO SISTEMA -->
     <!-- ========================================== -->
 
-    <!-- Modal Nova Transação (COM TRAVA DE PARCELAS) -->
+    <!-- Modal Nova Transação -->
     <div class="modal fade" id="modalTransacao" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow rounded-4">
