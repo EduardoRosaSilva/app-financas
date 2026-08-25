@@ -1,12 +1,17 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FinPro - Dashboard</title>
-    <!-- Adicionando suporte a PWA (Web App) -->
+    
+    <!-- Adicionando suporte a PWA (Web App) e Favicons -->
     <meta name="theme-color" content="#0d6efd">
-    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3553/3553427.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3553/3553427.png">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -22,7 +27,6 @@
     </style>
 </head>
 <body>
-
     <!-- Header Topo -->
     <div class="bg-white sticky-top shadow-sm py-3 mb-4 rounded-bottom-5">
         <div class="container d-flex justify-content-between align-items-center px-4">
@@ -44,7 +48,6 @@
 
     <!-- Container Principal -->
     <div class="container pb-5 mb-5">
-
         <!-- Grid Responsivo -->
         <div class="row flex-nowrap flex-xl-wrap overflow-x-auto pb-3 mb-4 g-3 scroll-mobile">
             
@@ -80,7 +83,7 @@
                             </div>
                             {% endfor %}
                         {% else %}
-                            <div class="text-center py-3"><p class="text-muted small mb-0">Tudo zerado! 🎉</p></div>
+                            <div class="text-center py-3"><p class="text-muted small mb-0">Tudo zerado! ✌️</p></div>
                         {% endif %}
                     </div>
                 </div>
@@ -110,7 +113,6 @@
                     </div>
                 </div>
             </div>
-
         </div>
 
         <!-- Botões de Ação Rapida e Gamificação -->
@@ -135,6 +137,7 @@
                 <div class="list-group list-group-flush">
                     {% for t in transacoes %}
                     <div class="list-group-item bg-transparent px-2 py-3 d-flex justify-content-between align-items-center border-bottom linha-clicavel rounded-3">
+                        
                         <!-- Lado Clicável -->
                         <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" title="Clique para ver detalhes">
                             <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; background-color: {% if t.tipo == 'DESPESA' %}#ffebee{% else %}#e8f5e9{% endif %};">
@@ -150,6 +153,7 @@
                                 </div>
                             </div>
                         </div>
+
                         <!-- Lado Fixo -->
                         <div class="text-end flex-shrink-0 ps-2">
                             <h6 class="mb-1 fw-bold text-nowrap {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %}" style="font-size: 0.9rem;">
@@ -161,12 +165,11 @@
                         </div>
                     </div>
                     {% empty %}
-                    <div class="text-center py-4"><p class="text-muted small mb-0">Nenhum lançamento encontrado nesta fatura. 🍃</p></div>
+                    <div class="text-center py-4"><p class="text-muted small mb-0">Nenhum lançamento encontrado nesta fatura. 🛒</p></div>
                     {% endfor %}
                 </div>
             </div>
         </div>
-
     </div>
 
     <!-- Botão Flutuante -->
@@ -244,14 +247,13 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label text-secondary fw-bold small">Parcelas</label>
-                                <!-- ID inputParcelas adicionado aqui -->
                                 <input type="number" class="form-control bg-light border-0 rounded-4" name="parcelas" id="inputParcelas" value="1" min="1" max="120">
                             </div>
                             <div class="col-md-4 d-flex align-items-center pt-4">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrente" style="width: 2.5em; height: 1.25em; cursor: pointer;">
                                     <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrente" style="cursor: pointer;">
-                                        🔄 Despesa Fixa
+                                         🔁 Despesa Fixa
                                     </label>
                                 </div>
                             </div>
@@ -312,7 +314,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-0">
-                    <h1 class="display-1 mb-3">🏆</h1>
+                    <h1 class="display-1 mb-3">🎯</h1>
                     <h4 class="fw-bold text-dark">Fechamento de {{ mes_atual }}/{{ ano_atual }}</h4>
                     
                     {% if saldo_restante >= 0 %}
@@ -453,7 +455,7 @@
                                 <select class="form-select bg-light border-0 rounded-4" name="referencia_gasto" onchange="atualizarValorPagamento(this, 'valorPagamento{{ divida.id }}')">
                                     <option value="" data-valor="{{ divida.saldo|stringformat:'s'|default:'0' }}">💰 Abatimento Geral (Dívida total: R$ {{ divida.saldo|floatformat:2 }})</option>
                                     {% for desp in divida.despesas %}
-                                    <option value="{{ desp.descricao }}" data-valor="{{ desp.saldo|stringformat:'s'|default:'0' }}">🛒 {{ desp.descricao }} (Falta R$ {{ desp.saldo|floatformat:2 }})</option>
+                                    <option value="{{ desp.descricao }}" data-valor="{{ desp.saldo|stringformat:'s'|default:'0' }}">👉 {{ desp.descricao }} (Falta R$ {{ desp.saldo|floatformat:2 }})</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -549,15 +551,14 @@
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrenteEdit{{ t.id }}" {% if t.recorrente %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
                                     <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrenteEdit{{ t.id }}" style="cursor: pointer;">
-                                        🔄 Despesa Fixa (Repetir todo mês)
+                                          🔁 Despesa Fixa (Repetir todo mês)
                                     </label>
                                 </div>
                             </div>
                         </div>
-
                         <div class="mt-4 pt-2">
                             <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm">
-                                <i class="bi bi-check2-circle"></i> Salvar Alterações
+                                <i class="bi bi-check2-circle"></i> Salvar Alteração
                             </button>
                         </div>
                     </form>
@@ -693,10 +694,10 @@
 
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/sw.js').then(function() {
+            navigator.serviceWorker.register("{% static 'sw.js' %}").then(function() {
                 console.log('Service Worker Registrado!');
             }).catch(function(err) {
-                // Ignora erro no local se não usar HTTPS
+                console.log('Erro no SW:', err);
             });
         }
     </script>
