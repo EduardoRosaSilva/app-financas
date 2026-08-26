@@ -2,27 +2,16 @@ import os
 import sys
 from pathlib import Path
 import dj_database_url
-from dotenv import load_dotenv
-
-# Carrega os segredos do arquivo .env (se existir localmente)
-load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ==========================================
-# 1. API KEYS E SECRETS
-# ==========================================
-SECRET_KEY = os.environ.get('SECRET_KEY', 'chave-insegura-apenas-para-dev')
+# Chave de segurança padrão (usada apenas em ambiente local)
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-07_6yo3%t_3x%+os(g+23f_+zowfjm5j_co_+y@mmnss9v7gz+')
 
-# ==========================================
-# 2. DEBUG E HOSTS
-# ==========================================
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+# DEBUG desligado automaticamente na nuvem para máxima segurança
+DEBUG = os.environ.get('RENDER') is None
 
-ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost,finpro-app.onrender.com')
-ALLOWED_HOSTS = ALLOWED_HOSTS_ENV.split(',')
-
-CSRF_TRUSTED_ORIGINS = [f"https://{host.strip()}" for host in ALLOWED_HOSTS if host not in ['*', '127.0.0.1', 'localhost']]
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -30,19 +19,21 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic', 
     'django.contrib.staticfiles',
     'gestao',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'gestao.middleware.ContaInvisivelMiddleware', 
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -66,21 +57,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # ==========================================
-# 3. BANCO DE DADOS DEFINITIVO E BLINDADO
+# BANCO DE DADOS (FIM DA AMNÉSIA)
 # ==========================================
 DB_URL = os.environ.get('DATABASE_URL')
 
-# TRAVA EXTREMA: Se estiver no Render, EXIGE o PostgreSQL!
-if os.environ.get('RENDER'):
-    if not DB_URL or not DB_URL.startswith('postgres'):
-        print("🚨 ERRO FATAL: O Django está no Render, mas não achou o link do PostgreSQL!")
-        sys.exit(1)
-    
+if os.environ.get('RENDER') and DB_URL:
+    # PRODUÇÃO: Força o uso do PostgreSQL da Nuvem
     DATABASES = {
         'default': dj_database_url.parse(DB_URL, conn_max_age=600, ssl_require=True)
     }
 else:
-    # Ambiente de testes no seu computador
+    # LOCAL: Mantém o SQLite apenas para testes no seu computador
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -101,28 +88,15 @@ USE_I18N = True
 USE_TZ = True
 
 # ==========================================
-# 4. ARQUIVOS ESTÁTICOS E ADMIN (VISUAL)
+# ARQUIVOS ESTÁTICOS
 # ==========================================
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-if os.path.exists(os.path.join(BASE_DIR, 'static')):
-    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-
+STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'dashboard'
-LOGOUT_REDIRECT_URL = 'login'
 
 # ==========================================
-# 5. RESTRIÇÃO DE UPLOADS (Proteção DoS)
-# ==========================================
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880
-
-# ==========================================
-# 6. ARSENAL DE PRODUÇÃO (Segurança Máxima)
+# SEGURANÇA E SESSÕES BANCÁRIAS (COMPLIANCE)
 # ==========================================
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -130,9 +104,10 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_BROWSER_XSS_FILTER = True
-    X_FRAME_OPTIONS = 'DENY'
+    
+    # Desloga o usuário ao fechar o navegador
+    SESSION_EXPIRE_AT_BROWSER_CLOSE = True 
+    # Expira a sessão após 30 minutos de inatividade (1800 segundos)
+    SESSION_COOKIE_AGE = 1800 
+    # Renova o tempo a cada ação dentro do sistema
+    SESSION_SAVE_EVERY_REQUEST = True

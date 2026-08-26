@@ -23,7 +23,7 @@
         .linha-clicavel { transition: background-color 0.2s; }
         .linha-clicavel:hover { background-color: #f1f5f9 !important; }
         
-        /* Flutuação da Mensagem de Alerta para não empurrar o site para baixo */
+        /* Flutuação da Mensagem de Alerta */
         .alerta-flutuante {
             position: fixed;
             top: 20px;
@@ -47,7 +47,8 @@
                 </button>
             </h4>
             <div class="d-flex align-items-center gap-2">
-                <div class="d-flex align-items-center bg-light rounded-pill px-3 py-1 border"></div>
+                <!-- CORREÇÃO MOBILE: Botões de navegação dos meses agora visíveis em qualquer tela -->
+                <div class="d-flex align-items-center bg-light rounded-pill px-3 py-1 border">
                     <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-left"></i></a>
                     <span class="fw-bold small mx-3 text-dark">{{ mes_atual }}/{{ ano_atual }}</span>
                     <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-right"></i></a>
@@ -208,7 +209,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- O data-bs-dismiss fecha esta tela antes de abrir a de Cadastrar -->
                     <button class="btn btn-primary w-100 rounded-pill py-2 mb-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalPessoa" data-bs-dismiss="modal">
                         <i class="bi bi-plus-lg"></i> Adicionar Nova Pessoa
                     </button>
@@ -221,7 +221,6 @@
                                 <small class="text-muted"><i class="bi bi-whatsapp"></i> {{ p.telefone|default:"Sem telefone" }}</small>
                             </div>
                             <div class="d-flex gap-2">
-                                <!-- O data-bs-dismiss fecha esta tela antes de abrir a de Editar -->
                                 <button class="btn btn-sm btn-light text-primary rounded-circle" data-bs-toggle="modal" data-bs-target="#modalEditarPessoa{{ p.id }}" data-bs-dismiss="modal"><i class="bi bi-pencil"></i></button>
                                 {% if not p.is_titular %}
                                 <form method="POST" class="m-0 p-0" onsubmit="return confirm('Tem certeza que deseja excluir {{ p.nome }}? Todos os gastos dela ficarão sem dono!')">
@@ -240,7 +239,7 @@
         </div>
     </div>
 
-    <!-- Modais de Edição de Pessoas (AGORA ISOLADOS NA RAIZ) -->
+    <!-- Modais de Edição de Pessoas -->
     {% for p in pessoas %}
     <div class="modal fade" id="modalEditarPessoa{{ p.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -344,7 +343,7 @@
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrente" style="width: 2.5em; height: 1.25em; cursor: pointer;">
                                     <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrente" style="cursor: pointer;">
-                                         🔁 Despesa Fixa
+                                           Despesa Fixa
                                     </label>
                                 </div>
                             </div>
@@ -358,7 +357,6 @@
                                 Dividir valor com outras pessoas?
                             </label>
                         </div>
-
                         <div id="secaoDivisaoAmigos" style="display: none;" class="p-3 bg-light rounded-4 border mb-3">
                             <div id="listaCamposDivisao">
                                 <div class="row g-2 align-items-center mb-2 linha-divisao">
@@ -385,7 +383,6 @@
                                 <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold small bg-white" id="btnDividirIgualmente"><i class="bi bi-calculator"></i> Dividir Igualmente</button>
                             </div>
                         </div>
-
                         <div class="mt-4 pt-2">
                             <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm">
                                 <i class="bi bi-check2-circle"></i> Salvar Transação
@@ -419,7 +416,6 @@
                         <p class="small mb-0">Você passou <strong>R$ {{ saldo_restante|floatformat:2|cut:"-" }}</strong> do limite estipulado.</p>
                     </div>
                     {% endif %}
-
                     <div class="bg-light rounded-4 p-3 mt-3 text-start">
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
                             <span class="small text-secondary fw-bold">Maior Gasto:</span>
@@ -642,7 +638,7 @@
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrenteEdit{{ t.id }}" {% if t.recorrente %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
                                     <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrenteEdit{{ t.id }}" style="cursor: pointer;">
-                                          🔁 Despesa Fixa (Repetir todo mês)
+                                            Despesa Fixa (Repetir todo mês)
                                     </label>
                                 </div>
                             </div>
@@ -659,6 +655,21 @@
     </div>
     {% endfor %}
 
+    <!-- ========================================== -->
+    <!-- LGPD: BANNER DE CONSENTIMENTO DE COOKIES   -->
+    <!-- ========================================== -->
+    <div id="lgpd-banner" class="position-fixed bottom-0 start-0 w-100 bg-dark text-white text-center py-3 px-4 shadow-lg" style="z-index: 10000; display: none;">
+        <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <div class="text-start small">
+                <i class="bi bi-shield-lock-fill text-success fs-5 me-2"></i>
+                <strong>Privacidade e LGPD:</strong> Nós utilizamos cookies essenciais para garantir a segurança da sua conta e manter você logado. Não vendemos seus dados para terceiros. 
+            </div>
+            <button id="btn-aceitar-cookies" class="btn btn-success btn-sm rounded-pill px-4 fw-bold text-nowrap">
+                Entendi e Aceito
+            </button>
+        </div>
+    </div>
+
     <!-- Scripts (Bootstrap, Funções Extras e Chart.js) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -669,7 +680,16 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Mágica para o alerta sumir sozinho após 4 segundos (Como um app de verdade)
+            // Lógica do Banner LGPD
+            if (!localStorage.getItem("lgpd_consentido")) {
+                document.getElementById("lgpd-banner").style.display = "block";
+            }
+            document.getElementById("btn-aceitar-cookies").addEventListener("click", function() {
+                localStorage.setItem("lgpd_consentido", "true");
+                document.getElementById("lgpd-banner").style.display = "none";
+            });
+
+            // Mágica para o alerta sumir sozinho após 4 segundos
             setTimeout(function() {
                 let alertas = document.querySelectorAll('.alert-dismissible');
                 alertas.forEach(function(alerta) {
