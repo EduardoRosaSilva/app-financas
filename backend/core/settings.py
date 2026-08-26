@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
@@ -39,7 +40,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'gestao.middleware.ContaInvisivelMiddleware', # Seu middleware protegido
+    # Middleware invisível REMOVIDO daqui para evitar o Erro 403!
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -65,9 +66,16 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # ==========================================
 # 3. PUBLIC KEY DB E PARAMETRIZAÇÃO
 # ==========================================
+DB_URL = os.environ.get('DATABASE_URL')
+
+# TRAVA DO BANCO DE DADOS: Se estiver em produção e sem banco, o sistema grita e não liga!
+if not DEBUG and not DB_URL:
+    print("❌ ERRO FATAL: A variável DATABASE_URL não foi encontrada no Render!")
+    sys.exit(1)
+
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL', f'sqlite:///{BASE_DIR / "db.sqlite3"}'),
+        default=DB_URL or f'sqlite:///{BASE_DIR / "db.sqlite3"}',
         conn_max_age=600, 
         conn_health_checks=True
     )

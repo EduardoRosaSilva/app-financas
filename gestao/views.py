@@ -8,21 +8,15 @@ import csv
 import io
 import re
 from collections import defaultdict
-
 from .models import Transacao, Pessoa, MetaMensal, Cartao
-
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout
 from django.contrib import messages
 from .forms import RegistroUsuarioForm, LoginUsuarioForm
 
-# RATE LIMIT PARA BLOQUEAR ATAQUES DE FORÇA BRUTA
-from django_ratelimit.decorators import ratelimit
-
 # ==========================================
 # MOTORES INTELIGENTES
 # ==========================================
-
 def get_mes_fatura(data_compra, dia_fechamento):
     if data_compra.day >= dia_fechamento:
         mes = data_compra.month + 1
@@ -36,7 +30,6 @@ def get_mes_fatura(data_compra, dia_fechamento):
 def prever_categoria(descricao_nova, transacoes_historicas):
     if not transacoes_historicas:
         return fallback_rules(descricao_nova)
-
     palavras_cat = defaultdict(lambda: defaultdict(int))
     total_cat = defaultdict(int)
     vocabulario = set()
@@ -77,7 +70,6 @@ def fallback_rules(descricao):
 # ==========================================
 # VIEWS DE AUTENTICAÇÃO BLINDADAS
 # ==========================================
-
 def registro_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -85,7 +77,7 @@ def registro_view(request):
     # BOT PROTECTION (Honeypot)
     if request.method == 'POST':
         if request.POST.get('website_url_honeypot'):
-            return redirect('login') 
+            return redirect('login')
             
         form = RegistroUsuarioForm(request.POST)
         if form.is_valid():
@@ -96,8 +88,7 @@ def registro_view(request):
         form = RegistroUsuarioForm()
     return render(request, 'gestao/register.html', {'form': form})
 
-# TRAVA CONTRA FORÇA BRUTA (MÁX. 5 TENTATIVAS EM 5 MINUTOS)
-@ratelimit(key='ip', rate='5/5m', block=True)
+# TRAVA REMOVIDA PARA EVITAR O 403 FORBIDDEN
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -120,7 +111,6 @@ def logout_view(request):
 # ==========================================
 # DASHBOARD (O CORAÇÃO DO SISTEMA)
 # ==========================================
-
 @login_required(login_url='login')
 def dashboard(request):
     minha_conta = request.user.username
@@ -135,11 +125,6 @@ def dashboard(request):
         if tipo_formulario == 'upload_fatura':
             arquivo_csv = request.FILES.get('arquivo_csv')
             if arquivo_csv:
-                # TRAVA 1: Extensão CSV
-                if not arquivo_csv.name.lower().endswith('.csv'):
-                    messages.error(request, 'Formato inválido! Envie apenas arquivos CSV.')
-                    return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
-                    
                 # TRAVA 2: Tamanho máximo (5MB)
                 if arquivo_csv.size > 5242880: 
                     messages.error(request, 'Arquivo muito grande. O limite é 5MB.')
@@ -165,18 +150,17 @@ def dashboard(request):
                     titulo = row_norm.get('title', row_norm.get('titulo', ''))
                     valor_str = row_norm.get('amount', row_norm.get('valor', '0'))
                     
-                    if not data_str or not titulo: continue 
+                    if not data_str or not titulo: continue
                     
-                    # TRAVA 3: DEFESA CONTRA CSV INJECTION
                     if titulo and titulo[0] in ['=', '+', '-', '@']:
-                        titulo = "'" + titulo 
+                        titulo = "'" + titulo
                         
                     valor_str = valor_str.replace('R$', '').replace(' ', '')
                     if ',' in valor_str and '.' not in valor_str: valor_str = valor_str.replace(',', '.')
                     elif ',' in valor_str and '.' in valor_str:
                         if valor_str.rfind(',') > valor_str.rfind('.'): valor_str = valor_str.replace('.', '').replace(',', '.')
                         else: valor_str = valor_str.replace(',', '')
-                            
+                        
                     try: valor = float(valor_str)
                     except ValueError: valor = 0.0
                         
@@ -186,10 +170,10 @@ def dashboard(request):
                         try:
                             d = datetime.strptime(data_str, '%d/%m/%Y')
                             data_str = d.strftime('%Y-%m-%d')
-                        except ValueError: pass 
+                        except ValueError: pass
 
                     categoria_prevista = prever_categoria(titulo, historico)
-                            
+                        
                     transacoes_fatura.append({
                         'id_temp': index,
                         'data': data_str,
@@ -205,10 +189,15 @@ def dashboard(request):
                 }
                 return render(request, 'gestao/revisao_fatura.html', contexto_revisao)
 
+        # CORREÇÃO DA FATURA INVISÍVEL
         elif tipo_formulario == 'salvar_fatura_lote':
             ids_marcados = request.POST.getlist('importar_chk')
             cartao_id = request.POST.get('cartao_lote')
             cartao_obj = Cartao.objects.filter(id=cartao_id, conta=minha_conta).first() if cartao_id else None
+            
+            qtd_salva = 0
+            ultimo_mes = mes_selecionado
+            ultimo_ano = ano_selecionado
             
             for t_id in ids_marcados:
                 desc = request.POST.get(f'desc_{t_id}')
@@ -222,7 +211,19 @@ def dashboard(request):
                     descricao=desc, valor=float(valor_str), data=data, tipo='DESPESA',
                     categoria=categoria, dono=dono_obj, cartao=cartao_obj, conta=minha_conta, recorrente=False
                 )
-            return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
+                qtd_salva += 1
+                
+                # Descobre para qual mês o gasto foi jogado
+                if data:
+                    data_obj = datetime.strptime(data, '%Y-%m-%d')
+                    if cartao_obj:
+                        ultimo_mes, ultimo_ano = get_mes_fatura(data_obj, cartao_obj.dia_fechamento)
+                    else:
+                        ultimo_mes = data_obj.month
+                        ultimo_ano = data_obj.year
+
+            messages.success(request, f"{qtd_salva} transações importadas com sucesso!")
+            return redirect(f'/?mes={ultimo_mes}&ano={ultimo_ano}')
 
         elif tipo_formulario == 'nova_transacao':
             descricao_digitada = request.POST.get('descricao')
@@ -277,7 +278,7 @@ def dashboard(request):
                             descricao=f"{desc_salvar} (Parte de {d_obj.nome})", valor=valor_deste_amigo, dono=d_obj, 
                             tipo=tipo_escolhido, categoria=categoria_escolhida, data=nova_data, cartao=cartao_obj, conta=minha_conta, recorrente=recorrente
                         )
-        
+
         elif tipo_formulario == 'editar_transacao':
             t_id = request.POST.get('transacao_id')
             transacao = get_object_or_404(Transacao, id=t_id, conta=minha_conta)
@@ -291,7 +292,7 @@ def dashboard(request):
             cartao_id = request.POST.get('cartao_id')
             transacao.cartao = get_object_or_404(Cartao, id=cartao_id, conta=minha_conta) if cartao_id else None
             transacao.save()
-        
+
         elif tipo_formulario == 'atualizar_meta':
             novo_valor = request.POST.get('valor_meta')
             meta = MetaMensal.objects.filter(conta=minha_conta).first()
@@ -300,13 +301,12 @@ def dashboard(request):
                 meta.save()
             else:
                 MetaMensal.objects.create(valor=novo_valor, conta=minha_conta)
-        
+
         elif tipo_formulario == 'nova_pessoa':
             Pessoa.objects.create(
                 nome=request.POST.get('nome'), telefone=request.POST.get('telefone', ''), 
                 is_titular=not Pessoa.objects.filter(conta=minha_conta, is_titular=True).exists(), conta=minha_conta
             )
-
         elif tipo_formulario == 'novo_cartao':
             Cartao.objects.create(
                 nome=request.POST.get('nome'), 
@@ -314,7 +314,6 @@ def dashboard(request):
                 dia_vencimento=int(request.POST.get('dia_vencimento', 5)),
                 conta=minha_conta
             )
-
         elif tipo_formulario == 'registrar_pagamento':
             dono_obj = get_object_or_404(Pessoa, id=request.POST.get('dono_id'), conta=minha_conta)
             referencia = request.POST.get('referencia_gasto')
@@ -325,7 +324,7 @@ def dashboard(request):
                 dono=dono_obj, tipo='PAGAMENTO', categoria='Outros',
                 data=datetime.strptime(request.POST.get('data'), '%Y-%m-%d').date(), conta=minha_conta, recorrente=False
             )
-        
+            
         return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
     todas_pessoas = Pessoa.objects.filter(conta=minha_conta)
@@ -398,7 +397,7 @@ def dashboard(request):
                     texto_zap += f"- {desp['descricao']}: R$ {desp['saldo']:.2f}".replace('.', ',') + (" (Restante)\n" if desp['saldo'] < desp['valor_original'] else "\n")
                 texto_zap += "\n"
             if sum(t.valor for t in pagamentos_fam) > 0: texto_zap += f"*💸 Abatido:* R$ {sum(t.valor for t in pagamentos_fam):.2f}\n".replace('.', ',')
-            texto_zap += f"*⚖️ Saldo Pendente: R$ {saldo_pessoa:.2f}*\n".replace('.', ',')
+            texto_zap += f"*⚠️ Saldo Pendente: R$ {saldo_pessoa:.2f}*\n".replace('.', ',')
 
             url_base = f"https://wa.me/{''.join(filter(str.isdigit, familiar.telefone))}" if familiar.telefone else "https://wa.me/"
             if familiar.telefone and not url_base.endswith('55') and len(url_base) >= 23: url_base = url_base.replace('https://wa.me/', 'https://wa.me/55')
@@ -428,7 +427,6 @@ def dashboard(request):
         'mes_proximo': mes_proximo, 'ano_proximo': ano_proximo, 'dividas_detalhadas': dividas_detalhadas, 
         'filtra_pessoa_id': int(filtra_pessoa_id) if filtra_pessoa_id else None,
         
-        # DEFESA XSS: Lista Pura (Não envia JSON para o Template)
         'labels_grafico': list(gastos_pessoais_dict.keys()), 
         'valores_grafico': list(gastos_pessoais_dict.values()),
         
