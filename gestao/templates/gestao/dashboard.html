@@ -23,7 +23,7 @@
         .linha-clicavel { transition: background-color 0.2s; }
         .linha-clicavel:hover { background-color: #f1f5f9 !important; }
         
-        /* Flutuação da Mensagem de Alerta */
+        /* Flutua o da Mensagem de Alerta */
         .alerta-flutuante {
             position: fixed;
             top: 20px;
@@ -47,7 +47,6 @@
                 </button>
             </h4>
             <div class="d-flex align-items-center gap-2">
-                <!-- CORREÇÃO MOBILE: Botões de navegação dos meses agora visíveis em qualquer tela -->
                 <div class="d-flex align-items-center bg-light rounded-pill px-3 py-1 border">
                     <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-left"></i></a>
                     <span class="fw-bold small mx-3 text-dark">{{ mes_atual }}/{{ ano_atual }}</span>
@@ -87,7 +86,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
@@ -111,7 +109,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
@@ -121,7 +118,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
@@ -160,7 +156,6 @@
                 <div class="list-group list-group-flush">
                     {% for t in transacoes %}
                     <div class="list-group-item bg-transparent px-2 py-3 d-flex justify-content-between align-items-center border-bottom linha-clicavel rounded-3">
-                        
                         <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" title="Clique para ver detalhes">
                             <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; background-color: {% if t.tipo == 'DESPESA' %}#ffebee{% else %}#e8f5e9{% endif %};">
                                 {% if t.tipo == 'DESPESA' %}<i class="bi bi-arrow-down-short text-danger fs-4"></i>{% else %}<i class="bi bi-arrow-up-short text-success fs-4"></i>{% endif %}
@@ -175,7 +170,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="text-end flex-shrink-0 ps-2">
                             <h6 class="mb-1 fw-bold text-nowrap {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %}" style="font-size: 0.9rem;">
                                 {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
@@ -212,7 +206,6 @@
                     <button class="btn btn-primary w-100 rounded-pill py-2 mb-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalPessoa" data-bs-dismiss="modal">
                         <i class="bi bi-plus-lg"></i> Adicionar Nova Pessoa
                     </button>
-                    
                     <div class="list-group list-group-flush border-top pt-2">
                         {% for p in pessoas %}
                         <div class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-center">
@@ -625,7 +618,7 @@
                                 </select>
                             </div>
                             
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label text-secondary fw-bold small">Forma de Pagto</label>
                                 <select class="form-select bg-light border-0 rounded-4" name="cartao_id">
                                     <option value="">Pix / Dinheiro</option>
@@ -634,15 +627,57 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-6 d-flex align-items-center pt-4">
+
+                            <!-- NOVA OPÇÃO DE PARCELAS NA EDIÇÃO -->
+                            <div class="col-md-4">
+                                <label class="form-label text-secondary fw-bold small">Parcelas (Recalcular)</label>
+                                <input type="number" class="form-control bg-light border-0 rounded-4" name="parcelas" id="inputParcelasEdit{{ t.id }}" value="1" min="1" max="120">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-center pt-4">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrenteEdit{{ t.id }}" {% if t.recorrente %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
+                                    <input class="form-check-input check-recorrente-edit" type="checkbox" name="recorrente" value="1" id="checkRecorrenteEdit{{ t.id }}" {% if t.recorrente %}checked{% endif %} data-target="inputParcelasEdit{{ t.id }}" style="width: 2.5em; height: 1.25em; cursor: pointer;">
                                     <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrenteEdit{{ t.id }}" style="cursor: pointer;">
-                                            Despesa Fixa (Repetir todo mês)
+                                            Despesa Fixa
                                     </label>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- NOVA DIVISÃO COM AMIGOS NA EDIÇÃO -->
+                        <hr class="my-4 text-muted">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input toggle-divisao-edit" type="checkbox" id="toggleDivisaoEdit{{ t.id }}" data-target="secaoDivisaoAmigosEdit{{ t.id }}" style="width: 3em; height: 1.5em; cursor: pointer;">
+                            <label class="form-check-label fw-bold small text-dark ms-2 pt-1" for="toggleDivisaoEdit{{ t.id }}" style="cursor: pointer;">
+                                Adicionar divisão nesta compra?
+                            </label>
+                        </div>
+                        
+                        <div id="secaoDivisaoAmigosEdit{{ t.id }}" style="display: none;" class="p-3 bg-light rounded-4 border mb-3">
+                            <div class="listaCamposDivisaoEdit" id="listaCamposDivisaoEdit{{ t.id }}">
+                                <div class="row g-2 align-items-center mb-2 linha-divisao-edit">
+                                    <div class="col-6">
+                                        <label class="form-label text-secondary small mb-1">Amigo</label>
+                                        <select class="form-select bg-white border-0 rounded-4" name="dono_id_extra">
+                                            <option value="">Selecione...</option>
+                                            {% for p in pessoas %}
+                                            <option value="{{ p.id }}">{{ p.nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-5">
+                                        <label class="form-label text-secondary small mb-1">Valor (R$)</label>
+                                        <input type="text" class="form-control bg-white border-0 rounded-4 input-valor-extra-edit" name="valor_extra" placeholder="0,00">
+                                    </div>
+                                    <div class="col-1 text-center pt-4">
+                                        <button type="button" class="btn btn-sm text-danger border-0 p-1 btn-remover-linha-edit" title="Remover"><i class="bi bi-x-lg"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold small bg-white btnAddPessoaExtraEdit" data-target="listaCamposDivisaoEdit{{ t.id }}"><i class="bi bi-plus"></i> Adicionar pessoa</button>
+                            </div>
+                        </div>
+
                         <div class="mt-4 pt-2">
                             <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm">
                                 <i class="bi bi-check2-circle"></i> Salvar Alteração
@@ -752,6 +787,39 @@
                 });
             }
 
+            // SCRIPTS DOS MODAIS DE EDIÇÃO (Corrigido para dentro da tag)
+            document.querySelectorAll('.check-recorrente-edit').forEach(function(check) {
+                check.addEventListener('change', function() {
+                    const inputParcelas = document.getElementById(this.getAttribute('data-target'));
+                    if (this.checked) {
+                        inputParcelas.value = 1;
+                        inputParcelas.setAttribute('readonly', 'true');
+                        inputParcelas.style.opacity = '0.5';
+                    } else {
+                        inputParcelas.removeAttribute('readonly');
+                        inputParcelas.style.opacity = '1';
+                    }
+                });
+            });
+
+            document.querySelectorAll('.toggle-divisao-edit').forEach(function(toggle) {
+                toggle.addEventListener('change', function() {
+                    const secao = document.getElementById(this.getAttribute('data-target'));
+                    secao.style.display = this.checked ? 'block' : 'none';
+                });
+            });
+
+            document.querySelectorAll('.btnAddPessoaExtraEdit').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const lista = document.getElementById(this.getAttribute('data-target'));
+                    const primeiraLinha = lista.querySelector('.linha-divisao-edit');
+                    const novaLinha = primeiraLinha.cloneNode(true);
+                    novaLinha.querySelector('select').value = '';
+                    novaLinha.querySelector('input').value = '';
+                    lista.appendChild(novaLinha);
+                });
+            });
+
             document.addEventListener('click', function(e) {
                 if (e.target.closest('.btn-remover-linha')) {
                     const linhas = listaCamposDivisao.querySelectorAll('.linha-divisao');
@@ -760,6 +828,16 @@
                     } else {
                         linhas[0].querySelector('select').value = '';
                         linhas[0].querySelector('input').value = '';
+                    }
+                }
+                if (e.target.closest('.btn-remover-linha-edit')) {
+                    const linhaEdit = e.target.closest('.linha-divisao-edit');
+                    const listaEdit = linhaEdit.parentElement;
+                    if (listaEdit.querySelectorAll('.linha-divisao-edit').length > 1) {
+                        linhaEdit.remove();
+                    } else {
+                        linhaEdit.querySelector('select').value = '';
+                        linhaEdit.querySelector('input').value = '';
                     }
                 }
             });
