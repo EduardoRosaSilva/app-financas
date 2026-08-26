@@ -14,6 +14,7 @@ from django.contrib.auth import login, logout
 from django.contrib import messages
 from .forms import RegistroUsuarioForm, LoginUsuarioForm
 from django.views.decorators.cache import never_cache
+import datetime
 
 # ==========================================
 # MOTORES INTELIGENTES
@@ -474,3 +475,29 @@ def excluir_transacao(request, id):
     transacao = get_object_or_404(Transacao, id=id, conta=request.user.username)
     transacao.delete()
     return redirect(f"/?mes={request.GET.get('mes')}&ano={request.GET.get('ano')}") if request.GET.get('mes') else redirect('dashboard')
+
+
+def calcular_mes_fatura(data_compra, dia_fechamento, dia_vencimento):
+    """
+    Calcula exatamente em qual mês a despesa vai ser cobrada,
+    baseado nas regras de fechamento e vencimento de cartões no Brasil.
+    """
+    mes = data_compra.month
+    ano = data_compra.year
+
+    # 1. Se a compra foi feita no dia ou após o fechamento, ela cai no próximo ciclo
+    if data_compra.day >= dia_fechamento:
+        mes += 1
+        if mes > 12:
+            mes = 1
+            ano += 1
+
+    # 2. Se o dia do vencimento é MENOR que o dia de fechamento (ex: Fecha dia 25, Vence dia 5)
+    # Significa que a fatura só será paga no mês SEGUINTE ao ciclo atual.
+    if dia_vencimento < dia_fechamento:
+        mes += 1
+        if mes > 12:
+            mes = 1
+            ano += 1
+            
+    return mes, ano
