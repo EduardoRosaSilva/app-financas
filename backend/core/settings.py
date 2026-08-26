@@ -68,18 +68,19 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # ==========================================
 DB_URL = os.environ.get('DATABASE_URL')
 
-# TRAVA DO BANCO DE DADOS: Se estiver em produção e sem banco, o sistema grita e não liga!
-if not DEBUG and not DB_URL:
-    print("❌ ERRO FATAL: A variável DATABASE_URL não foi encontrada no Render!")
-    sys.exit(1)
-
-DATABASES = {
-    'default': dj_database_url.config(
-        default=DB_URL or f'sqlite:///{BASE_DIR / "db.sqlite3"}',
-        conn_max_age=600, 
-        conn_health_checks=True
-    )
-}
+if DB_URL:
+    # MODO NUVEM: Força o uso do PostgreSQL do Render
+    DATABASES = {
+        'default': dj_database_url.parse(DB_URL, conn_max_age=600)
+    }
+else:
+    # MODO DESENVOLVIMENTO: Usa o banco local no seu computador
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
