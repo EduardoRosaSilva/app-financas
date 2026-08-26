@@ -66,22 +66,25 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # ==========================================
 # 3. PUBLIC KEY DB E PARAMETRIZAÇÃO
 # ==========================================
+# ==========================================
+# 3. PUBLIC KEY DB E PARAMETRIZAÇÃO
+# ==========================================
 DB_URL = os.environ.get('DATABASE_URL')
 
-if DB_URL:
-    # MODO NUVEM: Força o uso do PostgreSQL do Render
-    DATABASES = {
-        'default': dj_database_url.parse(DB_URL, conn_max_age=600)
-    }
-else:
-    # MODO DESENVOLVIMENTO: Usa o banco local no seu computador
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+# TRAVA EXTREMA: Se o código perceber que está no Render, ele EXIGE o PostgreSQL!
+if os.environ.get('RENDER'):
+    if not DB_URL or not DB_URL.startswith('postgres'):
+        print("🚨 ERRO FATAL: O Django está no Render, mas não achou o link do PostgreSQL!")
+        print("Verifique a variável DATABASE_URL na aba Environment.")
+        sys.exit(1) # Derruba o servidor na hora para não criar banco falso!
 
+DATABASES = {
+    'default': dj_database_url.config(
+        default=DB_URL or f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+        conn_max_age=600,
+        conn_health_checks=True
+    )
+}
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
