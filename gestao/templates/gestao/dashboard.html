@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FinPro - Dashboard</title>
     
-    <!-- Adicionando suporte a PWA (Web App) e Favicons Locais -->
     <meta name="theme-color" content="#0d6efd">
     <link rel="icon" type="image/png" href="{% static 'icone.png' %}">
     <link rel="apple-touch-icon" href="{% static 'icone.png' %}">
@@ -23,6 +22,18 @@
         .scroll-mobile { -ms-overflow-style: none; scrollbar-width: none; }
         .linha-clicavel { transition: background-color 0.2s; }
         .linha-clicavel:hover { background-color: #f1f5f9 !important; }
+        
+        /* Flutuação da Mensagem de Alerta para não empurrar o site para baixo */
+        .alerta-flutuante {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -31,7 +42,6 @@
         <div class="container d-flex justify-content-between align-items-center px-4">
             <h4 class="fw-bold text-primary mb-0 d-flex align-items-center gap-2">
                 <i class="bi bi-wallet2"></i> FinPro
-                <!-- Botão Mágico de Instalar (Só aparece se o celular permitir) -->
                 <button id="btnInstalarApp" class="btn btn-sm btn-warning fw-bold rounded-pill shadow-sm px-3 ms-2" style="display: none; font-size: 0.75rem;">
                     <i class="bi bi-download"></i> Instalar
                 </button>
@@ -49,22 +59,20 @@
         </div>
     </div>
 
+    <!-- ALERTAS DO SISTEMA (MENSAGENS FLUTUANTES) -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show rounded-4 alerta-flutuante" role="alert">
+                <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
     <!-- Container Principal -->
     <div class="container pb-5 mb-5">
-        
-        <!-- ALERTAS DO SISTEMA (MENSAGENS) -->
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show rounded-4 shadow-sm" role="alert">
-                    <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-
         <!-- Grid Responsivo -->
         <div class="row flex-nowrap flex-xl-wrap overflow-x-auto pb-3 mb-4 g-3 scroll-mobile">
-            
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
@@ -129,7 +137,7 @@
             </div>
         </div>
 
-        <!-- Botões de Ação Rapida e Gamificação (CORRIGIDOS PARA CELULAR) -->
+        <!-- Botões de Ação Rapida -->
         <div class="d-flex flex-wrap gap-2 mb-4">
             <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 py-2 small fw-bold text-secondary flex-grow-1" data-bs-toggle="modal" data-bs-target="#modalGerenciarPessoas"><i class="bi bi-people"></i> Pessoas</button>
             <button class="btn btn-light bg-white border shadow-sm rounded-pill px-3 py-2 small fw-bold text-secondary flex-grow-1" data-bs-toggle="modal" data-bs-target="#modalCartao"><i class="bi bi-credit-card"></i> Cartão</button>
@@ -152,7 +160,6 @@
                     {% for t in transacoes %}
                     <div class="list-group-item bg-transparent px-2 py-3 d-flex justify-content-between align-items-center border-bottom linha-clicavel rounded-3">
                         
-                        <!-- Lado Clicável -->
                         <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" title="Clique para ver detalhes">
                             <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; background-color: {% if t.tipo == 'DESPESA' %}#ffebee{% else %}#e8f5e9{% endif %};">
                                 {% if t.tipo == 'DESPESA' %}<i class="bi bi-arrow-down-short text-danger fs-4"></i>{% else %}<i class="bi bi-arrow-up-short text-success fs-4"></i>{% endif %}
@@ -168,7 +175,6 @@
                             </div>
                         </div>
 
-                        <!-- Lado Fixo -->
                         <div class="text-end flex-shrink-0 ps-2">
                             <h6 class="mb-1 fw-bold text-nowrap {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %}" style="font-size: 0.9rem;">
                                 {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
@@ -192,6 +198,77 @@
     <!-- ========================================== -->
     <!-- MODAIS DO SISTEMA -->
     <!-- ========================================== -->
+
+    <!-- Modal Gerenciar Pessoas -->
+    <div class="modal fade" id="modalGerenciarPessoas" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-people-fill text-primary"></i> Gerenciar Pessoas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- O data-bs-dismiss fecha esta tela antes de abrir a de Cadastrar -->
+                    <button class="btn btn-primary w-100 rounded-pill py-2 mb-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalPessoa" data-bs-dismiss="modal">
+                        <i class="bi bi-plus-lg"></i> Adicionar Nova Pessoa
+                    </button>
+                    
+                    <div class="list-group list-group-flush border-top pt-2">
+                        {% for p in pessoas %}
+                        <div class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 fw-bold text-dark">{{ p.nome }} {% if p.is_titular %}<span class="badge bg-primary ms-1" style="font-size: 0.6rem;">TITULAR</span>{% endif %}</h6>
+                                <small class="text-muted"><i class="bi bi-whatsapp"></i> {{ p.telefone|default:"Sem telefone" }}</small>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <!-- O data-bs-dismiss fecha esta tela antes de abrir a de Editar -->
+                                <button class="btn btn-sm btn-light text-primary rounded-circle" data-bs-toggle="modal" data-bs-target="#modalEditarPessoa{{ p.id }}" data-bs-dismiss="modal"><i class="bi bi-pencil"></i></button>
+                                {% if not p.is_titular %}
+                                <form method="POST" class="m-0 p-0" onsubmit="return confirm('Tem certeza que deseja excluir {{ p.nome }}? Todos os gastos dela ficarão sem dono!')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="form_type" value="excluir_pessoa">
+                                    <input type="hidden" name="pessoa_id" value="{{ p.id }}">
+                                    <button type="submit" class="btn btn-sm btn-light text-danger rounded-circle"><i class="bi bi-trash3"></i></button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modais de Edição de Pessoas (AGORA ISOLADOS NA RAIZ) -->
+    {% for p in pessoas %}
+    <div class="modal fade" id="modalEditarPessoa{{ p.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">Editar {{ p.nome }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="editar_pessoa">
+                        <input type="hidden" name="pessoa_id" value="{{ p.id }}">
+                        <div class="mb-3">
+                            <label class="form-label text-secondary fw-bold small">Nome</label>
+                            <input type="text" class="form-control bg-light border-0 rounded-4" name="nome" value="{{ p.nome }}" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-secondary fw-bold small">WhatsApp (com DDD)</label>
+                            <input type="text" class="form-control bg-light border-0 rounded-4" name="telefone" value="{{ p.telefone|default:'' }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Alterações</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
 
     <!-- Modal Nova Transação -->
     <div class="modal fade" id="modalTransacao" tabindex="-1">
@@ -358,73 +435,6 @@
         </div>
     </div>
 
-    <!-- Modal Gerenciar Pessoas -->
-    <div class="modal fade" id="modalGerenciarPessoas" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-people-fill text-primary"></i> Gerenciar Pessoas</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <button class="btn btn-primary w-100 rounded-pill py-2 mb-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalPessoa">
-                        <i class="bi bi-plus-lg"></i> Adicionar Nova Pessoa
-                    </button>
-                    
-                    <div class="list-group list-group-flush border-top pt-2">
-                        {% for p in pessoas %}
-                        <div class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0 fw-bold text-dark">{{ p.nome }} {% if p.is_titular %}<span class="badge bg-primary ms-1" style="font-size: 0.6rem;">TITULAR</span>{% endif %}</h6>
-                                <small class="text-muted"><i class="bi bi-whatsapp"></i> {{ p.telefone|default:"Sem telefone" }}</small>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-light text-primary rounded-circle" data-bs-toggle="modal" data-bs-target="#modalEditarPessoa{{ p.id }}"><i class="bi bi-pencil"></i></button>
-                                {% if not p.is_titular %}
-                                <form method="POST" class="m-0 p-0" onsubmit="return confirm('Tem certeza que deseja excluir {{ p.nome }}? Todos os gastos dela ficarão sem dono!')">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="form_type" value="excluir_pessoa">
-                                    <input type="hidden" name="pessoa_id" value="{{ p.id }}">
-                                    <button type="submit" class="btn btn-sm btn-light text-danger rounded-circle"><i class="bi bi-trash3"></i></button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <!-- Sub-Modal Editar Pessoa (injetado direto no loop) -->
-                        <div class="modal fade" id="modalEditarPessoa{{ p.id }}" tabindex="-1">
-                            <div class="modal-dialog modal-dialog-centered">
-                                <div class="modal-content border-0 shadow-lg rounded-4">
-                                    <div class="modal-header border-0 pb-0">
-                                        <h5 class="modal-title fw-bold text-dark">Editar {{ p.nome }}</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <form method="POST">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="form_type" value="editar_pessoa">
-                                            <input type="hidden" name="pessoa_id" value="{{ p.id }}">
-                                            <div class="mb-3">
-                                                <label class="form-label text-secondary fw-bold small">Nome</label>
-                                                <input type="text" class="form-control bg-light border-0 rounded-4" name="nome" value="{{ p.nome }}" required>
-                                            </div>
-                                            <div class="mb-4">
-                                                <label class="form-label text-secondary fw-bold small">WhatsApp (com DDD)</label>
-                                                <input type="text" class="form-control bg-light border-0 rounded-4" name="telefone" value="{{ p.telefone|default:'' }}">
-                                            </div>
-                                            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Alterações</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal Novo Cartão -->
     <div class="modal fade" id="modalCartao" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -560,7 +570,7 @@
         {% endfor %}
     {% endif %}
 
-    <!-- Modais de Detalhes / Edição -->
+    <!-- Modais de Detalhes / Edição de Transações -->
     {% for t in transacoes %}
     <div class="modal fade" id="modalEditar{{ t.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -659,6 +669,15 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Mágica para o alerta sumir sozinho após 4 segundos (Como um app de verdade)
+            setTimeout(function() {
+                let alertas = document.querySelectorAll('.alert-dismissible');
+                alertas.forEach(function(alerta) {
+                    let bsAlert = new bootstrap.Alert(alerta);
+                    bsAlert.close();
+                });
+            }, 4000);
+
             var inputsData = document.querySelectorAll('input[type="date"]');
             var hoje = new Date().toISOString().split('T')[0];
             inputsData.forEach(function(input) {
@@ -742,7 +761,7 @@
                 });
             }
 
-            // Gráfico Chart.js - Extraindo dados protegidos do DOM
+            // Gráfico Chart.js
             const ctx = document.getElementById('graficoGastos');
             const labelsSeguros = JSON.parse(document.getElementById('labels-data').textContent);
             const dadosSeguros = JSON.parse(document.getElementById('valores-data').textContent);
@@ -787,11 +806,8 @@
         const btnInstalar = document.getElementById('btnInstalarApp');
 
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Impede o mini-infobar de aparecer automaticamente no Android
             e.preventDefault();
-            // Guarda o evento para acionarmos no botão
             promptInstalacao = e;
-            // Mostra o nosso botão amarelo no topo!
             if(btnInstalar) btnInstalar.style.display = 'block';
         });
 
@@ -801,7 +817,7 @@
                     promptInstalacao.prompt();
                     const { outcome } = await promptInstalacao.userChoice;
                     if (outcome === 'accepted') {
-                        btnInstalar.style.display = 'none'; // Esconde se ele aceitou instalar
+                        btnInstalar.style.display = 'none';
                     }
                     promptInstalacao = null;
                 }
