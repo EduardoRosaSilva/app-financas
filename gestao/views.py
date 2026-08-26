@@ -229,7 +229,7 @@ def dashboard(request):
                 
                 # Descobre para qual mês o gasto foi jogado
                 if data:
-                    data_obj = datetime.strptime(data, '%Y-%m-%d')
+                    data_obj = datetime.datetime.strptime(data, '%Y-%m-%d')
                     if cartao_obj:
                         ultimo_mes, ultimo_ano = get_mes_fatura(data_obj, cartao_obj.dia_fechamento)
                     else:
