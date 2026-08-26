@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout
 from django.contrib import messages
 from .forms import RegistroUsuarioForm, LoginUsuarioForm
+from django.views.decorators.cache import never_cache
 
 # ==========================================
 # MOTORES INTELIGENTES
@@ -70,6 +71,7 @@ def fallback_rules(descricao):
 # ==========================================
 # VIEWS DE AUTENTICAÇÃO BLINDADAS
 # ==========================================
+@never_cache
 def registro_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -88,7 +90,7 @@ def registro_view(request):
         form = RegistroUsuarioForm()
     return render(request, 'gestao/register.html', {'form': form})
 
-# TRAVA REMOVIDA PARA EVITAR O 403 FORBIDDEN
+@never_cache
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -189,12 +191,18 @@ def dashboard(request):
                 }
                 return render(request, 'gestao/revisao_fatura.html', contexto_revisao)
 
-        # CORREÇÃO DA FATURA INVISÍVEL
+        # CORREÇÃO DA FATURA INVISÍVEL E ERRO 404
         elif tipo_formulario == 'salvar_fatura_lote':
             ids_marcados = request.POST.getlist('importar_chk')
             cartao_id = request.POST.get('cartao_lote')
             cartao_obj = Cartao.objects.filter(id=cartao_id, conta=minha_conta).first() if cartao_id else None
             
+            # PROTEÇÃO: Garante que exista pelo menos uma pessoa para ser dona do gasto
+            pessoa_padrao = Pessoa.objects.filter(conta=minha_conta, is_titular=True).first() or Pessoa.objects.filter(conta=minha_conta).first()
+            if not pessoa_padrao:
+                messages.error(request, "Erro: Você precisa cadastrar pelo menos uma Pessoa no painel antes de importar faturas!")
+                return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
+
             qtd_salva = 0
             ultimo_mes = mes_selecionado
             ultimo_ano = ano_selecionado
@@ -205,7 +213,12 @@ def dashboard(request):
                 data = request.POST.get(f'data_{t_id}')
                 dono_id = request.POST.get(f'dono_{t_id}')
                 categoria = request.POST.get(f'cat_{t_id}', 'Outros')
-                dono_obj = get_object_or_404(Pessoa, id=dono_id, conta=minha_conta)
+                
+                # Busca segura do dono sem gerar tela de erro 404
+                dono_obj = None
+                if dono_id and str(dono_id).isdigit():
+                    dono_obj = Pessoa.objects.filter(id=dono_id, conta=minha_conta).first()
+                dono_obj = dono_obj or pessoa_padrao
                 
                 Transacao.objects.create(
                     descricao=desc, valor=float(valor_str), data=data, tipo='DESPESA',
@@ -302,11 +315,31 @@ def dashboard(request):
             else:
                 MetaMensal.objects.create(valor=novo_valor, conta=minha_conta)
 
+        # GERENCIAMENTO DE PESSOAS (NOVO, EDITAR E EXCLUIR)
         elif tipo_formulario == 'nova_pessoa':
             Pessoa.objects.create(
                 nome=request.POST.get('nome'), telefone=request.POST.get('telefone', ''), 
                 is_titular=not Pessoa.objects.filter(conta=minha_conta, is_titular=True).exists(), conta=minha_conta
             )
+            messages.success(request, "Pessoa adicionada com sucesso!")
+            
+        elif tipo_formulario == 'editar_pessoa':
+            p_id = request.POST.get('pessoa_id')
+            p = get_object_or_404(Pessoa, id=p_id, conta=minha_conta)
+            p.nome = request.POST.get('nome')
+            p.telefone = request.POST.get('telefone', '')
+            p.save()
+            messages.success(request, f"Dados de {p.nome} atualizados!")
+            
+        elif tipo_formulario == 'excluir_pessoa':
+            p_id = request.POST.get('pessoa_id')
+            p = get_object_or_404(Pessoa, id=p_id, conta=minha_conta)
+            if p.is_titular:
+                messages.error(request, "Segurança: Você não pode excluir o Titular da conta.")
+            else:
+                p.delete()
+                messages.success(request, "Pessoa excluída com sucesso.")
+
         elif tipo_formulario == 'novo_cartao':
             Cartao.objects.create(
                 nome=request.POST.get('nome'), 
@@ -314,6 +347,7 @@ def dashboard(request):
                 dia_vencimento=int(request.POST.get('dia_vencimento', 5)),
                 conta=minha_conta
             )
+
         elif tipo_formulario == 'registrar_pagamento':
             dono_obj = get_object_or_404(Pessoa, id=request.POST.get('dono_id'), conta=minha_conta)
             referencia = request.POST.get('referencia_gasto')

@@ -1,8 +1,17 @@
-self.addEventListener('install', function(e) {
-  // Service worker instalado
+const CACHE_NAME = 'finpro-v3';
+
+self.addEventListener('install', (e) => {
+    self.skipWaiting();
 });
 
-self.addEventListener('fetch', function(e) {
-  // Passa as requisições direto (sem cache pesado por enquanto)
-  e.respondWith(fetch(e.request));
+self.addEventListener('activate', (e) => {
+    e.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', (e) => {
+    e.respondWith(
+        fetch(e.request).catch(() => {
+            return new Response("Você está offline. Conecte-se à internet para usar o FinPro.");
+        })
+    );
 });
