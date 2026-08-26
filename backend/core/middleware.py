@@ -21,14 +21,15 @@ class ContaInvisivelMiddleware:
         request.conta = conta
         response = self.get_response(request)
 
+        # Regra 'Lax' permite que o cookie sobreviva ao redirecionamento de Login
         if not conta_id or conta_id != str(conta.id):
             response.set_cookie(
                 'finpro_conta_id',
                 str(conta.id),
                 max_age=10 * 365 * 24 * 60 * 60,
                 httponly=True, 
-                secure=not settings.DEBUG, # HTTPS apenas em Produção
-                samesite='Strict'          # Bloqueia ataques Cross-Site
+                secure=not settings.DEBUG,
+                samesite='Lax' 
             )
             
         return response
