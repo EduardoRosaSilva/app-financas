@@ -1,40 +1,69 @@
 import calendar
 import csv
 import io
-import json
 import re
 import urllib.parse
 from collections import defaultdict
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 
 from .forms import LoginUsuarioForm, RegistroUsuarioForm
 from .models import Cartao, MetaMensal, Pessoa, Transacao
 
-# ==========================================
-# MOTORES INTELIGENTES E MATEMÁTICA TEMPORAL
-# ==========================================
+
+def parse_moeda(valor_raw) -> float:
+    """Converte strings como '1.250,50', 'R$ 50,00' ou '50.00' com segurança."""
+    if not valor_raw:
+        return 0.0
+    s = str(valor_raw).replace('R$', '').replace(' ', '').strip()
+    if ',' in s and '.' in s:
+        if s.rfind(',') > s.rfind('.'):
+            s = s.replace('.', '').replace(',', '.')
+        else:
+            s = s.replace(',', '')
+    elif ',' in s:
+        s = s.replace(',', '.')
+    try:
+        return float(Decimal(s))
+    except (InvalidOperation, ValueError):
+        return 0.0
+
+
+def garantir_titular_conta(username: str) -> Pessoa:
+    """Garante que toda conta possua uma Pessoa titular para nunca zerar o dashboard."""
+    titular = Pessoa.objects.filter(conta__iexact=username, is_titular=True).first()
+    if not titular:
+        primeira = Pessoa.objects.filter(conta__iexact=username).first()
+        if primeira:
+            primeira.is_titular = True
+            primeira.conta = username
+            primeira.save()
+            return primeira
+        titular = Pessoa.objects.create(
+            nome=username.capitalize(),
+            telefone='',
+            is_titular=True,
+            conta=username
+        )
+    return titular
+
 
 def get_mes_fatura(data_compra, dia_fechamento, dia_vencimento=None):
     """
-    Calcula o mês de exibição da fatura baseado no fechamento do cartão.
+    Calcula o mês de competência da fatura baseado no dia de fechamento do cartão.
+    Compras antes do dia de fechamento entram na fatura do próprio mês;
+    compras no dia de fechamento ou após entram na fatura do mês seguinte.
     """
     mes = data_compra.month
     ano = data_compra.year
 
     if data_compra.day >= dia_fechamento:
-        mes += 1
-        if mes > 12:
-            mes = 1
-            ano += 1
-
-    if dia_vencimento and dia_vencimento < dia_fechamento:
         mes += 1
         if mes > 12:
             mes = 1
@@ -79,19 +108,19 @@ def prever_categoria(descricao_nova, transacoes_historicas):
 
 def fallback_rules(descricao):
     cat_lower = descricao.lower()
-    if 'restaurante' in cat_lower or 'food' in cat_lower or 'alimenta' in cat_lower or 'ifd' in cat_lower:
+    if any(k in cat_lower for k in ('restaurante', 'food', 'alimenta', 'ifd', 'lanch')):
         return 'Alimentação'
-    if 'supermercado' in cat_lower or 'grocery' in cat_lower or 'mercado' in cat_lower or 'conveniencia' in cat_lower:
+    if any(k in cat_lower for k in ('supermercado', 'grocery', 'mercado', 'conveniencia')):
         return 'Mercado'
-    if 'transporte' in cat_lower or 'auto' in cat_lower or 'uber' in cat_lower or 'posto' in cat_lower or 'combustivel' in cat_lower:
+    if any(k in cat_lower for k in ('transporte', 'auto', 'uber', 'posto', 'combustivel', '99app')):
         return 'Transporte'
-    if 'saude' in cat_lower or 'farm' in cat_lower or 'medic' in cat_lower or 'odonto' in cat_lower:
+    if any(k in cat_lower for k in ('saude', 'farm', 'medic', 'odonto', 'drogaria')):
         return 'Saúde'
-    if 'aluguel' in cat_lower or 'condominio' in cat_lower or 'energia' in cat_lower or 'luz' in cat_lower or 'agua' in cat_lower:
+    if any(k in cat_lower for k in ('aluguel', 'condominio', 'energia', 'luz', 'agua', 'internet')):
         return 'Moradia'
-    if 'netflix' in cat_lower or 'spotify' in cat_lower or 'prime' in cat_lower or 'assinatura' in cat_lower:
+    if any(k in cat_lower for k in ('netflix', 'spotify', 'prime', 'assinatura', 'youtube')):
         return 'Assinaturas'
-    if 'loja' in cat_lower or 'shopee' in cat_lower or 'mercado livre' in cat_lower or 'pernambucanas' in cat_lower:
+    if any(k in cat_lower for k in ('loja', 'shopee', 'mercado livre', 'pernambucanas', 'amazon')):
         return 'Compras'
     return 'Outros'
 
@@ -112,6 +141,7 @@ def registro_view(request):
         form = RegistroUsuarioForm(request.POST)
         if form.is_valid():
             usuario = form.save()
+            garantir_titular_conta(usuario.username)
             login(request, usuario)
             return redirect('dashboard')
     else:
@@ -128,6 +158,7 @@ def login_view(request):
         form = LoginUsuarioForm(request, data=request.POST)
         if form.is_valid():
             usuario = form.get_user()
+            garantir_titular_conta(usuario.username)
             login(request, usuario)
             return redirect('dashboard')
         else:
@@ -143,15 +174,23 @@ def logout_view(request):
 
 
 # ==========================================
-# DASHBOARD (O CORAÇÃO DO SISTEMA)
+# DASHBOARD
 # ==========================================
 
 @login_required(login_url='login')
 def dashboard(request):
     minha_conta = request.user.username
+    eu = garantir_titular_conta(minha_conta)
+
     hoje = date.today()
-    mes_selecionado = int(request.GET.get('mes', hoje.month))
-    ano_selecionado = int(request.GET.get('ano', hoje.year))
+    try:
+        mes_selecionado = int(request.GET.get('mes', hoje.month))
+        ano_selecionado = int(request.GET.get('ano', hoje.year))
+        if not (1 <= mes_selecionado <= 12):
+            mes_selecionado = hoje.month
+    except (ValueError, TypeError):
+        mes_selecionado = hoje.month
+        ano_selecionado = hoje.year
 
     if request.method == 'POST':
         tipo_formulario = request.POST.get('form_type')
@@ -174,7 +213,7 @@ def dashboard(request):
                 io_string = io.StringIO(decoded_file)
                 reader = csv.DictReader(io_string, delimiter=delimitador)
 
-                historico = list(Transacao.objects.filter(conta=minha_conta).exclude(categoria='Outros'))
+                historico = list(Transacao.objects.filter(conta__iexact=minha_conta).exclude(categoria='Outros'))
                 transacoes_fatura = []
 
                 for index, row in enumerate(reader):
@@ -189,20 +228,7 @@ def dashboard(request):
                     if titulo and titulo[0] in ['=', '+', '-', '@']:
                         titulo = "'" + titulo
 
-                    valor_str = valor_str.replace('R$', '').replace(' ', '')
-                    if ',' in valor_str and '.' not in valor_str:
-                        valor_str = valor_str.replace(',', '.')
-                    elif ',' in valor_str and '.' in valor_str:
-                        if valor_str.rfind(',') > valor_str.rfind('.'):
-                            valor_str = valor_str.replace('.', '').replace(',', '.')
-                        else:
-                            valor_str = valor_str.replace(',', '')
-
-                    try:
-                        valor = float(valor_str)
-                    except ValueError:
-                        valor = 0.0
-
+                    valor = parse_moeda(valor_str)
                     if valor <= 0:
                         continue
 
@@ -225,8 +251,8 @@ def dashboard(request):
 
                 contexto_revisao = {
                     'transacoes_fatura': transacoes_fatura,
-                    'pessoas': Pessoa.objects.filter(conta=minha_conta),
-                    'cartoes': Cartao.objects.filter(conta=minha_conta),
+                    'pessoas': Pessoa.objects.filter(conta__iexact=minha_conta),
+                    'cartoes': Cartao.objects.filter(conta__iexact=minha_conta),
                 }
                 return render(request, 'gestao/revisao_fatura.html', contexto_revisao)
 
@@ -234,34 +260,30 @@ def dashboard(request):
         elif tipo_formulario == 'salvar_fatura_lote':
             ids_marcados = request.POST.getlist('importar_chk')
             cartao_id = request.POST.get('cartao_lote')
-            cartao_obj = Cartao.objects.filter(id=cartao_id, conta=minha_conta).first() if cartao_id else None
+            cartao_obj = Cartao.objects.filter(id=cartao_id, conta__iexact=minha_conta).first() if cartao_id else None
 
-            pessoa_padrao = Pessoa.objects.filter(conta=minha_conta, is_titular=True).first() or Pessoa.objects.filter(conta=minha_conta).first()
-            if not pessoa_padrao:
-                messages.error(request, "Erro: Você precisa cadastrar pelo menos uma Pessoa antes de importar faturas!")
-                return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
-
+            pessoa_padrao = eu
             qtd_salva = 0
             ultimo_mes = mes_selecionado
             ultimo_ano = ano_selecionado
 
             for t_id in ids_marcados:
                 desc = request.POST.get(f'desc_{t_id}')
-                valor_str = request.POST.get(f'valor_{t_id}', '0').replace(',', '.')
+                valor = parse_moeda(request.POST.get(f'valor_{t_id}', '0'))
                 data_val = request.POST.get(f'data_{t_id}')
                 dono_id = request.POST.get(f'dono_{t_id}')
                 categoria = request.POST.get(f'cat_{t_id}', 'Outros')
 
                 dono_obj = None
                 if dono_id and str(dono_id).isdigit():
-                    dono_obj = Pessoa.objects.filter(id=dono_id, conta=minha_conta).first()
+                    dono_obj = Pessoa.objects.filter(id=dono_id, conta__iexact=minha_conta).first()
                 dono_obj = dono_obj or pessoa_padrao
 
                 data_parsed = datetime.strptime(data_val, '%Y-%m-%d').date() if data_val else hoje
 
                 Transacao.objects.create(
                     descricao=desc,
-                    valor=float(valor_str),
+                    valor=valor,
                     data=data_parsed,
                     tipo='DESPESA',
                     categoria=categoria,
@@ -283,9 +305,8 @@ def dashboard(request):
 
         # 3. NOVA TRANSAÇÃO
         elif tipo_formulario == 'nova_transacao':
-            descricao_digitada = request.POST.get('descricao')
-            valor_str = request.POST.get('valor', '0')
-            valor_digitado = float(valor_str.replace(',', '.')) if valor_str else 0.0
+            descricao_digitada = request.POST.get('descricao', '').strip()
+            valor_digitado = parse_moeda(request.POST.get('valor', '0'))
 
             dono_id_escolhido = request.POST.get('dono_id')
             tipo_escolhido = request.POST.get('tipo', 'DESPESA')
@@ -293,22 +314,22 @@ def dashboard(request):
             data_digitada = request.POST.get('data')
             cartao_id_escolhido = request.POST.get('cartao_id')
 
-            recorrente = True if request.POST.get('recorrente') == '1' else False
-            parcelas = 1 if recorrente else int(request.POST.get('parcelas', 1))
+            recorrente = request.POST.get('recorrente') == '1'
+            parcelas = 1 if recorrente else max(1, int(request.POST.get('parcelas', 1) or 1))
 
             donos_extras = request.POST.getlist('dono_id_extra')
             valores_extras_str = request.POST.getlist('valor_extra')
 
-            dono_obj = get_object_or_404(Pessoa, id=dono_id_escolhido, conta=minha_conta)
-            cartao_obj = get_object_or_404(Cartao, id=cartao_id_escolhido, conta=minha_conta) if cartao_id_escolhido else None
-            data_base = datetime.strptime(data_digitada, '%Y-%m-%d').date()
+            dono_obj = get_object_or_404(Pessoa, id=dono_id_escolhido, conta__iexact=minha_conta) if dono_id_escolhido else eu
+            cartao_obj = get_object_or_404(Cartao, id=cartao_id_escolhido, conta__iexact=minha_conta) if cartao_id_escolhido else None
+            data_base = datetime.strptime(data_digitada, '%Y-%m-%d').date() if data_digitada else hoje
 
             if parcelas > 1:
                 valor_final_parcela = round(valor_digitado / parcelas, 2)
-                valores_finais_extras = [round(float(v.replace(',', '.')) / parcelas, 2) if v else 0.0 for v in valores_extras_str]
+                valores_finais_extras = [round(parse_moeda(v) / parcelas, 2) for v in valores_extras_str]
             else:
                 valor_final_parcela = valor_digitado
-                valores_finais_extras = [float(v.replace(',', '.')) if v else 0.0 for v in valores_extras_str]
+                valores_finais_extras = [parse_moeda(v) for v in valores_extras_str]
 
             for i in range(parcelas):
                 mes_atual = data_base.month + i
@@ -320,7 +341,7 @@ def dashboard(request):
 
                 desc_salvar = f"{descricao_digitada} ({i+1}/{parcelas})" if parcelas > 1 else descricao_digitada
                 soma_extras = sum(valores_finais_extras)
-                valor_dono_1 = valor_final_parcela - soma_extras
+                valor_dono_1 = max(0.0, round(valor_final_parcela - soma_extras, 2))
 
                 Transacao.objects.create(
                     descricao=desc_salvar,
@@ -335,9 +356,9 @@ def dashboard(request):
                 )
 
                 for idx, dono_extra_id in enumerate(donos_extras):
-                    valor_deste_amigo = valores_finais_extras[idx]
+                    valor_deste_amigo = valores_finais_extras[idx] if idx < len(valores_finais_extras) else 0.0
                     if dono_extra_id and valor_deste_amigo > 0:
-                        d_obj = get_object_or_404(Pessoa, id=dono_extra_id, conta=minha_conta)
+                        d_obj = get_object_or_404(Pessoa, id=dono_extra_id, conta__iexact=minha_conta)
                         Transacao.objects.create(
                             descricao=f"{desc_salvar} (Parte de {d_obj.nome})",
                             valor=valor_deste_amigo,
@@ -350,42 +371,77 @@ def dashboard(request):
                             recorrente=recorrente
                         )
 
-        # 4. EDITAR TRANSAÇÃO (COM RECALCULO DE PARCELAS E DIVISÃO)
+            # Redireciona para o mês/ano onde a 1ª parcela aparece para o usuário ver o lançamento na hora
+            if cartao_obj:
+                mes_red, ano_red = get_mes_fatura(data_base, cartao_obj.dia_fechamento, cartao_obj.dia_vencimento)
+            else:
+                mes_red, ano_red = data_base.month, data_base.year
+            messages.success(request, "Transação registrada com sucesso!")
+            return redirect(f'/?mes={mes_red}&ano={ano_red}')
+
+        # 4. EDITAR TRANSAÇÃO
         elif tipo_formulario == 'editar_transacao':
             t_id = request.POST.get('transacao_id')
-            transacao = get_object_or_404(Transacao, id=t_id, conta=minha_conta)
+            transacao = get_object_or_404(Transacao, id=t_id, conta__iexact=minha_conta)
 
-            descricao = request.POST.get('descricao')
-            valor_str = request.POST.get('valor', '0')
-            valor = float(valor_str.replace(',', '.')) if valor_str else 0.0
+            descricao = request.POST.get('descricao', '').strip()
+            valor = parse_moeda(request.POST.get('valor', '0'))
             data_val = request.POST.get('data')
             tipo = request.POST.get('tipo', 'DESPESA')
             categoria = request.POST.get('categoria', 'Outros')
-            recorrente = True if request.POST.get('recorrente') == '1' else False
+            recorrente = request.POST.get('recorrente') == '1'
+            parcelas = 1 if recorrente else max(1, int(request.POST.get('parcelas', 1) or 1))
             dono_id = request.POST.get('dono_id')
             cartao_id = request.POST.get('cartao_id')
 
             donos_extras = request.POST.getlist('dono_id_extra')
             valores_extras_str = request.POST.getlist('valor_extra')
-            valores_extras = [float(v.replace(',', '.')) if v else 0.0 for v in valores_extras_str]
+            valores_extras = [parse_moeda(v) for v in valores_extras_str]
+
+            if parcelas > 1:
+                valor_parcela = round(valor / parcelas, 2)
+                valores_extras = [round(v / parcelas, 2) for v in valores_extras]
+            else:
+                valor_parcela = valor
+
             soma_extras = sum(valores_extras)
+            valor_principal = round(valor_parcela - soma_extras, 2) if (0 < soma_extras < valor_parcela) else valor_parcela
 
-            valor_principal = valor - soma_extras if (soma_extras > 0 and soma_extras < valor) else valor
-
-            transacao.descricao = descricao
+            data_base = datetime.strptime(data_val, '%Y-%m-%d').date() if data_val else transacao.data
+            transacao.descricao = f"{descricao} (1/{parcelas})" if parcelas > 1 else descricao
             transacao.valor = valor_principal
-            transacao.data = datetime.strptime(data_val, '%Y-%m-%d').date()
+            transacao.data = data_base
             transacao.tipo = tipo
             transacao.categoria = categoria
             transacao.recorrente = recorrente
-            transacao.dono = get_object_or_404(Pessoa, id=dono_id, conta=minha_conta)
-            transacao.cartao = get_object_or_404(Cartao, id=cartao_id, conta=minha_conta) if cartao_id else None
+            transacao.dono = get_object_or_404(Pessoa, id=dono_id, conta__iexact=minha_conta)
+            transacao.cartao = get_object_or_404(Cartao, id=cartao_id, conta__iexact=minha_conta) if cartao_id else None
             transacao.save()
+
+            # Cria parcelas adicionais se o usuário parcelou na edição
+            for i in range(1, parcelas):
+                mes_atual = data_base.month + i
+                ano_atual_loop = data_base.year + ((mes_atual - 1) // 12)
+                mes_calculado = ((mes_atual - 1) % 12) + 1
+                ultimo_dia_mes = calendar.monthrange(ano_atual_loop, mes_calculado)[1]
+                nova_data = date(ano_atual_loop, mes_calculado, min(data_base.day, ultimo_dia_mes))
+
+                Transacao.objects.create(
+                    descricao=f"{descricao} ({i+1}/{parcelas})",
+                    valor=valor_principal,
+                    data=nova_data,
+                    tipo=tipo,
+                    categoria=categoria,
+                    dono=transacao.dono,
+                    cartao=transacao.cartao,
+                    conta=minha_conta,
+                    recorrente=False
+                )
 
             if donos_extras and any(v > 0 for v in valores_extras):
                 for extra_id, extra_val in zip(donos_extras, valores_extras):
                     if extra_id and extra_val > 0:
-                        amigo_obj = Pessoa.objects.filter(id=extra_id, conta=minha_conta).first()
+                        amigo_obj = Pessoa.objects.filter(id=extra_id, conta__iexact=minha_conta).first()
                         if amigo_obj:
                             Transacao.objects.create(
                                 descricao=f"{descricao} (Parte de {amigo_obj.nome})",
@@ -403,8 +459,8 @@ def dashboard(request):
 
         # 5. OUTROS GERENCIAMENTOS
         elif tipo_formulario == 'atualizar_meta':
-            novo_valor = request.POST.get('valor_meta')
-            meta = MetaMensal.objects.filter(conta=minha_conta).first()
+            novo_valor = parse_moeda(request.POST.get('valor_meta'))
+            meta = MetaMensal.objects.filter(conta__iexact=minha_conta).first()
             if meta:
                 meta.valor = novo_valor
                 meta.save()
@@ -413,24 +469,24 @@ def dashboard(request):
 
         elif tipo_formulario == 'nova_pessoa':
             Pessoa.objects.create(
-                nome=request.POST.get('nome'),
-                telefone=request.POST.get('telefone', ''),
-                is_titular=not Pessoa.objects.filter(conta=minha_conta, is_titular=True).exists(),
+                nome=request.POST.get('nome', '').strip(),
+                telefone=request.POST.get('telefone', '').strip(),
+                is_titular=not Pessoa.objects.filter(conta__iexact=minha_conta, is_titular=True).exists(),
                 conta=minha_conta
             )
             messages.success(request, "Pessoa adicionada com sucesso!")
 
         elif tipo_formulario == 'editar_pessoa':
             p_id = request.POST.get('pessoa_id')
-            p = get_object_or_404(Pessoa, id=p_id, conta=minha_conta)
-            p.nome = request.POST.get('nome')
-            p.telefone = request.POST.get('telefone', '')
+            p = get_object_or_404(Pessoa, id=p_id, conta__iexact=minha_conta)
+            p.nome = request.POST.get('nome', '').strip()
+            p.telefone = request.POST.get('telefone', '').strip()
             p.save()
             messages.success(request, f"Dados de {p.nome} atualizados!")
 
         elif tipo_formulario == 'excluir_pessoa':
             p_id = request.POST.get('pessoa_id')
-            p = get_object_or_404(Pessoa, id=p_id, conta=minha_conta)
+            p = get_object_or_404(Pessoa, id=p_id, conta__iexact=minha_conta)
             if p.is_titular:
                 messages.error(request, "Segurança: Você não pode excluir o Titular da conta.")
             else:
@@ -439,20 +495,21 @@ def dashboard(request):
 
         elif tipo_formulario == 'novo_cartao':
             Cartao.objects.create(
-                nome=request.POST.get('nome'),
+                nome=request.POST.get('nome', '').strip(),
                 dia_fechamento=int(request.POST.get('dia_fechamento', 25)),
                 dia_vencimento=int(request.POST.get('dia_vencimento', 5)),
                 conta=minha_conta
             )
+            messages.success(request, "Cartão cadastrado com sucesso!")
 
         elif tipo_formulario == 'registrar_pagamento':
-            dono_obj = get_object_or_404(Pessoa, id=request.POST.get('dono_id'), conta=minha_conta)
+            dono_obj = get_object_or_404(Pessoa, id=request.POST.get('dono_id'), conta__iexact=minha_conta)
             referencia = request.POST.get('referencia_gasto')
             descricao_pagamento = f"Pagamento de {dono_obj.nome}" + (f" (Ref: {referencia})" if referencia else "")
 
             Transacao.objects.create(
                 descricao=descricao_pagamento,
-                valor=float(request.POST.get('valor').replace(',', '.')),
+                valor=parse_moeda(request.POST.get('valor')),
                 dono=dono_obj,
                 tipo='PAGAMENTO',
                 categoria='Outros',
@@ -466,9 +523,8 @@ def dashboard(request):
     # ==========================================
     # CÁLCULOS E CONSULTAS DA TELA
     # ==========================================
-    todas_pessoas = Pessoa.objects.filter(conta=minha_conta)
-    todos_cartoes = Cartao.objects.filter(conta=minha_conta)
-    eu = Pessoa.objects.filter(is_titular=True, conta=minha_conta).first()
+    todas_pessoas = Pessoa.objects.filter(conta__iexact=minha_conta)
+    todos_cartoes = Cartao.objects.filter(conta__iexact=minha_conta)
     filtra_pessoa_id = request.GET.get('pessoa')
 
     mes_anterior = mes_selecionado - 1 if mes_selecionado > 1 else 12
@@ -478,8 +534,8 @@ def dashboard(request):
 
     ultimo_dia_mes = calendar.monthrange(ano_selecionado, mes_selecionado)[1]
 
-    trans_normais = Transacao.objects.filter(conta=minha_conta, recorrente=False)
-    trans_rec = Transacao.objects.filter(conta=minha_conta, recorrente=True)
+    trans_normais = Transacao.objects.filter(conta__iexact=minha_conta, recorrente=False).select_related('cartao', 'dono')
+    trans_rec = Transacao.objects.filter(conta__iexact=minha_conta, recorrente=True).select_related('cartao', 'dono')
 
     lista_transacoes_mes = []
 
@@ -496,14 +552,12 @@ def dashboard(request):
         if t.cartao:
             m_fat_orig, a_fat_orig = get_mes_fatura(t.data, t.cartao.dia_fechamento, t.cartao.dia_vencimento)
             if a_fat_orig < ano_selecionado or (a_fat_orig == ano_selecionado and m_fat_orig <= mes_selecionado):
-                dia_original = t.data.day
-                dia_valido = min(dia_original, ultimo_dia_mes)
+                dia_valido = min(t.data.day, ultimo_dia_mes)
                 t.data_exibicao = date(ano_selecionado, mes_selecionado, dia_valido)
                 lista_transacoes_mes.append(t)
         else:
             if t.data.year < ano_selecionado or (t.data.year == ano_selecionado and t.data.month <= mes_selecionado):
-                dia_original = t.data.day
-                dia_valido = min(dia_original, ultimo_dia_mes)
+                dia_valido = min(t.data.day, ultimo_dia_mes)
                 t.data_exibicao = date(ano_selecionado, mes_selecionado, dia_valido)
                 lista_transacoes_mes.append(t)
 
@@ -512,15 +566,15 @@ def dashboard(request):
     if filtra_pessoa_id:
         lista_transacoes_mes = [t for t in lista_transacoes_mes if str(t.dono.id) == str(filtra_pessoa_id)]
 
-    meus_gastos = sum(t.valor for t in lista_transacoes_mes if eu and t.dono == eu and t.tipo == 'DESPESA')
+    meus_gastos = sum(float(t.valor) for t in lista_transacoes_mes if eu and t.dono_id == eu.id and t.tipo == 'DESPESA')
 
-    familiares = Pessoa.objects.filter(is_titular=False, conta=minha_conta)
+    familiares = Pessoa.objects.filter(is_titular=False, conta__iexact=minha_conta)
     dividas_detalhadas = []
 
     for familiar in familiares:
-        despesas_fam = [t for t in lista_transacoes_mes if t.dono == familiar and t.tipo == 'DESPESA']
-        pagamentos_fam = [t for t in lista_transacoes_mes if t.dono == familiar and t.tipo == 'PAGAMENTO']
-        saldo_pessoa = sum(t.valor for t in despesas_fam) - sum(t.valor for t in pagamentos_fam)
+        despesas_fam = [t for t in lista_transacoes_mes if t.dono_id == familiar.id and t.tipo == 'DESPESA']
+        pagamentos_fam = [t for t in lista_transacoes_mes if t.dono_id == familiar.id and t.tipo == 'PAGAMENTO']
+        saldo_pessoa = sum(float(t.valor) for t in despesas_fam) - sum(float(t.valor) for t in pagamentos_fam)
 
         if abs(saldo_pessoa) > 0.01:
             despesas_pendentes = []
@@ -539,13 +593,14 @@ def dashboard(request):
                 for desp in despesas_pendentes:
                     texto_zap += f"- {desp['descricao']}: R$ {desp['saldo']:.2f}".replace('.', ',') + (" (Restante)\n" if desp['saldo'] < desp['valor_original'] else "\n")
                 texto_zap += "\n"
-            if sum(t.valor for t in pagamentos_fam) > 0:
-                texto_zap += f"*💵 Abatido:* R$ {sum(t.valor for t in pagamentos_fam):.2f}\n".replace('.', ',')
+            if sum(float(t.valor) for t in pagamentos_fam) > 0:
+                texto_zap += f"*💵 Abatido:* R$ {sum(float(t.valor) for t in pagamentos_fam):.2f}\n".replace('.', ',')
             texto_zap += f"*👉 Saldo Pendente: R$ {saldo_pessoa:.2f}*\n".replace('.', ',')
 
-            url_base = f"https://wa.me/{''.join(filter(str.isdigit, familiar.telefone))}" if familiar.telefone else "https://wa.me/"
-            if familiar.telefone and not url_base.endswith('55') and len(url_base) >= 23:
-                url_base = url_base.replace('https://wa.me/', 'https://wa.me/55')
+            digitos_tel = ''.join(filter(str.isdigit, familiar.telefone or ''))
+            if digitos_tel and not digitos_tel.startswith('55'):
+                digitos_tel = f"55{digitos_tel}"
+            url_base = f"https://wa.me/{digitos_tel}" if digitos_tel else "https://wa.me/"
 
             dividas_detalhadas.append({
                 'id': familiar.id,
@@ -556,18 +611,19 @@ def dashboard(request):
                 'despesas': despesas_pendentes
             })
 
-    meta = MetaMensal.objects.filter(conta=minha_conta).first()
-    valor_meta = meta.valor if meta else 0
-    saldo_restante = float(valor_meta) - float(meus_gastos)
+    meta = MetaMensal.objects.filter(conta__iexact=minha_conta).first()
+    valor_meta = float(meta.valor) if meta else 0.0
+    saldo_restante = valor_meta - meus_gastos
 
     gastos_pessoais_dict = {}
     for t in lista_transacoes_mes:
-        if eu and t.dono == eu and t.tipo == 'DESPESA':
-            gastos_pessoais_dict[t.categoria or 'Outros'] = gastos_pessoais_dict.get(t.categoria or 'Outros', 0) + float(t.valor)
+        if eu and t.dono_id == eu.id and t.tipo == 'DESPESA':
+            cat = t.categoria or 'Outros'
+            gastos_pessoais_dict[cat] = gastos_pessoais_dict.get(cat, 0.0) + float(t.valor)
 
     maior_categoria = max(gastos_pessoais_dict, key=gastos_pessoais_dict.get) if gastos_pessoais_dict else "Nenhuma"
-    valor_maior_cat = gastos_pessoais_dict.get(maior_categoria, 0)
-    percentual_gasto = (float(meus_gastos) / float(valor_meta) * 100) if valor_meta > 0 else 0
+    valor_maior_cat = gastos_pessoais_dict.get(maior_categoria, 0.0)
+    percentual_gasto = (meus_gastos / valor_meta * 100) if valor_meta > 0 else 0.0
 
     contexto = {
         'transacoes': lista_transacoes_mes,
@@ -596,6 +652,8 @@ def dashboard(request):
 
 @login_required(login_url='login')
 def excluir_transacao(request, id):
-    transacao = get_object_or_404(Transacao, id=id, conta=request.user.username)
+    transacao = get_object_or_404(Transacao, id=id, conta__iexact=request.user.username)
     transacao.delete()
-    return redirect(f"/?mes={request.GET.get('mes')}&ano={request.GET.get('ano')}") if request.GET.get('mes') else redirect('dashboard')
+    mes = request.GET.get('mes')
+    ano = request.GET.get('ano')
+    return redirect(f"/?mes={mes}&ano={ano}") if mes and ano else redirect('dashboard')
