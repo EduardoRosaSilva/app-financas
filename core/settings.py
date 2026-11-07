@@ -13,7 +13,6 @@ SECRET_KEY = os.environ.get(
     'django-insecure-07_6yo3%t_3x%+os(g+23f_+zowfjm5j_co_+y@mmnss9v7gz+'
 )
 
-# Em ambiente local DEBUG fica True por padrão; no Render fica False automaticamente
 EM_PRODUCAO = os.environ.get('RENDER') is not None
 DEBUG = not EM_PRODUCAO and os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
 EM_TESTE = 'test' in sys.argv
@@ -71,9 +70,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# ==========================================
-# BANCO DE DADOS PERSISTENTE (POSTGRESQL / NEON)
-# ==========================================
 DB_URL = os.environ.get('DATABASE_URL')
 
 if DB_URL and not EM_TESTE:
@@ -123,9 +119,6 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ==========================================
-# SESSÃO PERSISTENTE (30 DIAS LOGADO NO PWA)
-# ==========================================
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 dias
@@ -139,3 +132,8 @@ if EM_PRODUCAO and not EM_TESTE:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True

@@ -55,11 +55,7 @@ def garantir_titular_conta(username: str) -> Pessoa:
 
 
 def get_mes_fatura(data_compra, dia_fechamento, dia_vencimento=None):
-    """
-    Calcula o mês de competência da fatura baseado no dia de fechamento do cartão.
-    Compras antes do dia de fechamento entram na fatura do próprio mês;
-    compras no dia de fechamento ou após entram na fatura do mês seguinte.
-    """
+    """Calcula o mês de competência da fatura baseado no dia de fechamento do cartão."""
     mes = data_compra.month
     ano = data_compra.year
 
@@ -371,7 +367,6 @@ def dashboard(request):
                             recorrente=recorrente
                         )
 
-            # Redireciona para o mês/ano onde a 1ª parcela aparece para o usuário ver o lançamento na hora
             if cartao_obj:
                 mes_red, ano_red = get_mes_fatura(data_base, cartao_obj.dia_fechamento, cartao_obj.dia_vencimento)
             else:
@@ -418,7 +413,6 @@ def dashboard(request):
             transacao.cartao = get_object_or_404(Cartao, id=cartao_id, conta__iexact=minha_conta) if cartao_id else None
             transacao.save()
 
-            # Cria parcelas adicionais se o usuário parcelou na edição
             for i in range(1, parcelas):
                 mes_atual = data_base.month + i
                 ano_atual_loop = data_base.year + ((mes_atual - 1) // 12)
@@ -521,7 +515,7 @@ def dashboard(request):
         return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
     # ==========================================
-    # CÁLCULOS E CONSULTAS DA TELA
+    # CÁLCULOS E CONSULTAS OTIMIZADAS (PERFORMANCE)
     # ==========================================
     todas_pessoas = Pessoa.objects.filter(conta__iexact=minha_conta)
     todos_cartoes = Cartao.objects.filter(conta__iexact=minha_conta)
@@ -534,8 +528,19 @@ def dashboard(request):
 
     ultimo_dia_mes = calendar.monthrange(ano_selecionado, mes_selecionado)[1]
 
-    trans_normais = Transacao.objects.filter(conta__iexact=minha_conta, recorrente=False).select_related('cartao', 'dono')
-    trans_rec = Transacao.objects.filter(conta__iexact=minha_conta, recorrente=True).select_related('cartao', 'dono')
+    # Consultas otimizadas com filtros diretos no Banco (PostgreSQL / SQLite)
+    trans_normais = Transacao.objects.filter(
+        conta__iexact=minha_conta,
+        recorrente=False,
+        data__year=ano_selecionado,
+        data__month=mes_selecionado
+    ).select_related('cartao', 'dono')
+
+    trans_rec = Transacao.objects.filter(
+        conta__iexact=minha_conta,
+        recorrente=True,
+        data__lte=date(ano_selecionado, mes_selecionado, ultimo_dia_mes)
+    ).select_related('cartao', 'dono')
 
     lista_transacoes_mes = []
 
@@ -545,8 +550,7 @@ def dashboard(request):
             if m_fat == mes_selecionado and a_fat == ano_selecionado:
                 lista_transacoes_mes.append(t)
         else:
-            if t.data.month == mes_selecionado and t.data.year == ano_selecionado:
-                lista_transacoes_mes.append(t)
+            lista_transacoes_mes.append(t)
 
     for t in trans_rec:
         if t.cartao:
@@ -556,10 +560,9 @@ def dashboard(request):
                 t.data_exibicao = date(ano_selecionado, mes_selecionado, dia_valido)
                 lista_transacoes_mes.append(t)
         else:
-            if t.data.year < ano_selecionado or (t.data.year == ano_selecionado and t.data.month <= mes_selecionado):
-                dia_valido = min(t.data.day, ultimo_dia_mes)
-                t.data_exibicao = date(ano_selecionado, mes_selecionado, dia_valido)
-                lista_transacoes_mes.append(t)
+            dia_valido = min(t.data.day, ultimo_dia_mes)
+            t.data_exibicao = date(ano_selecionado, mes_selecionado, dia_valido)
+            lista_transacoes_mes.append(t)
 
     lista_transacoes_mes.sort(key=lambda x: getattr(x, 'data_exibicao', x.data), reverse=True)
 
