@@ -3,80 +3,206 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FinPro - Gestão Financeira Inteligente</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>FinPro</title>
     
-    <meta name="theme-color" content="#0d6efd">
+    <meta name="theme-color" content="#0f172a">
     <link rel="icon" type="image/png" href="{% static 'icone.png' %}">
     <link rel="apple-touch-icon" href="{% static 'icone.png' %}">
     <link rel="manifest" href="{% static 'manifest.json' %}">
     
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            --bg-body: #f4f7fb;
-            --bg-card: #ffffff;
-            --text-main: #0f172a;
-            --border-subtle: rgba(15, 23, 42, 0.07);
+            --bg-app: #f8fafc;
+            --bg-surface: #ffffff;
+            --bg-subtle: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --accent: #2563eb;
         }
         body.dark-mode {
-            --bg-body: #0b1120;
-            --bg-card: #1e293b;
-            --text-main: #f8fafc;
-            --border-subtle: rgba(255, 255, 255, 0.08);
-            background-color: var(--bg-body) !important;
-            color: var(--text-main) !important;
+            --bg-app: #090d16;
+            --bg-surface: #111827;
+            --bg-subtle: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #1f2937;
+            --accent: #3b82f6;
         }
-        body.dark-mode .bg-white, body.dark-mode .card, body.dark-mode .modal-content {
-            background-color: var(--bg-card) !important;
-            color: var(--text-main) !important;
-        }
-        body.dark-mode .text-dark { color: #f8fafc !important; }
-        body.dark-mode .bg-light { background-color: #334155 !important; color: #f8fafc !important; }
-        body.dark-mode .form-control, body.dark-mode .form-select { color: #f8fafc !important; }
 
-        /* Modo Privacidade Fintech (Olho Mágico) */
+        html, body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-app);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-shell {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 14px 96px 14px;
+        }
+
+        .surface-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+        }
+
+        .top-bar {
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bg-subtle);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            text-decoration: none;
+            transition: opacity 0.15s;
+        }
+        .icon-btn:active { opacity: 0.7; }
+
+        .month-pill {
+            display: inline-flex;
+            align-items: center;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+        .month-pill a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 2px 6px;
+        }
+
+        /* Grade de Ações Mobile-First (5 colunas iguais) */
+        .quick-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+        .action-tile {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 10px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: var(--text-primary);
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-align: center;
+        }
+        .action-tile i {
+            font-size: 1.15rem;
+            color: var(--accent);
+        }
+        .action-tile.primary-tile {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: #ffffff;
+        }
+        .action-tile.primary-tile i { color: #ffffff; }
+
+        /* Previne zoom automático no iOS Safari ao focar inputs */
+        .form-control, .form-select {
+            font-size: 16px !important;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 12px;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        body.dark-mode .modal-content {
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        body.dark-mode .text-dark { color: var(--text-primary) !important; }
+        body.dark-mode .text-muted, body.dark-mode .text-secondary { color: var(--text-secondary) !important; }
+        body.dark-mode .bg-light { background-color: var(--bg-subtle) !important; color: var(--text-primary) !important; }
+        body.dark-mode .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
         body.privacy-blur .valor-sensivel {
-            filter: blur(8px);
+            filter: blur(7px);
             user-select: none;
-            transition: filter 0.2s ease;
         }
-        .valor-sensivel { transition: filter 0.2s ease; }
 
-        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-body); transition: background-color 0.25s; }
-        .card {
-            border: 1px solid var(--border-subtle);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        .chips-scroll {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
-        .card:hover { transform: translateY(-2px); }
-        .scroll-mobile::-webkit-scrollbar { display: none; }
-        .scroll-mobile { -ms-overflow-style: none; scrollbar-width: none; }
-        .linha-clicavel { transition: background-color 0.18s; }
-        .linha-clicavel:hover { background-color: rgba(13, 110, 253, 0.06) !important; }
+        .chips-scroll::-webkit-scrollbar { display: none; }
 
         .chip-filtro {
             cursor: pointer;
-            transition: all 0.15s ease;
-            user-select: none;
+            white-space: nowrap;
             font-size: 0.75rem;
+            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background-color: var(--bg-subtle);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            user-select: none;
         }
         .chip-filtro.active {
-            background-color: #0d6efd !important;
-            color: #ffffff !important;
-            border-color: #0d6efd !important;
+            background-color: var(--text-primary);
+            color: var(--bg-surface);
+            border-color: var(--text-primary);
         }
+
+        .tx-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 4px;
+            border-bottom: 1px solid var(--border-color);
+            gap: 10px;
+        }
+        .tx-item:last-child { border-bottom: none; }
 
         .alerta-flutuante {
             position: fixed;
-            top: 20px;
+            top: 16px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 9999;
-            width: 90%;
-            max-width: 420px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            width: 92%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
         }
 
         #lgpd-banner {
@@ -85,450 +211,410 @@
             left: 0;
             width: 100%;
             z-index: 99999;
-            box-shadow: 0 -5px 25px rgba(0,0,0,0.2);
+            background-color: #0f172a;
+            color: #f8fafc;
+            border-top: 1px solid #334155;
             display: none;
         }
     </style>
 </head>
 <body>
-    <!-- Header Topo Responsivo com Modo Privacidade e Dark Mode -->
-    <div class="bg-white sticky-top shadow-sm py-3 mb-4 rounded-bottom-5">
-        <div class="container px-3 px-md-4">
-            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3">
-                <div class="d-flex align-items-center justify-content-between w-100 w-sm-auto">
-                    <h4 class="fw-bold text-primary mb-0 d-flex align-items-center gap-2">
-                        <i class="bi bi-wallet2"></i> FinPro
-                        <span class="badge bg-{{ analise_ia.cor_score }} rounded-pill ms-1" style="font-size: 0.65rem;" title="Score FinPro de Saúde Financeira">
-                            Score {{ analise_ia.score }}
-                        </span>
-                    </h4>
-                    <div class="d-flex align-items-center gap-2">
-                        <button id="btnInstalarApp" class="btn btn-sm btn-warning fw-bold rounded-pill shadow-sm px-3 text-dark" style="display: none; font-size: 0.75rem;">
-                            <i class="bi bi-download"></i> Instalar
-                        </button>
-                        <button id="btnPrivacyMode" class="btn btn-sm btn-light border rounded-circle shadow-sm" title="Ocultar/Mostrar Valores (Modo Privacidade)">
-                            <i class="bi bi-eye" id="iconPrivacy"></i>
-                        </button>
-                        <button id="btnDarkMode" class="btn btn-sm btn-light border rounded-circle shadow-sm" title="Alternar Tema Claro/Escuro">
-                            <i class="bi bi-moon-stars"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="d-flex align-items-center justify-content-center gap-2 w-100 w-sm-auto">
-                    <div class="d-flex align-items-center bg-light rounded-pill px-3 py-1 border">
-                        <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" class="text-secondary text-decoration-none p-1" title="Mês Anterior"><i class="bi bi-chevron-left"></i></a>
-                        <span class="fw-bold small mx-3 text-dark">{{ mes_atual }}/{{ ano_atual }}</span>
-                        <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" class="text-secondary text-decoration-none p-1" title="Próximo Mês"><i class="bi bi-chevron-right"></i></a>
-                    </div>
-                    <button class="btn btn-light text-secondary rounded-pill px-3 fw-bold border shadow-sm" style="font-size: 0.85rem;" data-bs-toggle="modal" data-bs-target="#modalLGPD" title="Privacidade, Limpeza de Dados e LGPD">
-                        <i class="bi bi-shield-check text-success"></i> Dados/LGPD
-                    </button>
-                    <a href="{% url 'logout' %}" class="btn btn-light text-danger rounded-pill px-3 fw-bold border shadow-sm" style="font-size: 0.85rem;">
-                        <i class="bi bi-box-arrow-right"></i> Sair
-                    </a>
+    <!-- Barra Superior Compacta Mobile-First -->
+    <header class="top-bar py-2 mb-3">
+        <div class="app-shell py-1 d-flex justify-content-between align-items-center" style="padding-bottom: 0;">
+            <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold fs-5 tracking-tight d-flex align-items-center gap-1">
+                    <i class="bi bi-wallet2 text-primary"></i> FinPro
+                </span>
+                <div class="month-pill ms-1">
+                    <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" aria-label="Mês anterior"><i class="bi bi-chevron-left"></i></a>
+                    <span class="mx-1">{{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</span>
+                    <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" aria-label="Próximo mês"><i class="bi bi-chevron-right"></i></a>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- ALERTAS DO SISTEMA -->
+            <div class="d-flex align-items-center gap-1">
+                <button id="btnInstalarApp" class="icon-btn text-primary" style="display: none;" title="Instalar Aplicativo">
+                    <i class="bi bi-download"></i>
+                </button>
+                <button id="btnPrivacyMode" class="icon-btn" title="Ocultar ou exibir valores">
+                    <i class="bi bi-eye" id="iconPrivacy"></i>
+                </button>
+                <button id="btnDarkMode" class="icon-btn" title="Alternar tema">
+                    <i class="bi bi-moon"></i>
+                </button>
+                <button class="icon-btn" data-bs-toggle="modal" data-bs-target="#modalLGPD" title="Dados e Privacidade">
+                    <i class="bi bi-sliders"></i>
+                </button>
+                <a href="{% url 'logout' %}" class="icon-btn text-danger" title="Sair da conta">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notificações do Sistema -->
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show rounded-4 alerta-flutuante" role="alert">
-                <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}dark{% endif %} alert-dismissible fade show rounded-3 py-2 px-3 small alerta-flutuante" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Fechar"></button>
             </div>
         {% endfor %}
     {% endif %}
 
-    <div class="container pb-5 mb-5">
+    <main class="app-shell">
 
-        <!-- BARRA DE COMANDO INTELIGENTE (NLP QUICK-ADD) -->
-        <div class="card border-0 shadow-sm rounded-4 mb-3">
-            <div class="card-body p-3">
-                <form method="POST" class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center form-protegido">
-                    {% csrf_token %}
-                    <input type="hidden" name="form_type" value="lancamento_inteligente">
-                    <div class="d-flex align-items-center flex-grow-1 bg-light rounded-pill px-3 py-1 border">
-                        <i class="bi bi-magic text-primary me-2"></i>
-                        <input type="text" name="comando_ia" class="form-control bg-transparent border-0 shadow-none small" placeholder="Lançamento IA: digite ex: 'Uber 24,90 Nubank', 'Mercado 300 2x' ou 'Netflix 55,90 fixo'..." required>
-                    </div>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold small text-nowrap shadow-sm">
-                        <i class="bi bi-lightning-charge-fill"></i> Lançar
+        <!-- Card Principal Unificado de Resumo Mensal -->
+        <section class="surface-card p-3 p-md-4 mb-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-7 col-md-6">
+                    <span class="text-secondary small fw-medium d-block mb-1">Meus gastos em {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</span>
+                    <h2 class="fw-bold mb-0 valor-sensivel" style="font-size: 1.65rem; letter-spacing: -0.5px;">
+                        R$ {{ meus_gastos|floatformat:2 }}
+                    </h2>
+                    {% if analise_ia.variacao_mom != 0 %}
+                    <span class="small {% if analise_ia.variacao_mom <= 0 %}text-success{% else %}text-danger{% endif %} fw-medium">
+                        {% if analise_ia.variacao_mom > 0 %}+{% endif %}{{ analise_ia.variacao_mom|floatformat:1 }}% vs. mês anterior
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="col-5 col-md-6 text-end">
+                    <span class="text-secondary small fw-medium d-block mb-1">Disponível da meta</span>
+                    <h4 class="fw-bold mb-0 {% if saldo_restante >= 0 %}text-success{% else %}text-danger{% endif %} valor-sensivel">
+                        R$ {{ saldo_restante|floatformat:2 }}
+                    </h4>
+                    <button class="btn btn-link btn-sm text-decoration-none p-0 small" data-bs-toggle="modal" data-bs-target="#modalMeta">
+                        Meta: <span class="valor-sensivel">R$ {{ valor_meta|floatformat:0 }}</span> <i class="bi bi-pencil-square ms-1"></i>
                     </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- PAINEL DE INTELIGÊNCIA FINANCEIRA (FINPRO AI INSIGHTS) -->
-        {% if analise_ia.lista_insights or melhor_cartao_hoje %}
-        <div class="card border-0 shadow-sm rounded-4 mb-4 bg-primary bg-opacity-10">
-            <div class="card-body p-3 px-4">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-                    <div>
-                        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                            <span class="badge bg-primary rounded-pill"><i class="bi bi-stars"></i> FinPro IA ({{ analise_ia.nivel_score }})</span>
-                            {% if melhor_cartao_hoje %}
-                            <span class="badge bg-white text-dark border rounded-pill">
-                                <i class="bi bi-credit-card-2-front text-primary"></i> Melhor Cartão Hoje: <strong>{{ melhor_cartao_hoje.nome }}</strong> ({{ melhor_cartao_hoje.status_ciclo }})
-                            </span>
-                            {% endif %}
-                        </div>
-                        {% for item in analise_ia.lista_insights %}
-                            <p class="small text-dark mb-1"><i class="bi {{ item.icone }} text-{{ item.tipo }} me-1"></i> {{ item.texto }}</p>
-                        {% endfor %}
-                    </div>
-                    <div class="text-md-end small text-secondary text-nowrap valor-sensivel">
-                        <div><strong>Burn Rate:</strong> R$ {{ analise_ia.media_diaria|floatformat:2 }}/dia</div>
-                        <div><strong>Ticket Médio:</strong> R$ {{ analise_ia.ticket_medio|floatformat:2 }} ({{ analise_ia.qtd_transacoes_pessoais }} lanç.)</div>
-                    </div>
                 </div>
             </div>
-        </div>
+
+            <!-- Barra de Progresso do Orçamento -->
+            <div class="progress mt-3 mb-2" style="height: 6px; background-color: var(--bg-subtle);">
+                <div class="progress-bar {% if percentual_gasto > 95 %}bg-danger{% elif percentual_gasto > 75 %}bg-warning{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ percentual_barra }}%"></div>
+            </div>
+
+            <div class="d-flex justify-content-between text-secondary pt-1 valor-sensivel" style="font-size: 0.75rem;">
+                <span>Fixos: <strong>R$ {{ analise_ia.gastos_fixos|floatformat:2 }}</strong></span>
+                <span>Teto/dia: <strong>R$ {{ analise_ia.orcamento_diario_seguro|floatformat:2 }}</strong></span>
+                <span>Projeção: <strong>R$ {{ analise_ia.projecao_mes|floatformat:2 }}</strong></span>
+            </div>
+        </section>
+
+        <!-- Grade de Atalhos Mobile (5 Botões Compactos) -->
+        <section class="quick-actions-grid mb-3">
+            <button type="button" class="action-tile primary-tile" data-bs-toggle="modal" data-bs-target="#modalTransacao">
+                <i class="bi bi-plus-circle"></i>
+                <span>Novo</span>
+            </button>
+            <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalFatura">
+                <i class="bi bi-file-earmark-arrow-up"></i>
+                <span>Importar</span>
+            </button>
+            <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalCartao">
+                <i class="bi bi-credit-card"></i>
+                <span>Cartões</span>
+            </button>
+            <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalGerenciarPessoas">
+                <i class="bi bi-people"></i>
+                <span>Pessoas</span>
+            </button>
+            <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalSimuladorCompra">
+                <i class="bi bi-calculator"></i>
+                <span>Simular</span>
+            </button>
+        </section>
+
+        <!-- Entrada Rápida em Linha Única -->
+        <section class="surface-card p-2 mb-3">
+            <form method="POST" class="d-flex align-items-center gap-2 form-protegido">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="lancamento_inteligente">
+                <input type="text" name="comando_ia" class="form-control border-0 bg-transparent shadow-none py-1 px-2" placeholder="Registro rápido (ex: Uber 24,90 Nubank ou Mercado 180 2x)" required>
+                <button type="submit" class="btn btn-primary btn-sm rounded-3 px-3 py-2 fw-semibold text-nowrap">
+                    Adicionar
+                </button>
+            </form>
+        </section>
+
+        <!-- Acertos Pendentes com Terceiros (Exibe apenas quando houver saldo) -->
+        {% if dividas_detalhadas %}
+        <section class="surface-card p-3 mb-3">
+            <h6 class="fw-bold small text-uppercase text-secondary mb-2" style="letter-spacing: 0.4px;">Valores a receber de terceiros</h6>
+            {% for divida in dividas_detalhadas %}
+            <div class="d-flex justify-content-between align-items-center py-2 {% if not forloop.last %}border-bottom{% endif %}">
+                <div>
+                    <span class="fw-semibold d-block" style="font-size: 0.9rem;">{{ divida.nome }}</span>
+                    <span class="small fw-bold text-danger valor-sensivel">R$ {{ divida.saldo|floatformat:2 }}</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ divida.whatsapp_link }}" target="_blank" class="btn btn-sm btn-outline-success rounded-3 px-2 py-1 fw-medium" style="font-size: 0.78rem;">
+                        <i class="bi bi-whatsapp me-1"></i>Enviar resumo
+                    </a>
+                    <button class="btn btn-sm btn-outline-primary rounded-3 px-2 py-1 fw-medium" style="font-size: 0.78rem;" data-bs-toggle="modal" data-bs-target="#modalReceber{{ divida.id }}">
+                        Baixar
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </section>
         {% endif %}
 
-        <!-- Bento Grid de KPIs Financeiros -->
-        <div class="row flex-nowrap flex-xl-wrap overflow-x-auto pb-3 mb-4 g-3 scroll-mobile">
-            <!-- KPI 1: Saldo Disponível da Meta -->
-            <div class="col-11 col-md-6 col-xl-3">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4 d-flex flex-column justify-content-between">
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="text-secondary fw-bold small mb-0">SALDO DA META</h6>
-                                <span class="badge bg-light text-secondary rounded-pill" style="font-size: 0.68rem;">{{ percentual_gasto|floatformat:0 }}% usado</span>
-                            </div>
-                            <h2 class="fw-bold {% if saldo_restante >= 0 %}text-success{% else %}text-danger{% endif %} mb-1 valor-sensivel">
-                                R$ {{ saldo_restante|floatformat:2 }}
-                            </h2>
-                        </div>
-                        <div>
-                            <div class="progress mt-2 mb-2" style="height: 6px;">
-                                <div class="progress-bar {% if percentual_gasto > 95 %}bg-danger{% elif percentual_gasto > 75 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ percentual_barra }}%"></div>
-                            </div>
-                            <p class="text-muted small mb-0 valor-sensivel">
-                                Teto seguro: <strong>R$ {{ analise_ia.orcamento_diario_seguro|floatformat:2 }}/dia</strong>
-                            </p>
-                        </div>
-                    </div>
+        <!-- Lista de Lançamentos do Mês -->
+        <section class="surface-card p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h6 class="fw-bold mb-0" style="font-size: 0.95rem;">Lançamentos ({{ transacoes|length }})</h6>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-light border rounded-3 px-2 py-1" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalResumoMes">
+                        <i class="bi bi-bar-chart me-1"></i>Relatório
+                    </button>
+                    <a href="{% url 'exportar_relatorio_csv' %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="btn btn-sm btn-light border rounded-3 px-2 py-1" style="font-size: 0.75rem;">
+                        <i class="bi bi-download me-1"></i>CSV
+                    </a>
                 </div>
             </div>
 
-            <!-- KPI 2: Meus Gastos Pessoais + Variação MoM -->
-            <div class="col-11 col-md-6 col-xl-3">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4 d-flex flex-column justify-content-between">
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="text-secondary fw-bold small mb-0">MEUS GASTOS</h6>
-                                {% if analise_ia.variacao_mom != 0 %}
-                                <span class="badge {% if analise_ia.variacao_mom <= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 {% if analise_ia.variacao_mom <= 0 %}text-success{% else %}text-danger{% endif %} rounded-pill" style="font-size: 0.68rem;">
-                                    {% if analise_ia.variacao_mom > 0 %}+{% endif %}{{ analise_ia.variacao_mom|floatformat:1 }}% vs mês ant.
-                                </span>
-                                {% endif %}
-                            </div>
-                            <h2 class="fw-bold text-dark mb-1 valor-sensivel">R$ {{ meus_gastos|floatformat:2 }}</h2>
-                        </div>
-                        <div class="d-flex justify-content-between small text-muted border-top pt-2 mt-2 valor-sensivel">
-                            <span>Fixos: <strong>R$ {{ analise_ia.gastos_fixos|floatformat:0 }}</strong></span>
-                            <span>Variáveis: <strong>R$ {{ analise_ia.gastos_variaveis|floatformat:0 }}</strong></span>
-                        </div>
-                    </div>
-                </div>
+            <!-- Busca e Filtros Contidos -->
+            <div class="mb-2">
+                <input type="text" id="inputBuscaTransacao" class="form-control form-control-sm py-1 px-3" placeholder="Filtrar por descrição, pessoa ou cartão...">
             </div>
 
-            <!-- KPI 3: Acertos Pendentes (Terceiros) -->
-            <div class="col-11 col-md-6 col-xl-3">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4">
-                        <h6 class="fw-bold text-dark mb-3"><i class="bi bi-cash-coin text-primary"></i> Acertos Pendentes</h6>
-                        {% if dividas_detalhadas %}
-                            {% for divida in dividas_detalhadas %}
-                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-                                <div>
-                                    <span class="fw-bold text-dark small">{{ divida.nome }}</span><br>
-                                    <span class="small {% if divida.saldo > 0 %}text-danger{% else %}text-success{% endif %} fw-bold valor-sensivel">R$ {{ divida.saldo|floatformat:2 }}</span>
-                                </div>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ divida.whatsapp_link }}" target="_blank" class="btn btn-sm rounded-pill fw-bold shadow-sm px-2" style="background-color: #25D366; color: white; border: none; font-size: 0.72rem;" title="Cobrar no WhatsApp"><i class="bi bi-whatsapp"></i></a>
-                                    <button class="btn btn-sm btn-outline-primary rounded-pill fw-bold shadow-sm px-2" style="font-size: 0.72rem;" data-bs-toggle="modal" data-bs-target="#modalReceber{{ divida.id }}" title="Dar Baixa"><i class="bi bi-check2-circle"></i> Baixar</button>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="text-center py-3"><p class="text-muted small mb-0">Nenhum valor pendente! ✌️</p></div>
-                        {% endif %}
-                    </div>
-                </div>
+            <div class="chips-scroll mb-2">
+                <span class="chip-filtro active" data-filtro="todos">Todos</span>
+                <span class="chip-filtro" data-filtro="titular">Meus gastos</span>
+                <span class="chip-filtro" data-filtro="terceiros">Terceiros</span>
+                <span class="chip-filtro" data-filtro="fixos">Fixos</span>
+                <span class="chip-filtro" data-filtro="cartao">Cartão</span>
+                <span class="chip-filtro" data-filtro="pix">Pix/Conta</span>
             </div>
 
-            <!-- KPI 4: Meta do Mês -->
-            <div class="col-11 col-md-6 col-xl-3">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4 d-flex flex-column justify-content-between">
-                        <div>
-                            <h6 class="text-secondary fw-bold small mb-2">META MENSAL</h6>
-                            <h2 class="fw-bold text-primary mb-2 valor-sensivel">R$ {{ valor_meta|floatformat:2 }}</h2>
+            <div id="listaTransacoesContainer">
+                {% for t in transacoes %}
+                <div class="tx-item item-transacao-lista"
+                     data-titular="{% if t.dono.is_titular %}1{% else %}0{% endif %}"
+                     data-fixo="{% if t.recorrente %}1{% else %}0{% endif %}"
+                     data-cartao="{% if t.cartao %}1{% else %}0{% endif %}">
+                    <div class="d-flex align-items-center gap-2" style="min-width: 0; flex: 1; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px; background-color: var(--bg-subtle);">
+                            {% if t.tipo == 'DESPESA' %}
+                                <i class="bi bi-arrow-up-right text-danger"></i>
+                            {% else %}
+                                <i class="bi bi-arrow-down-left text-success"></i>
+                            {% endif %}
                         </div>
-                        <form method="POST" class="d-flex gap-2 form-protegido">
+                        <div style="min-width: 0; flex: 1;">
+                            <div class="fw-semibold text-truncate" style="font-size: 0.88rem;">
+                                {{ t.descricao }}
+                                {% if t.recorrente %}<span class="badge bg-secondary bg-opacity-10 text-secondary ms-1" style="font-size: 0.6rem;">Fixo</span>{% endif %}
+                            </div>
+                            <div class="text-secondary text-truncate" style="font-size: 0.72rem;">
+                                {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}
+                                • {{ t.categoria|default:"Outros" }}
+                                • {{ t.dono.nome }}
+                                • {% if t.cartao %}{{ t.cartao.nome }}{% else %}Pix/Conta{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-end flex-shrink-0">
+                        <div class="fw-bold {% if t.tipo == 'DESPESA' %}text-dark{% else %}text-success{% endif %} valor-sensivel" style="font-size: 0.88rem;">
+                            {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
+                        </div>
+                        <form method="POST" action="{% url 'excluir_transacao' t.id %}" class="m-0 p-0 d-inline" onsubmit="event.stopPropagation(); return confirm('Remover este lançamento?');">
                             {% csrf_token %}
-                            <input type="hidden" name="form_type" value="atualizar_meta">
-                            <input type="number" step="0.01" class="form-control form-control-sm bg-light border-0 rounded-3" name="valor_meta" placeholder="Definir meta..." required>
-                            <button type="submit" class="btn btn-primary btn-sm rounded-3 px-3"><i class="bi bi-check2"></i></button>
+                            <input type="hidden" name="mes" value="{{ mes_atual }}">
+                            <input type="hidden" name="ano" value="{{ ano_atual }}">
+                            <button type="submit" class="btn btn-link text-secondary text-decoration-none p-0 border-0" style="font-size: 0.7rem;" onclick="event.stopPropagation();">
+                                Excluir
+                            </button>
                         </form>
                     </div>
                 </div>
+                {% empty %}
+                <div class="text-center py-4">
+                    <p class="text-secondary small mb-2">Nenhum lançamento registrado neste período.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Gráfico Analítico e Distribuição Orçamentária -->
+        <div class="row g-3">
+            <div class="col-12 col-md-7">
+                <section class="surface-card p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Análise de despesas</h6>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-secondary active py-0 px-2" style="font-size: 0.75rem;" id="btnVerCategorias">Categorias</button>
+                            <button type="button" class="btn btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;" id="btnVerEvolucao">Histórico 6M</button>
+                        </div>
+                    </div>
+                    <div id="containerGraficoCategorias" style="position: relative; height: 220px; width: 100%;">
+                        <canvas id="graficoGastos"></canvas>
+                    </div>
+                    <div id="containerGraficoEvolucao" style="position: relative; height: 220px; width: 100%; display: none;">
+                        <canvas id="graficoEvolucao"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12 col-md-5">
+                <section class="surface-card p-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <h6 class="fw-bold mb-2" style="font-size: 0.9rem;">Distribuição 50-30-20</h6>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="text-secondary">Essenciais ({{ analise_ia.perc_essenciais|floatformat:0 }}%)</span>
+                                <span class="fw-semibold valor-sensivel">R$ {{ analise_ia.gastos_essenciais|floatformat:2 }}</span>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar bg-primary" style="width: {{ analise_ia.perc_essenciais|floatformat:0 }}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="text-secondary">Estilo de vida ({{ analise_ia.perc_estilo_vida|floatformat:0 }}%)</span>
+                                <span class="fw-semibold valor-sensivel">R$ {{ analise_ia.gastos_estilo_vida|floatformat:2 }}</span>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar bg-warning" style="width: {{ analise_ia.perc_estilo_vida|floatformat:0 }}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="text-secondary">Margem livre</span>
+                                <span class="fw-semibold text-success">{{ analise_ia.perc_economia|floatformat:0 }}%</span>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar bg-success" style="width: {{ analise_ia.perc_economia|floatformat:0 }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if analise_ia.lista_insights %}
+                    <div class="p-2 rounded-3 mt-2" style="background-color: var(--bg-subtle); font-size: 0.76rem;">
+                        {% for item in analise_ia.lista_insights %}
+                            <div class="{% if not forloop.last %}mb-1{% endif %}">
+                                <i class="bi {{ item.icone }} text-{{ item.tipo }} me-1"></i>{{ item.texto }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </section>
             </div>
         </div>
+    </main>
 
-        <!-- Botões de Ação Rápida Responsivos -->
-        <div class="row g-2 mb-4">
-            <div class="col-6 col-md-2">
-                <button class="btn btn-light bg-white border shadow-sm rounded-pill py-2 small fw-bold text-secondary w-100" data-bs-toggle="modal" data-bs-target="#modalGerenciarPessoas"><i class="bi bi-people"></i> Pessoas</button>
-            </div>
-            <div class="col-6 col-md-2">
-                <button class="btn btn-light bg-white border shadow-sm rounded-pill py-2 small fw-bold text-secondary w-100" data-bs-toggle="modal" data-bs-target="#modalCartao"><i class="bi bi-credit-card"></i> Cartões</button>
-            </div>
-            <div class="col-6 col-md-3">
-                <button class="btn btn-primary shadow-sm rounded-pill py-2 small fw-bold w-100" data-bs-toggle="modal" data-bs-target="#modalFatura"><i class="bi bi-cloud-upload"></i> Importar Fatura</button>
-            </div>
-            <div class="col-6 col-md-3">
-                <button class="btn btn-outline-primary bg-white shadow-sm rounded-pill py-2 small fw-bold w-100" data-bs-toggle="modal" data-bs-target="#modalSimuladorCompra"><i class="bi bi-calculator"></i> Posso Comprar?</button>
-            </div>
-            <div class="col-12 col-md-2">
-                <button class="btn btn-dark shadow-sm rounded-pill py-2 small fw-bold w-100" data-bs-toggle="modal" data-bs-target="#modalResumoMes"><i class="bi bi-trophy"></i> Fechamento</button>
-            </div>
-        </div>
+    <!-- ========================================== -->
+    <!-- MODAIS DO SISTEMA                          -->
+    <!-- ========================================== -->
 
-        <!-- Gráficos Analíticos (Alternância Categorias vs Evolução 6 Meses) e Bússola 50-30-20 -->
-        <div class="row g-3 mb-4">
-            <div class="col-12 col-lg-7">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-bar-chart-line text-primary"></i> Análise Visual</h6>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary rounded-start-pill active" id="btnVerCategorias">Por Categoria</button>
-                                <button type="button" class="btn btn-outline-primary rounded-end-pill" id="btnVerEvolucao">Evolução 6M</button>
-                            </div>
-                        </div>
-                        <div id="containerGraficoCategorias" style="position: relative; height: 250px; width: 100%;">
-                            <canvas id="graficoGastos"></canvas>
-                        </div>
-                        <div id="containerGraficoEvolucao" style="position: relative; height: 250px; width: 100%; display: none;">
-                            <canvas id="graficoEvolucao"></canvas>
-                        </div>
-                    </div>
+    <!-- Modal Definir Meta Mensal -->
+    <div class="modal fade" id="modalMeta" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content rounded-4 p-2">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">Meta de gastos mensal</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-            </div>
-            <div class="col-12 col-lg-5">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4 d-flex flex-column justify-content-between">
-                        <div>
-                            <h6 class="fw-bold text-dark mb-1"><i class="bi bi-compass text-primary"></i> Bússola 50-30-20</h6>
-                            <p class="text-muted small mb-3">Equilíbrio do orçamento pessoal neste mês</p>
-
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between small mb-1">
-                                    <span class="fw-bold text-dark">Essenciais (Meta: até 50%)</span>
-                                    <span class="text-secondary valor-sensivel">R$ {{ analise_ia.gastos_essenciais|floatformat:2 }} ({{ analise_ia.perc_essenciais|floatformat:0 }}%)</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-primary" style="width: {{ analise_ia.perc_essenciais|floatformat:0 }}%"></div>
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between small mb-1">
-                                    <span class="fw-bold text-dark">Estilo de Vida (Meta: até 30%)</span>
-                                    <span class="text-secondary valor-sensivel">R$ {{ analise_ia.gastos_estilo_vida|floatformat:2 }} ({{ analise_ia.perc_estilo_vida|floatformat:0 }}%)</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-warning" style="width: {{ analise_ia.perc_estilo_vida|floatformat:0 }}%"></div>
-                                </div>
-                            </div>
-
-                            <div class="mb-2">
-                                <div class="d-flex justify-content-between small mb-1">
-                                    <span class="fw-bold text-dark">Margem Livre / Economia (Meta: 20%+)</span>
-                                    <span class="text-success fw-bold">{{ analise_ia.perc_economia|floatformat:0 }}%</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-success" style="width: {{ analise_ia.perc_economia|floatformat:0 }}%"></div>
-                                </div>
-                            </div>
+                <div class="modal-body">
+                    <form method="POST" class="form-protegido">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="atualizar_meta">
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary">Valor limite (R$)</label>
+                            <input type="number" step="0.01" class="form-control" name="valor_meta" value="{{ valor_meta|stringformat:'f' }}" required>
                         </div>
-
-                        <div class="bg-light rounded-4 p-3 mt-3 small valor-sensivel">
-                            <i class="bi bi-lightning-fill text-warning"></i> <strong>Projeção de Fechamento:</strong> Mantendo a média atual, seus gastos fecharão em <strong>R$ {{ analise_ia.projecao_mes|floatformat:2 }}</strong>.
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Lançamentos com Chips de Filtro Instantâneo e Busca -->
-        <div class="card border-0 shadow-sm rounded-4 mb-4">
-            <div class="card-body p-4">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-                    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-list-ul text-primary"></i> Lançamentos da Fatura ({{ mes_atual }}/{{ ano_atual }})</h6>
-                    <div class="d-flex gap-2">
-                        <input type="text" id="inputBuscaTransacao" class="form-control form-control-sm bg-light border-0 rounded-pill px-3" placeholder="🔍 Buscar lançamento...">
-                        <a href="{% url 'exportar_relatorio_csv' %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 text-nowrap fw-bold">
-                            <i class="bi bi-file-earmark-spreadsheet"></i> CSV
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Pílulas de Filtro Rápido (UX Zero-Latency) -->
-                <div class="d-flex gap-2 overflow-x-auto pb-2 mb-3 scroll-mobile">
-                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro active" data-filtro="todos">Todos ({{ transacoes|length }})</span>
-                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="titular">Meus Gastos</span>
-                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="terceiros">Terceiros / Amigos</span>
-                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="fixos">Recorrentes / Fixos</span>
-                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="cartao">No Cartão</span>
-                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="pix">Pix / Dinheiro</span>
-                </div>
-
-                <div class="list-group list-group-flush" id="listaTransacoesContainer">
-                    {% for t in transacoes %}
-                    <div class="list-group-item bg-transparent px-2 py-3 d-flex justify-content-between align-items-center border-bottom linha-clicavel rounded-3 item-transacao-lista"
-                         data-titular="{% if t.dono.is_titular %}1{% else %}0{% endif %}"
-                         data-fixo="{% if t.recorrente %}1{% else %}0{% endif %}"
-                         data-cartao="{% if t.cartao %}1{% else %}0{% endif %}">
-                        <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" title="Clique para editar ou excluir">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; background-color: {% if t.tipo == 'DESPESA' %}#ffebee{% else %}#e8f5e9{% endif %};">
-                                {% if t.tipo == 'DESPESA' %}<i class="bi bi-arrow-down-short text-danger fs-4"></i>{% else %}<i class="bi bi-arrow-up-short text-success fs-4"></i>{% endif %}
-                            </div>
-                            <div style="min-width: 0; flex: 1;">
-                                <h6 class="mb-1 fw-bold text-dark text-truncate">
-                                    {{ t.descricao }}
-                                    {% if t.recorrente %}<span class="badge bg-info bg-opacity-10 text-info rounded-pill ms-1" style="font-size: 0.6rem;">FIXO</span>{% endif %}
-                                </h6>
-                                <div class="d-flex align-items-center flex-wrap gap-1 text-muted" style="font-size: 0.7rem;">
-                                    <span class="fw-bold text-dark"><i class="bi bi-calendar-event"></i> {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}</span>
-                                    <span> • <i class="bi bi-tag-fill text-primary"></i> {{ t.categoria|default:"Outros" }}</span>
-                                    <span> • {{ t.dono.nome }}</span>
-                                    <span> • {% if t.cartao %}{{ t.cartao.nome }}{% else %}Pix/Dinheiro{% endif %}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-end flex-shrink-0 ps-2">
-                            <h6 class="mb-1 fw-bold text-nowrap {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %} valor-sensivel" style="font-size: 0.9rem;">
-                                {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
-                            </h6>
-                            <form method="POST" action="{% url 'excluir_transacao' t.id %}" class="m-0 p-0 d-inline" onsubmit="event.stopPropagation(); return confirm('Excluir este lançamento?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="mes" value="{{ mes_atual }}">
-                                <input type="hidden" name="ano" value="{{ ano_atual }}">
-                                <button type="submit" class="btn btn-link text-danger text-decoration-none p-0 border-0" style="font-size: 0.7rem;" onclick="event.stopPropagation();">
-                                    <i class="bi bi-trash3"></i> Excluir
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    {% empty %}
-                    <div class="text-center py-5">
-                        <p class="text-muted small mb-3">Nenhum lançamento registrado em {{ mes_atual }}/{{ ano_atual }}. 🛒</p>
-                        <button class="btn btn-sm btn-primary rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#modalTransacao">
-                            <i class="bi bi-plus-lg"></i> Criar Primeiro Lançamento
-                        </button>
-                    </div>
-                    {% endfor %}
+                        <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">Salvar meta</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Botão Flutuante -->
-    <button class="btn btn-primary shadow-lg rounded-circle position-fixed bottom-0 end-0 m-4 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; z-index: 1000;" data-bs-toggle="modal" data-bs-target="#modalTransacao" title="Nova Transação"><i class="bi bi-plus-lg fs-4"></i></button>
-
-    <!-- ========================================== -->
-    <!-- MODAL SIMULADOR "POSSO COMPRAR?"           -->
-    <!-- ========================================== -->
+    <!-- Modal Simulador de Orçamento -->
     <div class="modal fade" id="modalSimuladorCompra" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-content rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-robot text-primary"></i> Simulador: Posso Comprar?</h5>
+                    <h6 class="modal-title fw-bold">Simulador de impacto no orçamento</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="small text-muted">Simule o impacto de uma nova compra antes de passar o cartão.</p>
                     <div class="row g-2 mb-3">
                         <div class="col-7">
-                            <label class="form-label small fw-bold text-secondary">Valor Total do Item (R$)</label>
-                            <input type="number" step="0.01" id="simValorTotal" class="form-control bg-light border-0 rounded-4" placeholder="Ex: 600.00">
+                            <label class="form-label small text-secondary">Valor da compra (R$)</label>
+                            <input type="number" step="0.01" id="simValorTotal" class="form-control" placeholder="0,00">
                         </div>
                         <div class="col-5">
-                            <label class="form-label small fw-bold text-secondary">Parcelas</label>
-                            <input type="number" id="simParcelas" class="form-control bg-light border-0 rounded-4" value="1" min="1" max="48">
+                            <label class="form-label small text-secondary">Parcelas</label>
+                            <input type="number" id="simParcelas" class="form-control" value="1" min="1" max="48">
                         </div>
                     </div>
-                    <button type="button" id="btnAnalisarCompra" class="btn btn-primary w-100 rounded-pill fw-bold py-2 mb-3">Analisar Viabilidade</button>
-                    <div id="resultadoSimulador" style="display: none;" class="p-3 rounded-4 small"></div>
+                    <button type="button" id="btnAnalisarCompra" class="btn btn-primary w-100 rounded-3 fw-semibold py-2 mb-2">Calcular impacto</button>
+                    <div id="resultadoSimulador" style="display: none;" class="p-3 rounded-3 small mt-2"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- MODAL CENTRAL DE DADOS, LIMPEZA E LGPD     -->
-    <!-- ========================================== -->
+    <!-- Modal Gestão de Dados & LGPD -->
     <div class="modal fade" id="modalLGPD" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-content rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-shield-lock-fill text-success"></i> Gestão de Dados & LGPD</h5>
+                    <h6 class="modal-title fw-bold">Dados, Privacidade e LGPD</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="bg-light p-3 rounded-4 mb-3 small">
-                        <div><strong><i class="bi bi-person-badge"></i> Conta Protegida:</strong> {{ usuario.username }}</div>
-                        <div class="text-muted">Conformidade integral com a LGPD (Lei nº 13.709/2018) e Marco Civil da Internet (Lei nº 12.965/2014).</div>
+                    <div class="p-2 rounded-3 mb-3 small" style="background-color: var(--bg-subtle);">
+                        <div><strong>Usuário autenticado:</strong> {{ usuario.username }}</div>
+                        <div class="text-secondary" style="font-size: 0.75rem;">Em conformidade com a Lei nº 13.709/2018 (LGPD).</div>
                     </div>
 
-                    <h6 class="fw-bold text-dark small mb-2">1. Portabilidade e Backup (Art. 18, V da LGPD)</h6>
-                    <div class="d-grid gap-2 mb-4">
-                        <a href="{% url 'exportar_dados_lgpd' %}" class="btn btn-outline-primary rounded-pill fw-bold small py-2">
-                            <i class="bi bi-download"></i> Baixar Todos os Meus Dados (JSON)
+                    <p class="fw-semibold small mb-2">Exportação e portabilidade</p>
+                    <div class="d-grid gap-2 mb-3">
+                        <a href="{% url 'exportar_dados_lgpd' %}" class="btn btn-outline-primary btn-sm rounded-3 py-2 fw-medium">
+                            Exportar todos os dados (JSON)
                         </a>
-                        <a href="{% url 'exportar_relatorio_csv' %}" class="btn btn-outline-secondary rounded-pill fw-bold small py-2">
-                            <i class="bi bi-filetype-csv"></i> Exportar Histórico Completo (CSV/Excel)
+                        <a href="{% url 'exportar_relatorio_csv' %}" class="btn btn-outline-secondary btn-sm rounded-3 py-2 fw-medium">
+                            Baixar planilha completa (CSV)
                         </a>
                     </div>
 
                     <hr>
-                    <h6 class="fw-bold text-warning small mb-2"><i class="bi bi-eraser-fill"></i> 2. Limpar / Zerar Meus Lançamentos (Mantém a Conta)</h6>
-                    <div class="d-flex flex-column gap-2 mb-4">
-                        <form method="POST" action="{% url 'limpar_dados_financeiros' %}" onsubmit="return confirm('Deseja apagar todos os lançamentos do mês {{ mes_atual }}/{{ ano_atual }}?');">
+                    <p class="fw-semibold small mb-2">Limpeza de lançamentos</p>
+                    <div class="d-grid gap-2 mb-3">
+                        <form method="POST" action="{% url 'limpar_dados_financeiros' %}" onsubmit="return confirm('Remover todos os lançamentos da competência {{ mes_atual }}/{{ ano_atual }}?');">
                             {% csrf_token %}
                             <input type="hidden" name="escopo" value="mes">
                             <input type="hidden" name="mes" value="{{ mes_atual }}">
                             <input type="hidden" name="ano" value="{{ ano_atual }}">
-                            <button type="submit" class="btn btn-warning btn-sm w-100 rounded-pill fw-bold text-dark py-2">
-                                <i class="bi bi-calendar-x"></i> Apagar Lançamentos de {{ mes_atual }}/{{ ano_atual }}
+                            <button type="submit" class="btn btn-outline-warning btn-sm w-100 rounded-3 py-2 fw-medium">
+                                Limpar apenas lançamentos de {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}
                             </button>
                         </form>
-                        <form method="POST" action="{% url 'limpar_dados_financeiros' %}" onsubmit="return confirm('ATENÇÃO: Isso vai zerar TODAS as transações da sua conta (seu login será mantido). Confirmar?');">
+                        <form method="POST" action="{% url 'limpar_dados_financeiros' %}" onsubmit="return confirm('Confirma a limpeza de TODOS os lançamentos financeiros da conta?');">
                             {% csrf_token %}
                             <input type="hidden" name="escopo" value="tudo">
                             <input type="hidden" name="zerar_cartoes" value="1">
-                            <button type="submit" class="btn btn-outline-danger btn-sm w-100 rounded-pill fw-bold py-2">
-                                <i class="bi bi-trash3-fill"></i> Zerar Todos os Dados Financeiros da Conta
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100 rounded-3 py-2 fw-medium">
+                                Zerar histórico financeiro completo
                             </button>
                         </form>
                     </div>
 
                     <hr>
-                    <h6 class="fw-bold text-danger small"><i class="bi bi-exclamation-octagon"></i> 3. Excluir Conta e Dados (Direito ao Esquecimento)</h6>
-                    <p class="small text-muted mb-2">Para apagar sua conta definitivamente, digite sua senha ou escreva <strong>EXCLUIR</strong> abaixo:</p>
-                    <form method="POST" action="{% url 'excluir_conta_lgpd' %}" onsubmit="return confirm('ATENÇÃO FINAL: Sua conta e todos os dados serão apagados permanentemente. Confirmar?')">
+                    <p class="fw-semibold text-danger small mb-1">Encerramento definitivo da conta</p>
+                    <p class="text-secondary mb-2" style="font-size: 0.75rem;">Digite <strong>EXCLUIR</strong> para remover permanentemente seu usuário e dados:</p>
+                    <form method="POST" action="{% url 'excluir_conta_lgpd' %}" onsubmit="return confirm('Esta ação é irreversível. Confirmar exclusão da conta?')">
                         {% csrf_token %}
-                        <div class="input-group input-group-sm mb-2">
-                            <input type="text" name="confirmacao_texto" class="form-control bg-light border-0 rounded-start-pill px-3" placeholder="Digite EXCLUIR para confirmar..." required>
-                            <button type="submit" class="btn btn-danger rounded-end-pill px-3 fw-bold">Excluir Conta</button>
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="confirmacao_texto" class="form-control" placeholder="Digite EXCLUIR" required>
+                            <button type="submit" class="btn btn-danger px-3 fw-semibold">Encerrar conta</button>
                         </div>
                     </form>
                 </div>
@@ -539,30 +625,44 @@
     <!-- Modal Gerenciar Pessoas -->
     <div class="modal fade" id="modalGerenciarPessoas" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-content rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-people-fill text-primary"></i> Gerenciar Pessoas</h5>
+                    <h6 class="modal-title fw-bold">Pessoas vinculadas</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <button class="btn btn-primary w-100 rounded-pill py-2 mb-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalPessoa" data-bs-dismiss="modal">
-                        <i class="bi bi-plus-lg"></i> Adicionar Nova Pessoa
-                    </button>
-                    <div class="list-group list-group-flush border-top pt-2">
-                        {% for p in pessoas %}
-                        <div class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0 fw-bold text-dark">{{ p.nome }} {% if p.is_titular %}<span class="badge bg-primary ms-1" style="font-size: 0.6rem;">TITULAR</span>{% endif %}</h6>
-                                <small class="text-muted"><i class="bi bi-whatsapp"></i> {{ p.telefone|default:"Sem telefone" }}</small>
+                    <form method="POST" class="mb-3 p-3 rounded-3 form-protegido" style="background-color: var(--bg-subtle);">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="nova_pessoa">
+                        <div class="row g-2">
+                            <div class="col-12 col-sm-6">
+                                <input type="text" class="form-control bg-white" name="nome" placeholder="Nome" required>
                             </div>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-light text-primary rounded-circle" data-bs-toggle="modal" data-bs-target="#modalEditarPessoa{{ p.id }}" data-bs-dismiss="modal"><i class="bi bi-pencil"></i></button>
+                            <div class="col-12 col-sm-6">
+                                <input type="text" class="form-control bg-white" name="telefone" placeholder="WhatsApp (DDD+Número)">
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary btn-sm w-100 rounded-3 py-2 fw-semibold">Adicionar pessoa</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="list-group list-group-flush">
+                        {% for p in pessoas %}
+                        <div class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-semibold small">{{ p.nome }}</span>
+                                {% if p.is_titular %}<span class="badge bg-primary ms-1" style="font-size: 0.6rem;">Titular</span>{% endif %}
+                                <small class="text-secondary d-block" style="font-size: 0.72rem;">{{ p.telefone|default:"Sem telefone" }}</small>
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button class="icon-btn" data-bs-toggle="modal" data-bs-target="#modalEditarPessoa{{ p.id }}" data-bs-dismiss="modal"><i class="bi bi-pencil"></i></button>
                                 {% if not p.is_titular %}
-                                <form method="POST" class="m-0 p-0" onsubmit="return confirm('Tem certeza que deseja excluir {{ p.nome }}?')">
+                                <form method="POST" class="m-0 p-0" onsubmit="return confirm('Remover {{ p.nome }}?')">
                                     {% csrf_token %}
                                     <input type="hidden" name="form_type" value="excluir_pessoa">
                                     <input type="hidden" name="pessoa_id" value="{{ p.id }}">
-                                    <button type="submit" class="btn btn-sm btn-light text-danger rounded-circle"><i class="bi bi-trash3"></i></button>
+                                    <button type="submit" class="icon-btn text-danger"><i class="bi bi-trash3"></i></button>
                                 </form>
                                 {% endif %}
                             </div>
@@ -574,13 +674,13 @@
         </div>
     </div>
 
-    <!-- Modais de Edição de Pessoas -->
+    <!-- Modais Editar Pessoa -->
     {% for p in pessoas %}
     <div class="modal fade" id="modalEditarPessoa{{ p.id }}" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark">Editar {{ p.nome }}</h5>
+                    <h6 class="modal-title fw-bold">Editar {{ p.nome }}</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -588,15 +688,15 @@
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="editar_pessoa">
                         <input type="hidden" name="pessoa_id" value="{{ p.id }}">
+                        <div class="mb-2">
+                            <label class="form-label small text-secondary">Nome</label>
+                            <input type="text" class="form-control" name="nome" value="{{ p.nome }}" required>
+                        </div>
                         <div class="mb-3">
-                            <label class="form-label text-secondary fw-bold small">Nome</label>
-                            <input type="text" class="form-control bg-light border-0 rounded-4" name="nome" value="{{ p.nome }}" required>
+                            <label class="form-label small text-secondary">Telefone</label>
+                            <input type="text" class="form-control" name="telefone" value="{{ p.telefone|default:'' }}">
                         </div>
-                        <div class="mb-4">
-                            <label class="form-label text-secondary fw-bold small">WhatsApp (com DDD)</label>
-                            <input type="text" class="form-control bg-light border-0 rounded-4" name="telefone" value="{{ p.telefone|default:'' }}">
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Alterações</button>
+                        <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">Salvar</button>
                     </form>
                 </div>
             </div>
@@ -606,10 +706,10 @@
 
     <!-- Modal Nova Transação -->
     <div class="modal fade" id="modalTransacao" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow rounded-4">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark">Nova Transação</h5>
+                    <h6 class="modal-title fw-bold">Novo lançamento</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -617,23 +717,23 @@
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="nova_transacao">
                         
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label text-secondary fw-bold small">Descrição</label>
-                                <input type="text" class="form-control bg-light border-0 rounded-4" name="descricao" placeholder="Ex: Mercado, Aluguel..." required>
+                        <div class="row g-2">
+                            <div class="col-7">
+                                <label class="form-label text-secondary small mb-1">Descrição</label>
+                                <input type="text" class="form-control" name="descricao" placeholder="Ex: Supermercado" required>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-secondary fw-bold small">Valor Total (R$)</label>
-                                <input type="text" class="form-control bg-light border-0 rounded-4" id="valorTotalTransacao" name="valor" placeholder="0,00" required>
+                            <div class="col-5">
+                                <label class="form-label text-secondary small mb-1">Valor total (R$)</label>
+                                <input type="text" inputmode="decimal" class="form-control" id="valorTotalTransacao" name="valor" placeholder="0,00" required>
                             </div>
                             
-                            <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small" id="labelDataTransacao">Data da Compra</label>
-                                <input type="date" class="form-control bg-light border-0 rounded-4" name="data" required>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1" id="labelDataTransacao">Data</label>
+                                <input type="date" class="form-control" name="data" required>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Categoria</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="categoria">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Categoria</label>
+                                <select class="form-select" name="categoria">
                                     <option value="Alimentação">Alimentação</option>
                                     <option value="Mercado">Mercado</option>
                                     <option value="Transporte">Transporte</option>
@@ -645,81 +745,82 @@
                                     <option value="Outros" selected>Outros</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Tipo</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="tipo">
-                                    <option value="DESPESA">Despesa</option>
-                                    <option value="PAGAMENTO">Pagto/Receita</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Quem Pagou</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="dono_id" required>
+
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Responsável</label>
+                                <select class="form-select" name="dono_id" required>
                                     {% for p in pessoas %}
                                     <option value="{{ p.id }}">{{ p.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            
-                            <div class="col-md-4">
-                                <label class="form-label text-secondary fw-bold small">Forma de Pagto</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="cartao_id" id="selectCartaoForma">
-                                    <option value="">Pix / Dinheiro</option>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Meio de pagamento</label>
+                                <select class="form-select" name="cartao_id" id="selectCartaoForma">
+                                    <option value="">Pix / Conta</option>
                                     {% for c in cartoes %}
                                     <option value="{{ c.id }}">{{ c.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label text-secondary fw-bold small">Parcelas</label>
-                                <input type="number" class="form-control bg-light border-0 rounded-4" name="parcelas" id="inputParcelas" value="1" min="1" max="120">
+
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Tipo</label>
+                                <select class="form-select" name="tipo">
+                                    <option value="DESPESA">Despesa</option>
+                                    <option value="PAGAMENTO">Recebimento</option>
+                                </select>
                             </div>
-                            <div class="col-md-4 d-flex align-items-center pt-4">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Parcelas</label>
+                                <input type="number" class="form-control" name="parcelas" id="inputParcelas" value="1" min="1" max="120">
+                            </div>
+
+                            <div class="col-12 pt-1">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrente" style="width: 2.5em; height: 1.25em; cursor: pointer;">
-                                    <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrente" style="cursor: pointer;">
-                                           Despesa Fixa
+                                    <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrente">
+                                    <label class="form-check-label small" for="checkRecorrente">
+                                        Despesa fixa recorrente mensal
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <hr class="my-4 text-muted">
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="toggleDivisao" style="width: 3em; height: 1.5em; cursor: pointer;">
-                            <label class="form-check-label fw-bold small text-dark ms-2 pt-1" for="toggleDivisao" style="cursor: pointer;">
-                                Dividir valor com outras pessoas?
+                        <hr class="my-3">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="toggleDivisao">
+                            <label class="form-check-label small" for="toggleDivisao">
+                                Dividir lançamento com outra pessoa
                             </label>
                         </div>
-                        <div id="secaoDivisaoAmigos" style="display: none;" class="p-3 bg-light rounded-4 border mb-3">
+                        <div id="secaoDivisaoAmigos" style="display: none;" class="p-2 rounded-3 mb-2" style="background-color: var(--bg-subtle);">
                             <div id="listaCamposDivisao">
                                 <div class="row g-2 align-items-center mb-2 linha-divisao">
                                     <div class="col-6">
-                                        <label class="form-label text-secondary small mb-1">Amigo</label>
-                                        <select class="form-select bg-white border-0 rounded-4" name="dono_id_extra">
-                                            <option value="">Selecione...</option>
+                                        <select class="form-select form-select-sm" name="dono_id_extra">
+                                            <option value="">Pessoa...</option>
                                             {% for p in pessoas %}
                                             <option value="{{ p.id }}">{{ p.nome }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
                                     <div class="col-5">
-                                        <label class="form-label text-secondary small mb-1">Valor (R$)</label>
-                                        <input type="text" class="form-control bg-white border-0 rounded-4 input-valor-extra" name="valor_extra" placeholder="0,00">
+                                        <input type="text" inputmode="decimal" class="form-control form-control-sm input-valor-extra" name="valor_extra" placeholder="Valor (R$)">
                                     </div>
-                                    <div class="col-1 text-center pt-4">
-                                        <button type="button" class="btn btn-sm text-danger border-0 p-1 btn-remover-linha" title="Remover"><i class="bi bi-x-lg"></i></button>
+                                    <div class="col-1 text-center">
+                                        <button type="button" class="btn btn-sm text-danger p-0 btn-remover-linha"><i class="bi bi-x-lg"></i></button>
                                     </div>
                                 </div>
                             </div>
-                            <div class="d-flex gap-2 mt-3">
-                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold small bg-white" id="btnAddPessoaExtra"><i class="bi bi-plus"></i> Adicionar pessoa</button>
-                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold small bg-white" id="btnDividirIgualmente"><i class="bi bi-calculator"></i> Dividir Igualmente</button>
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-3" id="btnAddPessoaExtra">+ Pessoa</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-3" id="btnDividirIgualmente">Dividir igual</button>
                             </div>
                         </div>
-                        <div class="mt-4 pt-2">
-                            <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm">
-                                <i class="bi bi-check2-circle"></i> Salvar Transação
+
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">
+                                Salvar lançamento
                             </button>
                         </div>
                     </form>
@@ -728,47 +829,35 @@
         </div>
     </div>
 
-    <!-- Modal de Gamificação (Resumo do Mês) -->
+    <!-- Modal Relatório do Mês -->
     <div class="modal fade" id="modalResumoMes" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4 text-center p-3">
-                <div class="modal-header border-0 pb-0 justify-content-end">
+            <div class="modal-content rounded-4 p-2">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">Resumo de {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body pt-0">
-                    <h1 class="display-1 mb-2">🎯</h1>
-                    <h4 class="fw-bold text-dark">Fechamento de {{ mes_atual }}/{{ ano_atual }}</h4>
-                    <span class="badge bg-{{ analise_ia.cor_score }} rounded-pill px-3 py-2 my-2">
-                        Score FinPro: {{ analise_ia.score }} / 1000 ({{ analise_ia.nivel_score }})
-                    </span>
-                    
-                    {% if saldo_restante >= 0 %}
-                    <div class="alert alert-success border-0 rounded-4 mt-3">
-                        <h6 class="fw-bold mb-1">Parabéns! Você fechou no verde.</h6>
-                        <p class="small mb-0">Você economizou <strong>R$ {{ saldo_restante|floatformat:2 }}</strong> da sua meta mensal!</p>
-                    </div>
-                    {% else %}
-                    <div class="alert alert-danger border-0 rounded-4 mt-3">
-                        <h6 class="fw-bold mb-1">Atenção! Você estourou a meta.</h6>
-                        <p class="small mb-0">Você passou <strong>R$ {{ saldo_restante|floatformat:2|cut:"-" }}</strong> do limite estipulado.</p>
-                    </div>
-                    {% endif %}
-                    <div class="bg-light rounded-4 p-3 mt-3 text-start">
-                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
-                            <span class="small text-secondary fw-bold">Maior Gasto:</span>
-                            <span class="small text-dark fw-bold">{{ maior_categoria }} (R$ {{ valor_maior_cat|floatformat:2 }})</span>
+                <div class="modal-body">
+                    <div class="p-3 rounded-3 mb-3" style="background-color: var(--bg-subtle);">
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
+                            <span class="text-secondary">Índice de saúde financeira</span>
+                            <span class="fw-bold">{{ analise_ia.score }} / 1000 ({{ analise_ia.nivel_score }})</span>
                         </div>
-                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
-                            <span class="small text-secondary fw-bold">Ticket Médio:</span>
-                            <span class="small text-dark fw-bold">R$ {{ analise_ia.ticket_medio|floatformat:2 }}</span>
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
+                            <span class="text-secondary">Maior categoria</span>
+                            <span class="fw-bold">{{ maior_categoria }} (R$ {{ valor_maior_cat|floatformat:2 }})</span>
                         </div>
-                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
-                            <span class="small text-secondary fw-bold">Impacto Anual dos Fixos:</span>
-                            <span class="small text-dark fw-bold">R$ {{ analise_ia.custo_fixo_anual|floatformat:2 }}/ano</span>
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
+                            <span class="text-secondary">Ticket médio por compra</span>
+                            <span class="fw-bold">R$ {{ analise_ia.ticket_medio|floatformat:2 }}</span>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="small text-secondary fw-bold">Comprometimento da Meta:</span>
-                            <span class="small text-dark fw-bold">{{ percentual_gasto|floatformat:0 }}% consumido</span>
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
+                            <span class="text-secondary">Custo anualizado de fixos</span>
+                            <span class="fw-bold">R$ {{ analise_ia.custo_fixo_anual|floatformat:2 }}/ano</span>
+                        </div>
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-secondary">Utilização da meta</span>
+                            <span class="fw-bold">{{ percentual_gasto|floatformat:1 }}%</span>
                         </div>
                     </div>
                 </div>
@@ -776,51 +865,46 @@
         </div>
     </div>
 
-    <!-- Modal Gerenciar e Criar Cartões com Status de Ciclo -->
+    <!-- Modal Cartões -->
     <div class="modal fade" id="modalCartao" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-content rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-credit-card text-primary"></i> Inteligência de Cartões</h5>
+                    <h6 class="modal-title fw-bold">Cartões de crédito</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST" class="mb-4 form-protegido">
+                    <form method="POST" class="mb-3 p-3 rounded-3 form-protegido" style="background-color: var(--bg-subtle);">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="novo_cartao">
-                        <div class="mb-3">
-                            <label class="form-label text-secondary fw-bold small">Nome do Novo Cartão</label>
-                            <input type="text" class="form-control bg-light border-0 rounded-4" name="nome" placeholder="Ex: Nubank, Inter..." required>
+                        <div class="mb-2">
+                            <input type="text" class="form-control bg-white" name="nome" placeholder="Nome do cartão (ex: Nubank)" required>
                         </div>
-                        <div class="row g-2 mb-3">
+                        <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <label class="form-label text-secondary fw-bold small">Dia Fechamento</label>
-                                <input type="number" class="form-control bg-light border-0 rounded-4" name="dia_fechamento" placeholder="Ex: 25" min="1" max="31" required>
+                                <input type="number" class="form-control bg-white" name="dia_fechamento" placeholder="Dia fechamento" min="1" max="31" required>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary fw-bold small">Dia Vencimento</label>
-                                <input type="number" class="form-control bg-light border-0 rounded-4" name="dia_vencimento" placeholder="Ex: 5" min="1" max="31" required>
+                                <input type="number" class="form-control bg-white" name="dia_vencimento" placeholder="Dia vencimento" min="1" max="31" required>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Adicionar Cartão</button>
+                        <button type="submit" class="btn btn-primary btn-sm w-100 rounded-3 py-2 fw-semibold">Cadastrar cartão</button>
                     </form>
 
                     {% if resumo_cartoes %}
-                    <hr>
-                    <h6 class="fw-bold small text-secondary mb-2">Faturas e Ciclos em {{ mes_atual }}/{{ ano_atual }}</h6>
                     <div class="list-group list-group-flush">
                         {% for c in resumo_cartoes %}
                         <div class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
                             <div class="small">
-                                <strong>{{ c.nome }}</strong>
-                                <span class="badge bg-{{ c.cor_badge }} bg-opacity-10 text-{{ c.cor_badge }} rounded-pill ms-1" style="font-size: 0.65rem;">{{ c.status_ciclo }}</span>
-                                <span class="text-muted d-block valor-sensivel" style="font-size: 0.72rem;">
-                                    Fatura atual: <strong>R$ {{ c.total_fatura|floatformat:2 }}</strong> • Fecha dia {{ c.dia_fechamento }} / Vence dia {{ c.dia_vencimento }}
+                                <span class="fw-semibold">{{ c.nome }}</span>
+                                <span class="badge bg-{{ c.cor_badge }} bg-opacity-10 text-{{ c.cor_badge }} ms-1" style="font-size: 0.65rem;">{{ c.status_ciclo }}</span>
+                                <span class="text-secondary d-block valor-sensivel" style="font-size: 0.72rem;">
+                                    Fatura atual: R$ {{ c.total_fatura|floatformat:2 }} • Fecha dia {{ c.dia_fechamento }}
                                 </span>
                             </div>
-                            <form method="POST" action="{% url 'excluir_cartao' c.id %}" onsubmit="return confirm('Excluir o cartão {{ c.nome }}?');">
+                            <form method="POST" action="{% url 'excluir_cartao' c.id %}" onsubmit="return confirm('Remover cartão {{ c.nome }}?');">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-light text-danger rounded-circle"><i class="bi bi-trash3"></i></button>
+                                <button type="submit" class="icon-btn text-danger"><i class="bi bi-trash3"></i></button>
                             </form>
                         </div>
                         {% endfor %}
@@ -831,67 +915,39 @@
         </div>
     </div>
 
-    <!-- Modal Nova Pessoa -->
-    <div class="modal fade" id="modalPessoa" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark">Nova Pessoa</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form method="POST" class="form-protegido">
-                        {% csrf_token %}
-                        <input type="hidden" name="form_type" value="nova_pessoa">
-                        <div class="mb-3">
-                            <label for="nome" class="form-label text-secondary fw-bold small">Nome</label>
-                            <input type="text" class="form-control bg-light border-0 rounded-4" id="nome" name="nome" required>
-                        </div>
-                        <div class="mb-4">
-                            <label for="telefone" class="form-label text-secondary fw-bold small">WhatsApp (com DDD)</label>
-                            <input type="text" class="form-control bg-light border-0 rounded-4" id="telefone" name="telefone" placeholder="Ex: 34999999999">
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Pessoa</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Upload Fatura Universal -->
+    <!-- Modal Importar Fatura CSV -->
     <div class="modal fade" id="modalFatura" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-content rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-cloud-upload text-primary"></i> Importar Fatura CSV</h5>
+                    <h6 class="modal-title fw-bold">Importar fatura em CSV</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form method="POST" enctype="multipart/form-data" class="form-protegido">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="upload_fatura">
-                        <div class="alert alert-primary bg-primary bg-opacity-10 border-0 small rounded-3 mb-4">
-                            <strong>Compatível com Nubank, Inter, Itaú, C6, Bradesco e Santander!</strong><br>
-                            Nosso classificador inteligente identifica as colunas, categoriza os gastos e detecta itens duplicados automaticamente.
+                        <p class="text-secondary small mb-3">
+                            Selecione o arquivo CSV exportado pelo seu banco (Nubank, Inter, Itaú, C6, Bradesco ou Santander). Você poderá revisar os itens antes de confirmar.
+                        </p>
+                        <div class="mb-3">
+                            <input type="file" class="form-control" name="arquivo_csv" accept=".csv,text/csv" required>
                         </div>
-                        <div class="mb-4">
-                            <input type="file" class="form-control bg-light border-0 rounded-4" name="arquivo_csv" accept=".csv,text/csv" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Analisar e Revisar Fatura</button>
+                        <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">Continuar para revisão</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modais de Receber Pagamento -->
+    <!-- Modais Receber Pagamento -->
     {% if dividas_detalhadas %}
         {% for divida in dividas_detalhadas %}
         <div class="modal fade" id="modalReceber{{ divida.id }}" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-content rounded-4">
                     <div class="modal-header border-0 pb-0">
-                        <h5 class="modal-title fw-bold text-dark">Registrar Pagamento</h5>
+                        <h6 class="modal-title fw-bold">Baixar recebimento de {{ divida.nome }}</h6>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -900,29 +956,27 @@
                             <input type="hidden" name="form_type" value="registrar_pagamento">
                             <input type="hidden" name="dono_id" value="{{ divida.id }}">
                             
-                            <p class="text-muted small mb-4">Registrar o pagamento feito por <strong>{{ divida.nome }}</strong>.</p>
-                            
-                            <div class="mb-3">
-                                <label class="form-label text-secondary fw-bold small">Referente a qual gasto?</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="referencia_gasto" onchange="atualizarValorPagamento(this, 'valorPagamento{{ divida.id }}')">
-                                    <option value="" data-valor="{{ divida.saldo|stringformat:'s'|default:'0' }}">💰 Abatimento Geral (Dívida total: R$ {{ divida.saldo|floatformat:2 }})</option>
+                            <div class="mb-2">
+                                <label class="form-label text-secondary small">Referência</label>
+                                <select class="form-select" name="referencia_gasto" onchange="atualizarValorPagamento(this, 'valorPagamento{{ divida.id }}')">
+                                    <option value="" data-valor="{{ divida.saldo|stringformat:'s'|default:'0' }}">Abatimento geral (Total: R$ {{ divida.saldo|floatformat:2 }})</option>
                                     {% for desp in divida.despesas %}
-                                    <option value="{{ desp.descricao }}" data-valor="{{ desp.saldo|stringformat:'s'|default:'0' }}">👉 {{ desp.descricao }} (Falta R$ {{ desp.saldo|floatformat:2 }})</option>
+                                    <option value="{{ desp.descricao }}" data-valor="{{ desp.saldo|stringformat:'s'|default:'0' }}">{{ desp.descricao }} (R$ {{ desp.saldo|floatformat:2 }})</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             
+                            <div class="mb-2">
+                                <label class="form-label text-secondary small">Valor recebido (R$)</label>
+                                <input type="text" inputmode="decimal" class="form-control" id="valorPagamento{{ divida.id }}" name="valor" value="{{ divida.saldo|floatformat:2 }}" required>
+                            </div>
+                            
                             <div class="mb-3">
-                                <label class="form-label text-secondary fw-bold small">Valor Recebido (R$)</label>
-                                <input type="text" class="form-control bg-light border-0 rounded-4" id="valorPagamento{{ divida.id }}" name="valor" value="{{ divida.saldo|floatformat:2 }}" required>
+                                <label class="form-label text-secondary small">Data</label>
+                                <input type="date" class="form-control input-data-hoje" name="data" required>
                             </div>
                             
-                            <div class="mb-4">
-                                <label class="form-label text-secondary fw-bold small">Data do Pagamento</label>
-                                <input type="date" class="form-control bg-light border-0 rounded-4 input-data-hoje" name="data" required>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Confirmar Pagamento</button>
+                            <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">Confirmar recebimento</button>
                         </form>
                     </div>
                 </div>
@@ -931,13 +985,13 @@
         {% endfor %}
     {% endif %}
 
-    <!-- Modais de Detalhes / Edição / Exclusão de Transações -->
+    <!-- Modais Editar / Excluir Transação -->
     {% for t in transacoes %}
     <div class="modal fade" id="modalEditar{{ t.id }}" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow rounded-4">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark">Detalhes da Transação</h5>
+                    <h6 class="modal-title fw-bold">Editar lançamento</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -946,23 +1000,23 @@
                         <input type="hidden" name="form_type" value="editar_transacao">
                         <input type="hidden" name="transacao_id" value="{{ t.id }}">
                         
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label text-secondary fw-bold small">Descrição</label>
-                                <input type="text" class="form-control bg-light border-0 rounded-4" name="descricao" value="{{ t.descricao }}" required>
+                        <div class="row g-2">
+                            <div class="col-7">
+                                <label class="form-label text-secondary small mb-1">Descrição</label>
+                                <input type="text" class="form-control" name="descricao" value="{{ t.descricao }}" required>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-secondary fw-bold small">Valor (R$)</label>
-                                <input type="text" class="form-control bg-light border-0 rounded-4" name="valor" value="{{ t.valor|floatformat:2 }}" required>
+                            <div class="col-5">
+                                <label class="form-label text-secondary small mb-1">Valor (R$)</label>
+                                <input type="text" inputmode="decimal" class="form-control" name="valor" value="{{ t.valor|floatformat:2 }}" required>
                             </div>
                             
-                            <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Data</label>
-                                <input type="date" class="form-control bg-light border-0 rounded-4" name="data" value="{{ t.data|date:'Y-m-d' }}" required>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Data</label>
+                                <input type="date" class="form-control" name="data" value="{{ t.data|date:'Y-m-d' }}" required>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Categoria</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="categoria">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Categoria</label>
+                                <select class="form-select" name="categoria">
                                     <option value="Alimentação" {% if t.categoria == 'Alimentação' %}selected{% endif %}>Alimentação</option>
                                     <option value="Mercado" {% if t.categoria == 'Mercado' %}selected{% endif %}>Mercado</option>
                                     <option value="Transporte" {% if t.categoria == 'Transporte' %}selected{% endif %}>Transporte</option>
@@ -974,94 +1028,60 @@
                                     <option value="Outros" {% if t.categoria == 'Outros' or not t.categoria %}selected{% endif %}>Outros</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Tipo</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="tipo">
-                                    <option value="DESPESA" {% if t.tipo == 'DESPESA' %}selected{% endif %}>Despesa</option>
-                                    <option value="PAGAMENTO" {% if t.tipo == 'PAGAMENTO' %}selected{% endif %}>Pagto/Receita</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label text-secondary fw-bold small">Dono</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="dono_id" required>
+
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Responsável</label>
+                                <select class="form-select" name="dono_id" required>
                                     {% for p in pessoas %}
                                     <option value="{{ p.id }}" {% if t.dono.id == p.id %}selected{% endif %}>{{ p.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            
-                            <div class="col-md-4">
-                                <label class="form-label text-secondary fw-bold small">Forma de Pagto</label>
-                                <select class="form-select bg-light border-0 rounded-4" name="cartao_id">
-                                    <option value="">Pix / Dinheiro</option>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Meio de pagamento</label>
+                                <select class="form-select" name="cartao_id">
+                                    <option value="">Pix / Conta</option>
                                     {% for c in cartoes %}
                                     <option value="{{ c.id }}" {% if t.cartao and t.cartao.id == c.id %}selected{% endif %}>{{ c.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
 
-                            <div class="col-md-4">
-                                <label class="form-label text-secondary fw-bold small">Parcelas (Recalcular)</label>
-                                <input type="number" class="form-control bg-light border-0 rounded-4" name="parcelas" id="inputParcelasEdit{{ t.id }}" value="1" min="1" max="120">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Tipo</label>
+                                <select class="form-select" name="tipo">
+                                    <option value="DESPESA" {% if t.tipo == 'DESPESA' %}selected{% endif %}>Despesa</option>
+                                    <option value="PAGAMENTO" {% if t.tipo == 'PAGAMENTO' %}selected{% endif %}>Recebimento</option>
+                                </select>
                             </div>
-                            <div class="col-md-4 d-flex align-items-center pt-4">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Parcelas</label>
+                                <input type="number" class="form-control" name="parcelas" id="inputParcelasEdit{{ t.id }}" value="1" min="1" max="120">
+                            </div>
+
+                            <div class="col-12 pt-1">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input check-recorrente-edit" type="checkbox" name="recorrente" value="1" id="checkRecorrenteEdit{{ t.id }}" {% if t.recorrente %}checked{% endif %} data-target="inputParcelasEdit{{ t.id }}" style="width: 2.5em; height: 1.25em; cursor: pointer;">
-                                    <label class="form-check-label fw-bold small text-dark ms-2" for="checkRecorrenteEdit{{ t.id }}" style="cursor: pointer;">
-                                            Despesa Fixa
+                                    <input class="form-check-input check-recorrente-edit" type="checkbox" name="recorrente" value="1" id="checkRecorrenteEdit{{ t.id }}" {% if t.recorrente %}checked{% endif %} data-target="inputParcelasEdit{{ t.id }}">
+                                    <label class="form-check-label small" for="checkRecorrenteEdit{{ t.id }}">
+                                        Despesa fixa mensal
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <hr class="my-4 text-muted">
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input toggle-divisao-edit" type="checkbox" id="toggleDivisaoEdit{{ t.id }}" data-target="secaoDivisaoAmigosEdit{{ t.id }}" style="width: 3em; height: 1.5em; cursor: pointer;">
-                            <label class="form-check-label fw-bold small text-dark ms-2 pt-1" for="toggleDivisaoEdit{{ t.id }}" style="cursor: pointer;">
-                                Adicionar divisão nesta compra?
-                            </label>
-                        </div>
-                        
-                        <div id="secaoDivisaoAmigosEdit{{ t.id }}" style="display: none;" class="p-3 bg-light rounded-4 border mb-3">
-                            <div class="listaCamposDivisaoEdit" id="listaCamposDivisaoEdit{{ t.id }}">
-                                <div class="row g-2 align-items-center mb-2 linha-divisao-edit">
-                                    <div class="col-6">
-                                        <label class="form-label text-secondary small mb-1">Amigo</label>
-                                        <select class="form-select bg-white border-0 rounded-4" name="dono_id_extra">
-                                            <option value="">Selecione...</option>
-                                            {% for p in pessoas %}
-                                            <option value="{{ p.id }}">{{ p.nome }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-5">
-                                        <label class="form-label text-secondary small mb-1">Valor (R$)</label>
-                                        <input type="text" class="form-control bg-white border-0 rounded-4 input-valor-extra-edit" name="valor_extra" placeholder="0,00">
-                                    </div>
-                                    <div class="col-1 text-center pt-4">
-                                        <button type="button" class="btn btn-sm text-danger border-0 p-1 btn-remover-linha-edit" title="Remover"><i class="bi bi-x-lg"></i></button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="d-flex gap-2 mt-3">
-                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold small bg-white btnAddPessoaExtraEdit" data-target="listaCamposDivisaoEdit{{ t.id }}"><i class="bi bi-plus"></i> Adicionar pessoa</button>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 pt-2">
-                            <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm">
-                                <i class="bi bi-check2-circle"></i> Salvar Alteração
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">
+                                Salvar alterações
                             </button>
                         </div>
                     </form>
 
-                    <!-- Botão de Excluir Lançamento Direto no Modal -->
-                    <form method="POST" action="{% url 'excluir_transacao' t.id %}" class="mt-2" onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                    <form method="POST" action="{% url 'excluir_transacao' t.id %}" class="mt-2" onsubmit="return confirm('Confirmar exclusão deste lançamento?');">
                         {% csrf_token %}
                         <input type="hidden" name="mes" value="{{ mes_atual }}">
                         <input type="hidden" name="ano" value="{{ ano_atual }}">
-                        <button type="submit" class="btn btn-outline-danger w-100 rounded-pill py-2 fw-bold small">
-                            <i class="bi bi-trash3"></i> Excluir Este Lançamento
+                        <button type="submit" class="btn btn-outline-danger w-100 rounded-3 py-2 fw-medium small">
+                            Excluir lançamento
                         </button>
                     </form>
                 </div>
@@ -1070,15 +1090,14 @@
     </div>
     {% endfor %}
 
-    <!-- BANNER DE CONSENTIMENTO DE COOKIES LGPD -->
-    <div id="lgpd-banner" class="bg-dark text-white py-3 px-3 px-md-4">
-        <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-            <div class="text-start small">
-                <i class="bi bi-shield-lock-fill text-success fs-5 me-2"></i>
-                <strong>Privacidade e LGPD (Lei 13.709/2018):</strong> Utilizamos apenas cookies estritamente necessários para autenticação segura e proteção contra fraudes (CSRF). Seus dados podem ser exportados ou excluídos a qualquer momento no botão <strong>Dados/LGPD</strong> no topo.
+    <!-- Aviso de Cookies LGPD -->
+    <div id="lgpd-banner" class="py-3 px-3">
+        <div class="app-shell d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2" style="padding-bottom: 0;">
+            <div class="small">
+                Utilizamos apenas cookies estritamente necessários para manter sua sessão autenticada com segurança (Lei nº 13.709/2018).
             </div>
-            <button id="btn-aceitar-cookies" class="btn btn-success btn-sm rounded-pill px-4 fw-bold text-nowrap w-100 w-md-auto">
-                Entendi e Aceito
+            <button id="btn-aceitar-cookies" class="btn btn-primary btn-sm rounded-3 px-4 fw-semibold text-nowrap w-100 w-sm-auto">
+                Prosseguir
             </button>
         </div>
     </div>
@@ -1093,25 +1112,22 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Proteção contra Duplo Clique em Formulários (Idempotência UI/UX)
             document.querySelectorAll('.form-protegido').forEach(function(form) {
                 form.addEventListener('submit', function() {
                     const btn = form.querySelector('button[type="submit"]');
                     if (btn && !btn.disabled) {
                         btn.disabled = true;
-                        btn.dataset.originalHtml = btn.innerHTML;
-                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processando...';
+                        btn.innerHTML = 'Aguarde...';
                     }
                 });
             });
 
-            // Modo Privacidade Fintech (Olho Mágico)
             const btnPrivacy = document.getElementById('btnPrivacyMode');
             const iconPrivacy = document.getElementById('iconPrivacy');
             function aplicarEstadoPrivacidade(ativo) {
                 document.body.classList.toggle('privacy-blur', ativo);
                 if (iconPrivacy) {
-                    iconPrivacy.className = ativo ? 'bi bi-eye-slash-fill text-primary' : 'bi bi-eye';
+                    iconPrivacy.className = ativo ? 'bi bi-eye-slash' : 'bi bi-eye';
                 }
             }
             aplicarEstadoPrivacidade(localStorage.getItem('finpro_privacy_blur') === 'true');
@@ -1123,7 +1139,6 @@
                 });
             }
 
-            // Modo Escuro (Dark Mode)
             const btnDark = document.getElementById('btnDarkMode');
             if (localStorage.getItem('finpro_dark_mode') === 'true') {
                 document.body.classList.add('dark-mode');
@@ -1135,7 +1150,6 @@
                 });
             }
 
-            // Filtro Combinado: Busca por Texto + Pílulas de Categoria/Tipo
             const inputBusca = document.getElementById('inputBuscaTransacao');
             let filtroChipAtivo = 'todos';
 
@@ -1156,9 +1170,7 @@
                 });
             }
 
-            if (inputBusca) {
-                inputBusca.addEventListener('input', aplicarFiltrosLista);
-            }
+            if (inputBusca) inputBusca.addEventListener('input', aplicarFiltrosLista);
             document.querySelectorAll('.chip-filtro').forEach(function(chip) {
                 chip.addEventListener('click', function() {
                     document.querySelectorAll('.chip-filtro').forEach(c => c.classList.remove('active'));
@@ -1168,7 +1180,6 @@
                 });
             });
 
-            // Simulador "Posso Comprar?"
             const btnSimular = document.getElementById('btnAnalisarCompra');
             if (btnSimular) {
                 btnSimular.addEventListener('click', function() {
@@ -1180,7 +1191,7 @@
 
                     if (valTotal <= 0) {
                         boxRes.style.display = 'block';
-                        boxRes.className = 'p-3 rounded-4 small alert alert-warning mb-0';
+                        boxRes.className = 'p-3 rounded-3 small alert alert-secondary mb-0';
                         boxRes.innerHTML = 'Informe um valor válido para simular.';
                         return;
                     }
@@ -1190,22 +1201,21 @@
                     boxRes.style.display = 'block';
 
                     if (valorMeta <= 0) {
-                        boxRes.className = 'p-3 rounded-4 small alert alert-info mb-0';
-                        boxRes.innerHTML = `<strong>Parcela: R$ ${valorParcela.toFixed(2)}/mês.</strong> Defina uma Meta Mensal no painel para calcularmos o risco exato.`;
+                        boxRes.className = 'p-3 rounded-3 small alert alert-secondary mb-0';
+                        boxRes.innerHTML = `Parcela de <strong>R$ ${valorParcela.toFixed(2)}/mês</strong>. Defina uma meta mensal para avaliar a margem disponível.`;
                     } else if (novoSaldo >= valorMeta * 0.15) {
-                        boxRes.className = 'p-3 rounded-4 small alert alert-success mb-0';
-                        boxRes.innerHTML = `✅ <strong>Compra Aprovada pela IA!</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> cabe com folga na sua meta e ainda sobram R$ ${novoSaldo.toFixed(2)} neste mês.`;
+                        boxRes.className = 'p-3 rounded-3 small alert alert-success mb-0';
+                        boxRes.innerHTML = `<strong>Viável:</strong> A parcela de R$ ${valorParcela.toFixed(2)} mantém saldo livre de R$ ${novoSaldo.toFixed(2)} dentro da meta.`;
                     } else if (novoSaldo >= 0) {
-                        boxRes.className = 'p-3 rounded-4 small alert alert-warning mb-0';
-                        boxRes.innerHTML = `⚠️ <strong>Atenção:</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> cabe no limite, mas deixará sua margem do mês apertada (sobrarão R$ ${novoSaldo.toFixed(2)}).`;
+                        boxRes.className = 'p-3 rounded-3 small alert alert-warning mb-0';
+                        boxRes.innerHTML = `<strong>Margem reduzida:</strong> A parcela de R$ ${valorParcela.toFixed(2)} deixará R$ ${novoSaldo.toFixed(2)} disponíveis na meta.`;
                     } else {
-                        boxRes.className = 'p-3 rounded-4 small alert alert-danger mb-0';
-                        boxRes.innerHTML = `🛑 <strong>Alto Risco:</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> fará você ultrapassar sua meta mensal em <strong>R$ ${Math.abs(novoSaldo).toFixed(2)}</strong>.`;
+                        boxRes.className = 'p-3 rounded-3 small alert alert-danger mb-0';
+                        boxRes.innerHTML = `<strong>Acima do orçamento:</strong> A parcela de R$ ${valorParcela.toFixed(2)} excede a meta mensal em R$ ${Math.abs(novoSaldo).toFixed(2)}.`;
                     }
                 });
             }
 
-            // Banner LGPD
             if (!localStorage.getItem("lgpd_consentido")) {
                 document.getElementById("lgpd-banner").style.display = "block";
             }
@@ -1218,36 +1228,12 @@
                 document.querySelectorAll('.alert-dismissible').forEach(function(alerta) {
                     new bootstrap.Alert(alerta).close();
                 });
-            }, 4000);
+            }, 3500);
 
             var hoje = new Date().toISOString().split('T')[0];
             document.querySelectorAll('input[type="date"]').forEach(function(input) {
                 if (!input.value) { input.value = hoje; }
             });
-
-            const selCartao = document.getElementById('selectCartaoForma');
-            const lblData = document.getElementById('labelDataTransacao');
-            if(selCartao && lblData) {
-                selCartao.addEventListener('change', function() {
-                    lblData.innerHTML = (this.value === "") ? 'Data de Vencimento' : 'Data da Compra';
-                });
-                selCartao.dispatchEvent(new Event('change'));
-            }
-
-            const checkRecorrente = document.getElementById('checkRecorrente');
-            const inputParcelas = document.getElementById('inputParcelas');
-            if (checkRecorrente && inputParcelas) {
-                checkRecorrente.addEventListener('change', function() {
-                    if (this.checked) {
-                        inputParcelas.value = 1;
-                        inputParcelas.setAttribute('readonly', 'true');
-                        inputParcelas.style.opacity = '0.5';
-                    } else {
-                        inputParcelas.removeAttribute('readonly');
-                        inputParcelas.style.opacity = '1';
-                    }
-                });
-            }
 
             const toggleDivisao = document.getElementById('toggleDivisao');
             const secaoDivisaoAmigos = document.getElementById('secaoDivisaoAmigos');
@@ -1272,38 +1258,6 @@
                 });
             }
 
-            document.querySelectorAll('.check-recorrente-edit').forEach(function(check) {
-                check.addEventListener('change', function() {
-                    const inputParcelas = document.getElementById(this.getAttribute('data-target'));
-                    if (this.checked) {
-                        inputParcelas.value = 1;
-                        inputParcelas.setAttribute('readonly', 'true');
-                        inputParcelas.style.opacity = '0.5';
-                    } else {
-                        inputParcelas.removeAttribute('readonly');
-                        inputParcelas.style.opacity = '1';
-                    }
-                });
-            });
-
-            document.querySelectorAll('.toggle-divisao-edit').forEach(function(toggle) {
-                toggle.addEventListener('change', function() {
-                    const secao = document.getElementById(this.getAttribute('data-target'));
-                    secao.style.display = this.checked ? 'block' : 'none';
-                });
-            });
-
-            document.querySelectorAll('.btnAddPessoaExtraEdit').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    const lista = document.getElementById(this.getAttribute('data-target'));
-                    const primeiraLinha = lista.querySelector('.linha-divisao-edit');
-                    const novaLinha = primeiraLinha.cloneNode(true);
-                    novaLinha.querySelector('select').value = '';
-                    novaLinha.querySelector('input').value = '';
-                    lista.appendChild(novaLinha);
-                });
-            });
-
             document.addEventListener('click', function(e) {
                 if (e.target.closest('.btn-remover-linha')) {
                     const linhas = listaCamposDivisao.querySelectorAll('.linha-divisao');
@@ -1314,16 +1268,6 @@
                         linhas[0].querySelector('input').value = '';
                     }
                 }
-                if (e.target.closest('.btn-remover-linha-edit')) {
-                    const linhaEdit = e.target.closest('.linha-divisao-edit');
-                    const listaEdit = linhaEdit.parentElement;
-                    if (listaEdit.querySelectorAll('.linha-divisao-edit').length > 1) {
-                        linhaEdit.remove();
-                    } else {
-                        linhaEdit.querySelector('select').value = '';
-                        linhaEdit.querySelector('input').value = '';
-                    }
-                }
             });
 
             if (btnDividirIgualmente) {
@@ -1331,19 +1275,15 @@
                     const valorTotal = parseFloat(valorTotalInput.value.replace(',', '.')) || 0;
                     const linhas = listaCamposDivisao.querySelectorAll('.linha-divisao');
                     const qtdPessoas = linhas.length + 1;
-
                     if (valorTotal > 0 && qtdPessoas > 1) {
                         const valorPorPessoa = (valorTotal / qtdPessoas).toFixed(2).replace('.', ',');
                         linhas.forEach(linha => {
                             linha.querySelector('.input-valor-extra').value = valorPorPessoa;
                         });
-                    } else {
-                        alert('Informe um Valor Total e adicione ao menos um amigo para dividir.');
                     }
                 });
             }
 
-            // Gráficos Chart.js (Categorias Doughnut + Evolução 6 Meses Bar)
             const ctxCat = document.getElementById('graficoGastos');
             const labelsCat = JSON.parse(document.getElementById('labels-data').textContent);
             const dadosCat = JSON.parse(document.getElementById('valores-data').textContent);
@@ -1355,14 +1295,14 @@
                         labels: labelsCat,
                         datasets: [{
                             data: dadosCat,
-                            backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'],
-                            borderWidth: 0, hoverOffset: 6
+                            backgroundColor: ['#2563eb', '#0f172a', '#475569', '#0284c7', '#64748b', '#0d9488', '#d97706', '#dc2626'],
+                            borderWidth: 0
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, font: { family: "'Poppins', sans-serif", size: 11 } } } }, cutout: '70%' }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, font: { family: "'Inter', sans-serif", size: 11 } } } }, cutout: '72%' }
                 });
             } else if (ctxCat) {
-                ctxCat.outerHTML = '<div class="d-flex align-items-center justify-content-center h-100 bg-light rounded-4 border"><p class="text-muted small mb-0">Nenhum gasto pessoal registrado neste mês.</p></div>';
+                ctxCat.outerHTML = '<div class="d-flex align-items-center justify-content-center h-100 rounded-3" style="background-color: var(--bg-subtle);"><p class="text-secondary small mb-0">Sem dados pessoais neste período.</p></div>';
             }
 
             const ctxEvo = document.getElementById('graficoEvolucao');
@@ -1374,10 +1314,10 @@
                     data: {
                         labels: labelsEvo,
                         datasets: [{
-                            label: 'Meus Gastos (R$)',
+                            label: 'Gastos (R$)',
                             data: dadosEvo,
-                            backgroundColor: '#0d6efd',
-                            borderRadius: 8
+                            backgroundColor: '#2563eb',
+                            borderRadius: 6
                         }]
                     },
                     options: {
@@ -1427,17 +1367,15 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             promptInstalacao = e;
-            if(btnInstalar) btnInstalar.style.display = 'block';
+            if (btnInstalar) btnInstalar.style.display = 'inline-flex';
         });
 
-        if(btnInstalar) {
+        if (btnInstalar) {
             btnInstalar.addEventListener('click', async () => {
                 if (promptInstalacao) {
                     promptInstalacao.prompt();
                     const { outcome } = await promptInstalacao.userChoice;
-                    if (outcome === 'accepted') {
-                        btnInstalar.style.display = 'none';
-                    }
+                    if (outcome === 'accepted') btnInstalar.style.display = 'none';
                     promptInstalacao = null;
                 }
             });
