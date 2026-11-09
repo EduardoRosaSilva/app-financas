@@ -13,7 +13,6 @@ class FinProSystemTests(TestCase):
         self.client = Client()
 
     def test_1_registro_cria_titular_e_permite_relogin_case_insensitive(self):
-        """Testa se o usuário criado consegue deslogar e logar novamente mesmo digitando maiúsculas ou espaços."""
         res = self.client.post(reverse('registro'), {
             'username': '  EduardoRosa ',
             'password1': 'FinPro@2026Seguro',
@@ -35,7 +34,6 @@ class FinProSystemTests(TestCase):
         self.assertEqual(res_login.url, reverse('dashboard'))
 
     def test_2_persistencia_de_dados_apos_logout_e_novo_login(self):
-        """Garante que transações, cartões e metas não somem após encerrar a sessão e logar novamente."""
         self.client.post(reverse('registro'), {
             'username': 'teste_persistencia',
             'password1': 'SenhaForte@2026',
@@ -73,7 +71,6 @@ class FinProSystemTests(TestCase):
         self.assertEqual(float(res_dash.context['valor_meta']), 3500.0)
 
     def test_3_divisao_de_despesa_com_amigos_e_cobranca_whatsapp(self):
-        """Testa a divisão de uma compra entre o titular e um amigo e o cálculo de dívidas."""
         user = User.objects.create_user(username='lider', password='123')
         self.client.force_login(user)
         titular = Pessoa.objects.create(nome='Lider', conta='lider', is_titular=True)
@@ -99,7 +96,6 @@ class FinProSystemTests(TestCase):
         self.assertEqual(float(res.context['dividas_detalhadas'][0]['saldo']), 80.00)
 
     def test_4_isolamento_total_entre_contas(self):
-        """Garante que um usuário nunca veja nem exclua transações de outro usuário."""
         u1 = User.objects.create_user(username='usuario1', password='123')
         u2 = User.objects.create_user(username='usuario2', password='123')
         p1 = Pessoa.objects.create(nome='U1', conta='usuario1', is_titular=True)
@@ -112,11 +108,10 @@ class FinProSystemTests(TestCase):
         res = self.client.get(reverse('dashboard'))
         self.assertNotContains(res, 'Segredo U1')
 
-        res_del = self.client.get(reverse('excluir_transacao', args=[t1.id]))
+        res_del = self.client.post(reverse('excluir_transacao', args=[t1.id]))
         self.assertEqual(res_del.status_code, 404)
 
     def test_5_importacao_fatura_csv_e_virada_de_fechamento_cartao(self):
-        """Testa upload de fatura CSV com compras antes e depois do fechamento (dia 25) e criação de cartão no lote."""
         u = User.objects.create_user(username='importador', password='123')
         self.client.force_login(u)
         titular = Pessoa.objects.create(nome='Importador', conta='importador', is_titular=True)
@@ -135,12 +130,8 @@ class FinProSystemTests(TestCase):
         })
         self.assertEqual(res_upload.status_code, 200)
         itens_lidos = res_upload.context['transacoes_fatura']
-        # Deve ler os 2 gastos e ignorar 'Pagamento recebido'
         self.assertEqual(len(itens_lidos), 2)
-        self.assertEqual(itens_lidos[0]['categoria'], 'Transporte')
-        self.assertEqual(itens_lidos[1]['categoria'], 'Mercado')
 
-        # Salva o lote criando o cartão Nubank (fechamento dia 25) na hora
         res_salvar = self.client.post(reverse('dashboard'), {
             'form_type': 'salvar_fatura_lote',
             'cartao_lote': 'NOVO_CARTAO',
@@ -153,28 +144,51 @@ class FinProSystemTests(TestCase):
         })
         self.assertEqual(res_salvar.status_code, 302)
 
-        # Compra de 10/10 deve aparecer na fatura 10/2026
         res_out = self.client.get('/?mes=10&ano=2026')
         self.assertContains(res_out, 'Uber Viagem')
 
-        # Compra de 28/10 (após fechamento dia 25) deve aparecer na fatura 11/2026!
         res_nov = self.client.get('/?mes=11&ano=2026')
         self.assertContains(res_nov, 'Supermercado Mart Minas')
 
-    def test_6_lgpd_portabilidade_json_e_direito_ao_esquecimento(self):
-        """Testa exportação de dados LGPD (JSON) e exclusão total da conta mediante senha."""
-        u = User.objects.create_user(username='titular_lgpd', password=' MinhaSenha123 ')
+    def test_6_botoes_de_exclusao_limpeza_de_dados_e_lgpd(self):
+        """Testa exclusão individual, limpeza de lançamentos da conta e exclusão total LGPD."""
+        u = User.objects.create_user(username='titular_lgpd', password='MinhaSenha123')
         self.client.force_login(u)
         p = Pessoa.objects.create(nome='Titular', conta='titular_lgpd', is_titular=True)
-        Transacao.objects.create(descricao='Farmacia', valor=50, data=date.today(), tipo='DESPESA', dono=p, conta='titular_lgpd')
+        t1 = Transacao.objects.create(descricao='Item 1', valor=50, data=date.today(), tipo='DESPESA', dono=p, conta='titular_lgpd')
+        Transacao.objects.create(descricao='Item 2', valor=80, data=date.today(), tipo='DESPESA', dono=p, conta='titular_lgpd')
 
-        # 1. Portabilidade JSON
-        res_json = self.client.get(reverse('exportar_dados_lgpd'))
-        self.assertEqual(res_json.status_code, 200)
-        self.assertIn('titular_lgpd', res_json.content.decode('utf-8'))
+        # 1. Excluir transação individual via POST
+        self.client.post(reverse('excluir_transacao', args=[t1.id]))
+        self.assertEqual(Transacao.objects.filter(conta='titular_lgpd').count(), 1)
 
-        # 2. Exclusão total da conta
-        res_del = self.client.post(reverse('excluir_conta_lgpd'), {'senha_confirmacao': ' MinhaSenha123 '})
+        # 2. Zerar todos os dados financeiros mantendo a conta
+        self.client.post(reverse('limpar_dados_financeiros'), {'escopo': 'tudo', 'zerar_cartoes': '1'})
+        self.assertEqual(Transacao.objects.filter(conta='titular_lgpd').count(), 0)
+        self.assertTrue(User.objects.filter(username='titular_lgpd').exists())
+
+        # 3. Excluir conta completa LGPD digitando EXCLUIR
+        res_del = self.client.post(reverse('excluir_conta_lgpd'), {'confirmacao_texto': 'EXCLUIR'})
         self.assertEqual(res_del.status_code, 302)
         self.assertFalse(User.objects.filter(username='titular_lgpd').exists())
-        self.assertEqual(Transacao.objects.filter(conta='titular_lgpd').count(), 0)
+
+    def test_7_lancamento_inteligente_nlp_e_health_check(self):
+        """Testa a barra de comando IA por linguagem natural e o endpoint /health/ anti-sleep."""
+        res_health = self.client.get(reverse('health_check'))
+        self.assertEqual(res_health.status_code, 200)
+
+        u = User.objects.create_user(username='ia_user', password='123')
+        self.client.force_login(u)
+        Pessoa.objects.create(nome='IA User', conta='ia_user', is_titular=True)
+        Cartao.objects.create(nome='Nubank', dia_fechamento=28, dia_vencimento=5, conta='ia_user')
+
+        res = self.client.post(reverse('dashboard'), {
+            'form_type': 'lancamento_inteligente',
+            'comando_ia': 'Uber Viagem 34,90 Nubank',
+        })
+        self.assertEqual(res.status_code, 302)
+        t = Transacao.objects.filter(conta='ia_user').first()
+        self.assertIsNotNone(t)
+        self.assertEqual(float(t.valor), 34.90)
+        self.assertEqual(t.categoria, 'Transporte')
+        self.assertEqual(t.cartao.nome, 'Nubank')

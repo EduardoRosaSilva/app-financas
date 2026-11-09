@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FinPro - Gestão Inteligente</title>
+    <title>FinPro - Gestão Financeira Inteligente</title>
     
     <meta name="theme-color" content="#0d6efd">
     <link rel="icon" type="image/png" href="{% static 'icone.png' %}">
@@ -19,13 +19,11 @@
             --bg-body: #f8fafc;
             --bg-card: #ffffff;
             --text-main: #1e293b;
-            --border-soft: #e2e8f0;
         }
         body.dark-mode {
             --bg-body: #0f172a;
             --bg-card: #1e293b;
             --text-main: #f8fafc;
-            --border-soft: #334155;
             background-color: var(--bg-body) !important;
             color: var(--text-main) !important;
         }
@@ -75,6 +73,9 @@
                 <div class="d-flex align-items-center justify-content-between w-100 w-sm-auto">
                     <h4 class="fw-bold text-primary mb-0 d-flex align-items-center gap-2">
                         <i class="bi bi-wallet2"></i> FinPro
+                        <span class="badge bg-{{ analise_ia.cor_score }} rounded-pill ms-1" style="font-size: 0.65rem;" title="Score de Saúde Financeira">
+                            Score {{ analise_ia.score }}
+                        </span>
                     </h4>
                     <div class="d-flex align-items-center gap-2">
                         <button id="btnInstalarApp" class="btn btn-sm btn-warning fw-bold rounded-pill shadow-sm px-3 text-dark" style="display: none; font-size: 0.75rem;">
@@ -92,8 +93,8 @@
                         <span class="fw-bold small mx-3 text-dark">{{ mes_atual }}/{{ ano_atual }}</span>
                         <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-right"></i></a>
                     </div>
-                    <button class="btn btn-light text-secondary rounded-pill px-3 fw-bold border shadow-sm" style="font-size: 0.85rem;" data-bs-toggle="modal" data-bs-target="#modalLGPD" title="Privacidade e LGPD">
-                        <i class="bi bi-shield-check text-success"></i> LGPD
+                    <button class="btn btn-light text-secondary rounded-pill px-3 fw-bold border shadow-sm" style="font-size: 0.85rem;" data-bs-toggle="modal" data-bs-target="#modalLGPD" title="Privacidade, Limpeza de Dados e LGPD">
+                        <i class="bi bi-shield-check text-success"></i> Dados/LGPD
                     </button>
                     <a href="{% url 'logout' %}" class="btn btn-light text-danger rounded-pill px-3 fw-bold border shadow-sm" style="font-size: 0.85rem;">
                         <i class="bi bi-box-arrow-right"></i> Sair
@@ -113,8 +114,24 @@
         {% endfor %}
     {% endif %}
 
-    <!-- Container Principal -->
     <div class="container pb-5 mb-5">
+
+        <!-- BARRA DE COMANDO INTELIGENTE (NLP QUICK-ADD) -->
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body p-3">
+                <form method="POST" class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="lancamento_inteligente">
+                    <div class="d-flex align-items-center flex-grow-1 bg-light rounded-pill px-3 py-1 border">
+                        <i class="bi bi-magic text-primary me-2"></i>
+                        <input type="text" name="comando_ia" class="form-control bg-transparent border-0 shadow-none small" placeholder="Lançamento IA: digite ex: 'Uber 24,90 Nubank', 'Mercado 300 2x' ou 'Netflix 55,90 fixo'..." required>
+                    </div>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold small text-nowrap shadow-sm">
+                        <i class="bi bi-lightning-charge-fill"></i> Lançar
+                    </button>
+                </form>
+            </div>
+        </div>
 
         <!-- PAINEL DE INTELIGÊNCIA FINANCEIRA (FINPRO AI INSIGHTS) -->
         {% if analise_ia.lista_insights %}
@@ -122,7 +139,7 @@
             <div class="card-body p-3 px-4">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                     <div>
-                        <span class="badge bg-primary rounded-pill mb-1"><i class="bi bi-stars"></i> FinPro Inteligência</span>
+                        <span class="badge bg-primary rounded-pill mb-1"><i class="bi bi-stars"></i> FinPro Inteligência ({{ analise_ia.nivel_score }})</span>
                         {% for item in analise_ia.lista_insights %}
                             <p class="small text-dark mb-1"><i class="bi {{ item.icone }} text-{{ item.tipo }} me-1"></i> {{ item.texto }}</p>
                         {% endfor %}
@@ -182,7 +199,7 @@
                     <div class="card-body p-4">
                         <h6 class="text-secondary fw-bold small mb-2">MEUS GASTOS PESSOAIS</h6>
                         <h2 class="fw-bold text-dark mb-1">R$ {{ meus_gastos|floatformat:2 }}</h2>
-                        <p class="text-muted small mb-0">Fixos no mês: R$ {{ analise_ia.gastos_fixos|floatformat:2 }}</p>
+                        <p class="text-muted small mb-0">Fixos: R$ {{ analise_ia.gastos_fixos|floatformat:2 }}/mês</p>
                     </div>
                 </div>
             </div>
@@ -204,28 +221,80 @@
 
         <!-- Botões de Ação Rápida Responsivos -->
         <div class="row g-2 mb-4">
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <button class="btn btn-light bg-white border shadow-sm rounded-pill py-2 small fw-bold text-secondary w-100" data-bs-toggle="modal" data-bs-target="#modalGerenciarPessoas"><i class="bi bi-people"></i> Pessoas</button>
             </div>
-            <div class="col-6 col-md-3">
-                <button class="btn btn-light bg-white border shadow-sm rounded-pill py-2 small fw-bold text-secondary w-100" data-bs-toggle="modal" data-bs-target="#modalCartao"><i class="bi bi-credit-card"></i> Cartão</button>
+            <div class="col-6 col-md-2">
+                <button class="btn btn-light bg-white border shadow-sm rounded-pill py-2 small fw-bold text-secondary w-100" data-bs-toggle="modal" data-bs-target="#modalCartao"><i class="bi bi-credit-card"></i> Cartões</button>
             </div>
             <div class="col-6 col-md-3">
                 <button class="btn btn-primary shadow-sm rounded-pill py-2 small fw-bold w-100" data-bs-toggle="modal" data-bs-target="#modalFatura"><i class="bi bi-cloud-upload"></i> Importar Fatura</button>
             </div>
             <div class="col-6 col-md-3">
+                <button class="btn btn-outline-primary bg-white shadow-sm rounded-pill py-2 small fw-bold w-100" data-bs-toggle="modal" data-bs-target="#modalSimuladorCompra"><i class="bi bi-calculator"></i> Posso Comprar?</button>
+            </div>
+            <div class="col-12 col-md-2">
                 <button class="btn btn-dark shadow-sm rounded-pill py-2 small fw-bold w-100" data-bs-toggle="modal" data-bs-target="#modalResumoMes"><i class="bi bi-trophy"></i> Fechamento</button>
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm rounded-4 mb-4">
-            <div class="card-body p-4">
-                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-pie-chart text-primary"></i> Raio-X dos Seus Gastos</h6>
-                <div style="position: relative; height: 280px; width: 100%;"><canvas id="graficoGastos"></canvas></div>
+        <!-- Raio-X e Regra 50-30-20 -->
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-lg-7">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold text-dark mb-3"><i class="bi bi-pie-chart text-primary"></i> Raio-X por Categoria</h6>
+                        <div style="position: relative; height: 250px; width: 100%;"><canvas id="graficoGastos"></canvas></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-5">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <h6 class="fw-bold text-dark mb-1"><i class="bi bi-compass text-primary"></i> Bússola 50-30-20</h6>
+                            <p class="text-muted small mb-3">Distribuição inteligente do seu orçamento mensal</p>
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="fw-bold text-dark">Essenciais (Ideal: até 50%)</span>
+                                    <span class="text-secondary">R$ {{ analise_ia.gastos_essenciais|floatformat:2 }} ({{ analise_ia.perc_essenciais|floatformat:0 }}%)</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-primary" style="width: {{ analise_ia.perc_essenciais|floatformat:0 }}%"></div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="fw-bold text-dark">Estilo de Vida & Lazer (Ideal: até 30%)</span>
+                                    <span class="text-secondary">R$ {{ analise_ia.gastos_estilo_vida|floatformat:2 }} ({{ analise_ia.perc_estilo_vida|floatformat:0 }}%)</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-warning" style="width: {{ analise_ia.perc_estilo_vida|floatformat:0 }}%"></div>
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="fw-bold text-dark">Margem Livre / Economia (Ideal: 20%+)</span>
+                                    <span class="text-success fw-bold">{{ analise_ia.perc_economia|floatformat:0 }}%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" style="width: {{ analise_ia.perc_economia|floatformat:0 }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-light rounded-4 p-3 mt-3 small">
+                            <i class="bi bi-lightning-fill text-warning"></i> <strong>Limite Diário Seguro:</strong> Você pode gastar <strong>R$ {{ analise_ia.orcamento_diario_seguro|floatformat:2 }}/dia</strong> até o fim do mês sem estourar sua meta.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Lançamentos com Busca Rápida e Exportação CSV -->
+        <!-- Lançamentos com Busca Rápida e Exclusão Funcionando 100% -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
@@ -241,13 +310,13 @@
                 <div class="list-group list-group-flush" id="listaTransacoesContainer">
                     {% for t in transacoes %}
                     <div class="list-group-item bg-transparent px-2 py-3 d-flex justify-content-between align-items-center border-bottom linha-clicavel rounded-3 item-transacao-lista">
-                        <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" title="Clique para ver detalhes">
+                        <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" title="Clique para editar ou excluir">
                             <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; background-color: {% if t.tipo == 'DESPESA' %}#ffebee{% else %}#e8f5e9{% endif %};">
                                 {% if t.tipo == 'DESPESA' %}<i class="bi bi-arrow-down-short text-danger fs-4"></i>{% else %}<i class="bi bi-arrow-up-short text-success fs-4"></i>{% endif %}
                             </div>
                             <div style="min-width: 0; flex: 1;">
-                                <h6 class="mb-1 fw-bold text-dark text-truncate texto-busca">{{ t.descricao }}</h6>
-                                <div class="d-flex align-items-center flex-wrap gap-1 text-muted texto-busca" style="font-size: 0.7rem;">
+                                <h6 class="mb-1 fw-bold text-dark text-truncate">{{ t.descricao }}</h6>
+                                <div class="d-flex align-items-center flex-wrap gap-1 text-muted" style="font-size: 0.7rem;">
                                     <span class="fw-bold text-dark"><i class="bi bi-calendar-event"></i> {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}</span>
                                     <span> • <i class="bi bi-tag-fill text-primary"></i> {{ t.categoria|default:"Outros" }}</span>
                                     <span> • {{ t.dono.nome }}</span>
@@ -259,9 +328,14 @@
                             <h6 class="mb-1 fw-bold text-nowrap {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %}" style="font-size: 0.9rem;">
                                 {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
                             </h6>
-                            <div class="d-flex gap-1 justify-content-end align-items-center" style="font-size: 0.65rem;">
-                                <a href="{% url 'excluir_transacao' t.id %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="text-danger text-decoration-none" onclick="return confirm('Tem certeza que deseja excluir?')"><i class="bi bi-trash3"></i> Excluir</a>
-                            </div>
+                            <form method="POST" action="{% url 'excluir_transacao' t.id %}" class="m-0 p-0 d-inline" onsubmit="event.stopPropagation(); return confirm('Excluir este lançamento?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="mes" value="{{ mes_atual }}">
+                                <input type="hidden" name="ano" value="{{ ano_atual }}">
+                                <button type="submit" class="btn btn-link text-danger text-decoration-none p-0 border-0" style="font-size: 0.7rem;" onclick="event.stopPropagation();">
+                                    <i class="bi bi-trash3"></i> Excluir
+                                </button>
+                            </form>
                         </div>
                     </div>
                     {% empty %}
@@ -276,35 +350,90 @@
     <button class="btn btn-primary shadow-lg rounded-circle position-fixed bottom-0 end-0 m-4 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; z-index: 1000;" data-bs-toggle="modal" data-bs-target="#modalTransacao"><i class="bi bi-plus-lg fs-4"></i></button>
 
     <!-- ========================================== -->
-    <!-- MODAL CENTRAL DE PRIVACIDADE E LGPD        -->
+    <!-- MODAL SIMULADOR "POSSO COMPRAR?"           -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="modalSimuladorCompra" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-robot text-primary"></i> Simulador: Posso Comprar?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted">Teste o impacto de uma nova compra antes de passar o cartão.</p>
+                    <div class="row g-2 mb-3">
+                        <div class="col-7">
+                            <label class="form-label small fw-bold text-secondary">Valor Total do Item (R$)</label>
+                            <input type="number" step="0.01" id="simValorTotal" class="form-control bg-light border-0 rounded-4" placeholder="Ex: 600.00">
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label small fw-bold text-secondary">Parcelas</label>
+                            <input type="number" id="simParcelas" class="form-control bg-light border-0 rounded-4" value="1" min="1" max="48">
+                        </div>
+                    </div>
+                    <button type="button" id="btnAnalisarCompra" class="btn btn-primary w-100 rounded-pill fw-bold py-2 mb-3">Analisar Viabilidade</button>
+                    <div id="resultadoSimulador" style="display: none;" class="p-3 rounded-4 small"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL CENTRAL DE DADOS, LIMPEZA E LGPD     -->
     <!-- ========================================== -->
     <div class="modal fade" id="modalLGPD" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-shield-lock-fill text-success"></i> Privacidade e Direitos LGPD</h5>
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-shield-lock-fill text-success"></i> Gestão de Dados & LGPD</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="small text-muted">
-                        Em conformidade com a <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018 - Art. 18)</strong>, seus dados são isolados, criptografados em trânsito e usados exclusivamente para sua organização financeira.
-                    </p>
+                    <div class="bg-light p-3 rounded-4 mb-3 small">
+                        <div><strong><i class="bi bi-person-badge"></i> Conta Protegida:</strong> {{ usuario.username }}</div>
+                        <div class="text-muted">Registro de acesso conforme Marco Civil da Internet (Art. 15) e LGPD (Lei nº 13.709/2018).</div>
+                    </div>
+
+                    <h6 class="fw-bold text-dark small mb-2">1. Portabilidade e Backup (Art. 18, V da LGPD)</h6>
                     <div class="d-grid gap-2 mb-4">
                         <a href="{% url 'exportar_dados_lgpd' %}" class="btn btn-outline-primary rounded-pill fw-bold small py-2">
-                            <i class="bi bi-download"></i> Portabilidade: Baixar Todos os Meus Dados (JSON)
+                            <i class="bi bi-download"></i> Baixar Todos os Meus Dados (JSON)
                         </a>
                         <a href="{% url 'exportar_relatorio_csv' %}" class="btn btn-outline-secondary rounded-pill fw-bold small py-2">
                             <i class="bi bi-filetype-csv"></i> Exportar Histórico Completo (CSV/Excel)
                         </a>
                     </div>
+
                     <hr>
-                    <h6 class="fw-bold text-danger small"><i class="bi bi-exclamation-octagon"></i> Direito ao Esquecimento (Eliminação Total)</h6>
-                    <p class="small text-muted mb-2">Deseja apagar permanentemente sua conta e todos os lançamentos do banco de dados?</p>
-                    <form method="POST" action="{% url 'excluir_conta_lgpd' %}" onsubmit="return confirm('ATENÇÃO: Esta ação é irreversível e apagará todos os seus dados permanentemente. Confirmar?')">
+                    <h6 class="fw-bold text-warning small mb-2"><i class="bi bi-eraser-fill"></i> 2. Limpar / Zerar Meus Lançamentos (Mantém a Conta)</h6>
+                    <div class="d-flex flex-column gap-2 mb-4">
+                        <form method="POST" action="{% url 'limpar_dados_financeiros' %}" onsubmit="return confirm('Deseja apagar todos os lançamentos do mês {{ mes_atual }}/{{ ano_atual }}?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="escopo" value="mes">
+                            <input type="hidden" name="mes" value="{{ mes_atual }}">
+                            <input type="hidden" name="ano" value="{{ ano_atual }}">
+                            <button type="submit" class="btn btn-warning btn-sm w-100 rounded-pill fw-bold text-dark py-2">
+                                <i class="bi bi-calendar-x"></i> Apagar Lançamentos de {{ mes_atual }}/{{ ano_atual }}
+                            </button>
+                        </form>
+                        <form method="POST" action="{% url 'limpar_dados_financeiros' %}" onsubmit="return confirm('ATENÇÃO: Isso vai zerar TODAS as transações da sua conta (seu login será mantido). Confirmar?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="escopo" value="tudo">
+                            <input type="hidden" name="zerar_cartoes" value="1">
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100 rounded-pill fw-bold py-2">
+                                <i class="bi bi-trash3-fill"></i> Zerar Todos os Dados Financeiros da Conta
+                            </button>
+                        </form>
+                    </div>
+
+                    <hr>
+                    <h6 class="fw-bold text-danger small"><i class="bi bi-exclamation-octagon"></i> 3. Excluir Conta e Dados (Direito ao Esquecimento)</h6>
+                    <p class="small text-muted mb-2">Para apagar sua conta definitivamente, digite sua senha ou escreva <strong>EXCLUIR</strong> abaixo:</p>
+                    <form method="POST" action="{% url 'excluir_conta_lgpd' %}" onsubmit="return confirm('ATENÇÃO FINAL: Sua conta e todos os dados serão apagados permanentemente. Confirmar?')">
                         {% csrf_token %}
                         <div class="input-group input-group-sm mb-2">
-                            <input type="password" name="senha_confirmacao" class="form-control bg-light border-0 rounded-start-pill px-3" placeholder="Confirme sua senha atual..." required>
-                            <button type="submit" class="btn btn-danger rounded-end-pill px-3 fw-bold">Excluir Minha Conta</button>
+                            <input type="text" name="confirmacao_texto" class="form-control bg-light border-0 rounded-start-pill px-3" placeholder="Digite EXCLUIR para confirmar..." required>
+                            <button type="submit" class="btn btn-danger rounded-end-pill px-3 fw-bold">Excluir Conta</button>
                         </div>
                     </form>
                 </div>
@@ -512,16 +641,19 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-0">
-                    <h1 class="display-1 mb-3">🎯</h1>
+                    <h1 class="display-1 mb-2">🎯</h1>
                     <h4 class="fw-bold text-dark">Fechamento de {{ mes_atual }}/{{ ano_atual }}</h4>
+                    <span class="badge bg-{{ analise_ia.cor_score }} rounded-pill px-3 py-2 my-2">
+                        Score FinPro: {{ analise_ia.score }} / 1000 ({{ analise_ia.nivel_score }})
+                    </span>
                     
                     {% if saldo_restante >= 0 %}
-                    <div class="alert alert-success border-0 rounded-4 mt-4">
+                    <div class="alert alert-success border-0 rounded-4 mt-3">
                         <h6 class="fw-bold mb-1">Parabéns! Você fechou no verde.</h6>
                         <p class="small mb-0">Você economizou <strong>R$ {{ saldo_restante|floatformat:2 }}</strong> da sua meta mensal!</p>
                     </div>
                     {% else %}
-                    <div class="alert alert-danger border-0 rounded-4 mt-4">
+                    <div class="alert alert-danger border-0 rounded-4 mt-3">
                         <h6 class="fw-bold mb-1">Atenção! Você estourou a meta.</h6>
                         <p class="small mb-0">Você passou <strong>R$ {{ saldo_restante|floatformat:2|cut:"-" }}</strong> do limite estipulado.</p>
                     </div>
@@ -530,6 +662,10 @@
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
                             <span class="small text-secondary fw-bold">Maior Gasto:</span>
                             <span class="small text-dark fw-bold">{{ maior_categoria }} (R$ {{ valor_maior_cat|floatformat:2 }})</span>
+                        </div>
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
+                            <span class="small text-secondary fw-bold">Impacto Anual dos Fixos:</span>
+                            <span class="small text-dark fw-bold">R$ {{ analise_ia.custo_fixo_anual|floatformat:2 }}/ano</span>
                         </div>
                         <div class="d-flex justify-content-between">
                             <span class="small text-secondary fw-bold">Comprometimento da Meta:</span>
@@ -541,34 +677,53 @@
         </div>
     </div>
 
-    <!-- Modal Novo Cartão -->
+    <!-- Modal Gerenciar e Criar Cartões -->
     <div class="modal fade" id="modalCartao" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark">Novo Cartão</h5>
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-credit-card text-primary"></i> Meus Cartões</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST">
+                    <form method="POST" class="mb-4">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="novo_cartao">
                         <div class="mb-3">
-                            <label class="form-label text-secondary fw-bold small">Nome do Cartão</label>
-                            <input type="text" class="form-control bg-light border-0 rounded-4" name="nome" placeholder="Ex: Nubank" required>
+                            <label class="form-label text-secondary fw-bold small">Nome do Novo Cartão</label>
+                            <input type="text" class="form-control bg-light border-0 rounded-4" name="nome" placeholder="Ex: Nubank, Inter..." required>
                         </div>
-                        <div class="row g-2 mb-4">
+                        <div class="row g-2 mb-3">
                             <div class="col-6">
-                                <label class="form-label text-secondary fw-bold small">Dia do Fechamento</label>
+                                <label class="form-label text-secondary fw-bold small">Dia Fechamento</label>
                                 <input type="number" class="form-control bg-light border-0 rounded-4" name="dia_fechamento" placeholder="Ex: 25" min="1" max="31" required>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary fw-bold small">Dia do Vencimento</label>
+                                <label class="form-label text-secondary fw-bold small">Dia Vencimento</label>
                                 <input type="number" class="form-control bg-light border-0 rounded-4" name="dia_vencimento" placeholder="Ex: 5" min="1" max="31" required>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Salvar Cartão</button>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Adicionar Cartão</button>
                     </form>
+
+                    {% if cartoes %}
+                    <hr>
+                    <h6 class="fw-bold small text-secondary mb-2">Cartões Cadastrados</h6>
+                    <div class="list-group list-group-flush">
+                        {% for c in cartoes %}
+                        <div class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
+                            <div class="small">
+                                <strong>{{ c.nome }}</strong>
+                                <span class="text-muted d-block" style="font-size: 0.72rem;">Fecha dia {{ c.dia_fechamento }} • Vence dia {{ c.dia_vencimento }}</span>
+                            </div>
+                            <form method="POST" action="{% url 'excluir_cartao' c.id %}" onsubmit="return confirm('Excluir o cartão {{ c.nome }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-light text-danger rounded-circle"><i class="bi bi-trash3"></i></button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -674,7 +829,7 @@
         {% endfor %}
     {% endif %}
 
-    <!-- Modais de Detalhes / Edição de Transações -->
+    <!-- Modais de Detalhes / Edição / Exclusão de Transações -->
     {% for t in transacoes %}
     <div class="modal fade" id="modalEditar{{ t.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -797,6 +952,16 @@
                             </button>
                         </div>
                     </form>
+
+                    <!-- Botão de Excluir Lançamento Direto no Modal -->
+                    <form method="POST" action="{% url 'excluir_transacao' t.id %}" class="mt-2" onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="mes" value="{{ mes_atual }}">
+                        <input type="hidden" name="ano" value="{{ ano_atual }}">
+                        <button type="submit" class="btn btn-outline-danger w-100 rounded-pill py-2 fw-bold small">
+                            <i class="bi bi-trash3"></i> Excluir Este Lançamento
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -808,7 +973,7 @@
         <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
             <div class="text-start small">
                 <i class="bi bi-shield-lock-fill text-success fs-5 me-2"></i>
-                <strong>Privacidade e LGPD (Lei 13.709/2018):</strong> Utilizamos apenas cookies estritamente necessários para autenticação segura e proteção contra fraudes (CSRF). Seus dados podem ser exportados ou excluídos a qualquer momento no botão <strong>LGPD</strong> no topo.
+                <strong>Privacidade e LGPD (Lei 13.709/2018):</strong> Utilizamos apenas cookies estritamente necessários para autenticação segura e proteção contra fraudes (CSRF). Seus dados podem ser exportados ou excluídos a qualquer momento no botão <strong>Dados/LGPD</strong> no topo.
             </div>
             <button id="btn-aceitar-cookies" class="btn btn-success btn-sm rounded-pill px-4 fw-bold text-nowrap w-100 w-md-auto">
                 Entendi e Aceito
@@ -824,6 +989,43 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Simulador "Posso Comprar?"
+            const btnSimular = document.getElementById('btnAnalisarCompra');
+            if (btnSimular) {
+                btnSimular.addEventListener('click', function() {
+                    const valTotal = parseFloat(document.getElementById('simValorTotal').value) || 0;
+                    const parc = Math.max(1, parseInt(document.getElementById('simParcelas').value) || 1);
+                    const boxRes = document.getElementById('resultadoSimulador');
+                    const saldoRestanteAtual = parseFloat("{{ saldo_restante|stringformat:'f' }}".replace(',', '.')) || 0;
+                    const valorMeta = parseFloat("{{ valor_meta|stringformat:'f' }}".replace(',', '.')) || 0;
+
+                    if (valTotal <= 0) {
+                        boxRes.style.display = 'block';
+                        boxRes.className = 'p-3 rounded-4 small alert alert-warning mb-0';
+                        boxRes.innerHTML = 'Informe um valor válido para simular.';
+                        return;
+                    }
+
+                    const valorParcela = valTotal / parc;
+                    const novoSaldo = saldoRestanteAtual - valorParcela;
+                    boxRes.style.display = 'block';
+
+                    if (valorMeta <= 0) {
+                        boxRes.className = 'p-3 rounded-4 small alert alert-info mb-0';
+                        boxRes.innerHTML = `<strong>Parcela: R$ ${valorParcela.toFixed(2)}/mês.</strong> Defina uma Meta do Mês no painel para calcularmos o risco exato.`;
+                    } else if (novoSaldo >= valorMeta * 0.15) {
+                        boxRes.className = 'p-3 rounded-4 small alert alert-success mb-0';
+                        boxRes.innerHTML = `✅ <strong>Compra Aprovada pela IA!</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> cabe com folga na sua meta e ainda sobram R$ ${novoSaldo.toFixed(2)} neste mês.`;
+                    } else if (novoSaldo >= 0) {
+                        boxRes.className = 'p-3 rounded-4 small alert alert-warning mb-0';
+                        boxRes.innerHTML = `⚠️ <strong>Atenção:</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> cabe no limite, mas deixará sua margem do mês apertada (sobrarão apenas R$ ${novoSaldo.toFixed(2)}).`;
+                    } else {
+                        boxRes.className = 'p-3 rounded-4 small alert alert-danger mb-0';
+                        boxRes.innerHTML = `🛑 <strong>Alto Risco:</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> fará você estourar sua meta mensal em <strong>R$ ${Math.abs(novoSaldo).toFixed(2)}</strong>. Recomendamos adiar ou aumentar o parcelamento.`;
+                    }
+                });
+            }
+
             // Modo Escuro (Dark Mode)
             const btnDark = document.getElementById('btnDarkMode');
             if (localStorage.getItem('finpro_dark_mode') === 'true') {
@@ -836,7 +1038,7 @@
                 });
             }
 
-            // Filtro de busca instantânea na lista de transações
+            // Filtro de busca instantânea
             const inputBusca = document.getElementById('inputBuscaTransacao');
             if (inputBusca) {
                 inputBusca.addEventListener('input', function() {
@@ -857,7 +1059,6 @@
                 document.getElementById("lgpd-banner").style.display = "none";
             });
 
-            // Auto-fechar alertas
             setTimeout(function() {
                 document.querySelectorAll('.alert-dismissible').forEach(function(alerta) {
                     new bootstrap.Alert(alerta).close();

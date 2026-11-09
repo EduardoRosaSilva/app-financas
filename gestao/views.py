@@ -6,7 +6,7 @@ import re
 import unicodedata
 import urllib.parse
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -21,6 +21,20 @@ from django.views.decorators.http import require_POST
 
 from .forms import LoginUsuarioForm, RegistroUsuarioForm
 from .models import Cartao, MetaMensal, Pessoa, Transacao
+
+
+# ==========================================
+# ENDPOINT KEEP-ALIVE (ANTI-SLEEP DO RENDER)
+# ==========================================
+
+@never_cache
+def health_check(request):
+    """Responde instantaneamente para serviços de monitoramento (Cron-job/UptimeRobot) sem criar sessão."""
+    return JsonResponse({
+        'status': 'ok',
+        'app': 'FinPro',
+        'timestamp': datetime.now().isoformat()
+    })
 
 
 # ==========================================
@@ -56,11 +70,10 @@ def normalizar_chave_coluna(chave: str) -> str:
     """Remove acentos e caracteres especiais dos nomes de colunas do CSV."""
     if not chave:
         return ""
-    sem_acento = ''.join(
+    return ''.join(
         c for c in unicodedata.normalize('NFD', str(chave).strip().lower())
         if unicodedata.category(c) != 'Mn'
     )
-    return sem_acento
 
 
 def parse_moeda(valor_raw) -> float:
@@ -84,7 +97,7 @@ def parse_moeda(valor_raw) -> float:
 
 
 def parse_data_flexivel(data_raw: str):
-    """Reconhece formatos de data de todos os bancos brasileiros (YYYY-MM-DD, DD/MM/YYYY, DD/MM/YY, DD-MM-YYYY)."""
+    """Reconhece formatos de data de todos os bancos brasileiros."""
     if not data_raw:
         return None
     s = str(data_raw).strip().split(' ')[0].split('T')[0]
@@ -95,6 +108,52 @@ def parse_data_flexivel(data_raw: str):
         except ValueError:
             continue
     return None
+
+
+def interpretar_comando_inteligente(texto: str, cartoes_usuario):
+    """
+    Motor NLP Local: interpreta frases como 'Uber 24,90 Nubank', 'Tenis 300 3x Inter' ou 'Netflix 55,90 fixo'.
+    Retorna dict com descricao, valor, parcelas, recorrente, cartao_obj, tipo.
+    """
+    texto_limpo = texto.strip()
+    recorrente = bool(re.search(r'\b(fixo|fixa|mensal|recorrente|assinatura)\b', texto_limpo, re.IGNORECASE))
+    texto_limpo = re.sub(r'\b(fixo|fixa|mensal|recorrente|assinatura)\b', '', texto_limpo, flags=re.IGNORECASE)
+
+    # Detecta parcelas ex: 3x, 10x
+    parcelas = 1
+    match_parc = re.search(r'\b(\d{1,2})\s*[xX]\b', texto_limpo)
+    if match_parc and not recorrente:
+        parcelas = max(1, min(120, int(match_parc.group(1))))
+        texto_limpo = texto_limpo[:match_parc.start()] + texto_limpo[match_parc.end():]
+
+    # Detecta cartão cadastrado pelo nome
+    cartao_detectado = None
+    for c in cartoes_usuario:
+        nome_c = c.nome.strip()
+        if nome_c and re.search(r'\b' + re.escape(nome_c) + r'\b', texto_limpo, re.IGNORECASE):
+            cartao_detectado = c
+            texto_limpo = re.sub(r'\b' + re.escape(nome_c) + r'\b', '', texto_limpo, flags=re.IGNORECASE)
+            break
+
+    # Detecta valor monetário (ex: 1.250,50 ou 45,90 ou 45.90 ou 100)
+    matches_valor = list(re.finditer(r'(?:R\$\s*)?(\d+(?:[.,]\d{3})*(?:[.,]\d{1,2})|\d+)', texto_limpo))
+    valor = 0.0
+    if matches_valor:
+        ultimo_match = matches_valor[-1]
+        valor = parse_moeda(ultimo_match.group(1))
+        texto_limpo = texto_limpo[:ultimo_match.start()] + texto_limpo[ultimo_match.end():]
+
+    # Limpa preposições soltas no final/início
+    descricao = re.sub(r'\s+', ' ', texto_limpo).strip(' -/,;')
+    descricao = re.sub(r'\b(no|na|em|de|do|da)\s*$', '', descricao, flags=re.IGNORECASE).strip()
+
+    return {
+        'descricao': sanitizar_texto_csv(descricao or 'Gasto Rápido'),
+        'valor': valor,
+        'parcelas': parcelas,
+        'recorrente': recorrente,
+        'cartao': cartao_detectado,
+    }
 
 
 def garantir_titular_conta(username: str) -> Pessoa:
@@ -152,7 +211,6 @@ def prever_categoria(descricao_nova, transacoes_historicas):
     if not palavras_alvo or not vocabulario:
         return regra_direta
 
-    # Se nenhuma palavra da descrição nova apareceu no histórico, usa o fallback inteligente
     if not any(p in vocabulario for p in palavras_alvo):
         return regra_direta
 
@@ -194,22 +252,78 @@ def fallback_rules(descricao):
     return 'Outros'
 
 
-def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transacoes_mes, mes_sel, ano_sel):
-    """Gera diagnósticos inteligentes (Burn Rate, Projeção e Alertas) para o usuário."""
+def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transacoes_mes, eu, mes_sel, ano_sel):
+    """
+    Motor FinPro AI: Calcula Burn Rate, Projeção, Score de Saúde Financeira (0-1000),
+    Divisão 50-30-20 e Impacto Anual de Gastos Fixos.
+    """
     hoje = date.today()
     dias_no_mes = calendar.monthrange(ano_sel, mes_sel)[1]
     if ano_sel == hoje.year and mes_sel == hoje.month:
         dias_decorridos = max(1, hoje.day)
+        dias_restantes = max(1, dias_no_mes - hoje.day)
     elif (ano_sel, mes_sel) < (hoje.year, hoje.month):
         dias_decorridos = dias_no_mes
+        dias_restantes = 1
     else:
         dias_decorridos = 1
+        dias_restantes = dias_no_mes
 
     media_diaria = meus_gastos / dias_decorridos if meus_gastos > 0 else 0.0
     projecao_mes = media_diaria * dias_no_mes if (ano_sel == hoje.year and mes_sel == hoje.month) else meus_gastos
 
-    gastos_fixos = sum(float(t.valor) for t in transacoes_mes if t.recorrente and t.tipo == 'DESPESA')
+    gastos_fixos = sum(
+        float(t.valor) for t in transacoes_mes
+        if eu and t.dono_id == eu.id and t.recorrente and t.tipo == 'DESPESA'
+    )
+    custo_fixo_anual = gastos_fixos * 12
     perc_fixos = (gastos_fixos / meus_gastos * 100) if meus_gastos > 0 else 0.0
+
+    # Termômetro 50-30-20 (Essenciais vs Estilo de Vida)
+    cat_essenciais = {'Moradia', 'Mercado', 'Saúde', 'Transporte'}
+    gastos_essenciais = sum(v for k, v in gastos_por_cat.items() if k in cat_essenciais)
+    gastos_estilo_vida = sum(v for k, v in gastos_por_cat.items() if k not in cat_essenciais)
+
+    base_calculo = valor_meta if valor_meta > 0 else (meus_gastos if meus_gastos > 0 else 1.0)
+    perc_essenciais = min(100.0, (gastos_essenciais / base_calculo) * 100)
+    perc_estilo_vida = min(100.0, (gastos_estilo_vida / base_calculo) * 100)
+    economia_atual = max(0.0, valor_meta - meus_gastos) if valor_meta > 0 else 0.0
+    perc_economia = min(100.0, (economia_atual / valor_meta) * 100) if valor_meta > 0 else 0.0
+
+    # Score de Saúde Financeira FinPro (0 a 1000)
+    if valor_meta <= 0 and meus_gastos == 0:
+        score = 750
+        nivel_score = "Defina sua Meta"
+        cor_score = "secondary"
+    elif valor_meta <= 0:
+        score = 600
+        nivel_score = "Sem Meta Definida"
+        cor_score = "warning"
+    else:
+        uso_meta = meus_gastos / valor_meta
+        if uso_meta <= 0.5:
+            score = 950
+        elif uso_meta <= 0.8:
+            score = int(900 - ((uso_meta - 0.5) * 400))
+        elif uso_meta <= 1.0:
+            score = int(780 - ((uso_meta - 0.8) * 900))
+        else:
+            score = max(150, int(600 - ((uso_meta - 1.0) * 600)))
+
+        # Penaliza se os gastos fixos passarem de 50% da meta
+        if (gastos_fixos / valor_meta) > 0.5:
+            score = max(100, score - 80)
+
+        if score >= 800:
+            nivel_score, cor_score = "Excelente", "success"
+        elif score >= 600:
+            nivel_score, cor_score = "Equilibrado", "primary"
+        elif score >= 450:
+            nivel_score, cor_score = "Atenção", "warning"
+        else:
+            nivel_score, cor_score = "Crítico", "danger"
+
+    orcamento_diario_seguro = max(0.0, (valor_meta - meus_gastos) / dias_restantes) if valor_meta > meus_gastos else 0.0
 
     insights = []
     if valor_meta > 0:
@@ -218,22 +332,28 @@ def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transac
             insights.append({
                 'tipo': 'danger',
                 'icone': 'bi-exclamation-triangle-fill',
-                'texto': f"Meta ultrapassada em R$ {excesso:.2f}. Evite novos gastos não essenciais neste ciclo."
+                'texto': f"Meta ultrapassada em R$ {excesso:.2f}. Evite novos parcelamentos neste ciclo."
             })
         elif projecao_mes > valor_meta and ano_sel == hoje.year and mes_sel == hoje.month:
-            limite_diario_restante = max(0.0, (valor_meta - meus_gastos) / max(1, dias_no_mes - hoje.day))
             insights.append({
                 'tipo': 'warning',
                 'icone': 'bi-graph-up-arrow',
-                'texto': f"Atenção ao ritmo: mantendo R$ {media_diaria:.2f}/dia, a projeção é fechar o mês em R$ {projecao_mes:.2f}. Para cumprir a meta, limite-se a R$ {limite_diario_restante:.2f}/dia."
+                'texto': f"Ritmo acelerado: gastando R$ {media_diaria:.2f}/dia, você fechará o mês em R$ {projecao_mes:.2f}. Limite seguro: R$ {orcamento_diario_seguro:.2f}/dia."
             })
         else:
             economia_proj = max(0.0, valor_meta - projecao_mes)
             insights.append({
                 'tipo': 'success',
                 'icone': 'bi-shield-check',
-                'texto': f"Ritmo saudável! Seu gasto médio é de R$ {media_diaria:.2f}/dia, com potencial de economizar R$ {economia_proj:.2f} na meta."
+                'texto': f"Ritmo saudável! Você pode gastar até R$ {orcamento_diario_seguro:.2f}/dia e ainda economizar R$ {economia_proj:.2f} no mês."
             })
+
+    if gastos_fixos > 0:
+        insights.append({
+            'tipo': 'primary',
+            'icone': 'bi-arrow-repeat',
+            'texto': f"Radar de Recorrência: Seus gastos fixos somam R$ {gastos_fixos:.2f}/mês, comprometendo R$ {custo_fixo_anual:.2f} por ano."
+        })
 
     if gastos_por_cat:
         cat_vila = max(gastos_por_cat, key=gastos_por_cat.get)
@@ -243,14 +363,24 @@ def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transac
             insights.append({
                 'tipo': 'info',
                 'icone': 'bi-lightbulb-fill',
-                'texto': f"Concentração detectada: '{cat_vila}' representa {peso_vila:.0f}% (R$ {val_vila:.2f}) das suas despesas pessoais neste mês."
+                'texto': f"Foco de Gastos: '{cat_vila}' representa {peso_vila:.0f}% (R$ {val_vila:.2f}) das suas despesas pessoais."
             })
 
     return {
         'media_diaria': media_diaria,
         'projecao_mes': projecao_mes,
+        'orcamento_diario_seguro': orcamento_diario_seguro,
         'gastos_fixos': gastos_fixos,
+        'custo_fixo_anual': custo_fixo_anual,
         'perc_fixos': perc_fixos,
+        'gastos_essenciais': gastos_essenciais,
+        'gastos_estilo_vida': gastos_estilo_vida,
+        'perc_essenciais': perc_essenciais,
+        'perc_estilo_vida': perc_estilo_vida,
+        'perc_economia': perc_economia,
+        'score': score,
+        'nivel_score': nivel_score,
+        'cor_score': cor_score,
         'lista_insights': insights,
     }
 
@@ -319,7 +449,7 @@ def logout_view(request):
 
 
 # ==========================================
-# DASHBOARD E IMPORTADOR INTELIGENTE DE FATURA
+# DASHBOARD, NLP QUICK-ADD E IMPORTADOR DE FATURA
 # ==========================================
 
 @login_required(login_url='login')
@@ -340,8 +470,55 @@ def dashboard(request):
     if request.method == 'POST':
         tipo_formulario = request.POST.get('form_type')
 
+        # 0. LANÇAMENTO RÁPIDO POR LINGUAGEM NATURAL (NLP QUICK-ADD)
+        if tipo_formulario == 'lancamento_inteligente':
+            comando = request.POST.get('comando_ia', '').strip()
+            if comando:
+                cartoes_usr = list(Cartao.objects.filter(conta__iexact=minha_conta))
+                dados_ia = interpretar_comando_inteligente(comando, cartoes_usr)
+                if dados_ia['valor'] <= 0:
+                    messages.error(request, "Informe o valor no comando rápido! Ex: 'Uber 24,90 Nubank'")
+                    return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
+
+                historico = list(Transacao.objects.filter(conta__iexact=minha_conta).exclude(categoria='Outros'))
+                cat_prevista = prever_categoria(dados_ia['descricao'], historico)
+                parcelas = dados_ia['parcelas']
+                valor_parcela = round(dados_ia['valor'] / parcelas, 2) if parcelas > 1 else dados_ia['valor']
+
+                with transaction.atomic():
+                    for i in range(parcelas):
+                        mes_loop = hoje.month + i
+                        ano_loop = hoje.year + ((mes_loop - 1) // 12)
+                        mes_calc = ((mes_loop - 1) % 12) + 1
+                        ult_dia = calendar.monthrange(ano_loop, mes_calc)[1]
+                        nova_dt = date(ano_loop, mes_calc, min(hoje.day, ult_dia))
+                        desc_final = f"{dados_ia['descricao']} ({i+1}/{parcelas})" if parcelas > 1 else dados_ia['descricao']
+
+                        Transacao.objects.create(
+                            descricao=desc_final,
+                            valor=valor_parcela,
+                            data=nova_dt,
+                            tipo='DESPESA',
+                            categoria=cat_prevista,
+                            dono=eu,
+                            cartao=dados_ia['cartao'],
+                            conta=minha_conta,
+                            recorrente=dados_ia['recorrente']
+                        )
+
+                if dados_ia['cartao']:
+                    m_dest, a_dest = get_mes_fatura(hoje, dados_ia['cartao'].dia_fechamento, dados_ia['cartao'].dia_vencimento)
+                else:
+                    m_dest, a_dest = hoje.month, hoje.year
+
+                messages.success(
+                    request,
+                    f"⚡ IA registrou: {dados_ia['descricao']} (R$ {dados_ia['valor']:.2f}) em '{cat_prevista}'!"
+                )
+                return redirect(f'/?mes={m_dest}&ano={a_dest}')
+
         # 1. IMPORTAÇÃO UNIVERSAL INTELIGENTE DE FATURA CSV
-        if tipo_formulario == 'upload_fatura':
+        elif tipo_formulario == 'upload_fatura':
             arquivo_csv = request.FILES.get('arquivo_csv')
             if not arquivo_csv:
                 messages.error(request, 'Selecione um arquivo CSV válido.')
@@ -402,7 +579,6 @@ def dashboard(request):
                 valor_str = next((row_norm[k] for k in possiveis_valores if k in row_norm and row_norm[k]), '')
                 cat_csv = next((row_norm[k] for k in possiveis_categorias if k in row_norm and row_norm[k]), '')
 
-                # Fallback por posição caso o CSV tenha nomes de colunas fora do padrão
                 valores_lista = list(row_norm.values())
                 if not data_str and len(valores_lista) >= 3:
                     data_str = valores_lista[0]
@@ -415,13 +591,11 @@ def dashboard(request):
                 if not data_parsed or not titulo:
                     continue
 
-                # Ignora linhas de pagamento da própria fatura para não somar como despesa
                 titulo_lower = titulo.lower()
                 if any(ign in titulo_lower for ign in ('pagamento recebido', 'pagamento de fatura', 'pagamento da fatura', 'inclusao de pagamento')):
                     continue
 
                 valor = parse_moeda(valor_str)
-                # Em extratos onde despesas vêm negativas (ex: -45.90), converte para positivo
                 if valor < 0:
                     valor = abs(valor)
                 if valor <= 0:
@@ -459,7 +633,7 @@ def dashboard(request):
             }
             return render(request, 'gestao/revisao_fatura.html', contexto_revisao)
 
-        # 2. SALVAR ITENS IMPORTADOS EM LOTE (ATÔMICO E COM SUPORTE A CRIAÇÃO DE CARTÃO)
+        # 2. SALVAR ITENS IMPORTADOS EM LOTE
         elif tipo_formulario == 'salvar_fatura_lote':
             ids_marcados = request.POST.getlist('importar_chk')
             cartao_id = request.POST.get('cartao_lote')
@@ -740,7 +914,7 @@ def dashboard(request):
         return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
     # ==========================================
-    # CÁLCULOS E CONSULTAS OTIMIZADAS (COM SUPORTE A FECHAMENTO DE CARTÃO)
+    # CÁLCULOS E CONSULTAS OTIMIZADAS
     # ==========================================
     todas_pessoas = Pessoa.objects.filter(conta__iexact=minha_conta)
     todos_cartoes = Cartao.objects.filter(conta__iexact=minha_conta)
@@ -753,7 +927,6 @@ def dashboard(request):
 
     ultimo_dia_mes = calendar.monthrange(ano_selecionado, mes_selecionado)[1]
 
-    # Janela SQL de 62 dias (mês anterior + mês atual) para capturar compras feitas após o fechamento do mês anterior
     data_inicio_janela = date(ano_anterior, mes_anterior, 1)
     data_fim_janela = date(ano_selecionado, mes_selecionado, ultimo_dia_mes)
 
@@ -859,7 +1032,7 @@ def dashboard(request):
     percentual_gasto = (meus_gastos / valor_meta * 100) if valor_meta > 0 else 0.0
 
     analise_ia = gerar_insights_inteligentes(
-        meus_gastos, valor_meta, gastos_pessoais_dict, lista_transacoes_mes, mes_selecionado, ano_selecionado
+        meus_gastos, valor_meta, gastos_pessoais_dict, lista_transacoes_mes, eu, mes_selecionado, ano_selecionado
     )
 
     contexto = {
@@ -889,22 +1062,67 @@ def dashboard(request):
     return render(request, 'gestao/dashboard.html', contexto)
 
 
+# ==========================================
+# ROTAS DE EXCLUSÃO CORRIGIDAS (TRANSAÇÃO, CARTÃO, LIMPEZA E LGPD)
+# ==========================================
+
 @login_required(login_url='login')
 def excluir_transacao(request, id):
+    """Exclui uma transação individual via POST ou GET com confirmação visual."""
     transacao = get_object_or_404(Transacao, id=id, conta__iexact=request.user.username)
+    nome_desc = transacao.descricao
     transacao.delete()
-    mes = request.GET.get('mes')
-    ano = request.GET.get('ano')
-    return redirect(f"/?mes={mes}&ano={ano}") if mes and ano else redirect('dashboard')
+    messages.success(request, f"Lançamento '{nome_desc}' excluído com sucesso!")
+    mes = request.POST.get('mes') or request.GET.get('mes')
+    ano = request.POST.get('ano') or request.GET.get('ano')
+    return redirect(f"/?mes={mes}&ano={ano}") if (mes and ano) else redirect('dashboard')
 
 
-# ==========================================
-# ROTAS DE CONFORMIDADE LGPD (ART. 18) E RELATÓRIOS
-# ==========================================
+@login_required(login_url='login')
+@require_POST
+def excluir_cartao(request, id):
+    """Permite ao usuário excluir um cartão cadastrado."""
+    cartao = get_object_or_404(Cartao, id=id, conta__iexact=request.user.username)
+    nome = cartao.nome
+    cartao.delete()
+    messages.success(request, f"Cartão '{nome}' removido com sucesso!")
+    return redirect('dashboard')
+
+
+@login_required(login_url='login')
+@require_POST
+def limpar_dados_financeiros(request):
+    """
+    Permite zerar/excluir todas as transações (do mês atual ou de toda a conta)
+    com 1 clique, mantendo a conta do usuário ativa.
+    """
+    minha_conta = request.user.username
+    escopo = request.POST.get('escopo', 'tudo')
+    mes = request.POST.get('mes')
+    ano = request.POST.get('ano')
+
+    with transaction.atomic():
+        if escopo == 'mes' and mes and ano and str(mes).isdigit() and str(ano).isdigit():
+            apagados, _ = Transacao.objects.filter(
+                conta__iexact=minha_conta,
+                data__month=int(mes),
+                data__year=int(ano)
+            ).delete()
+            messages.success(request, f"{apagados} lançamentos de {mes}/{ano} foram excluídos!")
+            return redirect(f"/?mes={mes}&ano={ano}")
+        else:
+            apagados, _ = Transacao.objects.filter(conta__iexact=minha_conta).delete()
+            if request.POST.get('zerar_cartoes') == '1':
+                Cartao.objects.filter(conta__iexact=minha_conta).delete()
+                Pessoa.objects.filter(conta__iexact=minha_conta, is_titular=False).delete()
+                MetaMensal.objects.filter(conta__iexact=minha_conta).delete()
+            messages.success(request, f"Seus dados financeiros ({apagados} lançamentos) foram zerados com sucesso!")
+            return redirect('dashboard')
+
 
 @login_required(login_url='login')
 def exportar_relatorio_csv(request):
-    """Exporta as transações do usuário em CSV seguro (UTF-8 com BOM para abrir direto no Excel)."""
+    """Exporta as transações do usuário em CSV seguro (UTF-8 com BOM para Excel)."""
     minha_conta = request.user.username
     mes = request.GET.get('mes')
     ano = request.GET.get('ano')
@@ -943,6 +1161,7 @@ def exportar_dados_lgpd(request):
         'titular_conta': {
             'username': request.user.username,
             'data_criacao': request.user.date_joined.isoformat() if request.user.date_joined else None,
+            'ultimo_login': request.user.last_login.isoformat() if request.user.last_login else None,
             'exportado_em': datetime.now().isoformat(),
             'base_legal_lgpd': 'Lei 13.709/2018 - Art. 18 (Portabilidade de Dados Pessoais)',
         },
@@ -982,12 +1201,22 @@ def exportar_dados_lgpd(request):
 @login_required(login_url='login')
 @require_POST
 def excluir_conta_lgpd(request):
-    """Direito à Eliminação / Esquecimento (Art. 18, VI da LGPD): apaga todos os dados e o usuário."""
+    """
+    Direito à Eliminação / Esquecimento (Art. 18, VI da LGPD):
+    Aceita confirmação por senha (com fallback sem espaços) ou confirmação explícita 'EXCLUIR'.
+    """
     senha_confirmacao = request.POST.get('senha_confirmacao', '')
+    confirmacao_texto = request.POST.get('confirmacao_texto', '').strip().upper()
     usuario = request.user
 
-    if not usuario.check_password(senha_confirmacao):
-        messages.error(request, 'Senha incorreta. Por segurança, a exclusão da conta foi cancelada.')
+    senha_valida = (
+        usuario.check_password(senha_confirmacao)
+        or usuario.check_password(senha_confirmacao.strip())
+        or confirmacao_texto == 'EXCLUIR'
+    )
+
+    if not senha_valida:
+        messages.error(request, 'Senha incorreta. Digite sua senha correta ou escreva EXCLUIR para confirmar.')
         return redirect('dashboard')
 
     minha_conta = usuario.username
