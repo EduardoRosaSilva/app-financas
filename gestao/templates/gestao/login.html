@@ -2,58 +2,57 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title>FinPro - Entrar</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #f0f4ff 0%, #f8fafc 100%); }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; overflow-x: hidden; }
+        .form-control { font-size: 16px !important; border-radius: 12px; }
     </style>
 </head>
-<body class="d-flex align-items-center justify-content-center min-vh-100">
-    <div class="card border-0 shadow-lg rounded-4 p-4" style="width: 100%; max-width: 410px; margin: 20px;">
+<body class="d-flex align-items-center justify-content-center min-vh-100 p-3">
+    <div class="bg-white border rounded-4 p-4 shadow-sm" style="width: 100%; max-width: 390px;">
         <div class="text-center mb-4">
-            <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-circle mb-2" style="width: 56px; height: 56px;">
-                <i class="bi bi-wallet2 fs-3"></i>
-            </div>
-            <h3 class="fw-bold text-primary mb-0">FinPro</h3>
-            <p class="text-muted small mb-0">Gestão financeira inteligente e segura</p>
+            <h4 class="fw-bold mb-1"><i class="bi bi-wallet2 text-primary me-1"></i>FinPro</h4>
+            <p class="text-secondary small mb-0">Acesse sua conta</p>
         </div>
         
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-danger rounded-3 small py-2"><i class="bi bi-exclamation-circle me-1"></i> {{ message }}</div>
+                <div class="alert alert-danger rounded-3 small py-2">{{ message }}</div>
             {% endfor %}
         {% endif %}
 
         <form method="POST" id="formLogin">
             {% csrf_token %}
             {{ form }}
-            <div class="form-check mt-1 mb-3 ms-1">
+            <div class="form-check mt-1 mb-3">
                 <input class="form-check-input" type="checkbox" id="chkMostrarSenha">
                 <label class="form-check-label small text-secondary" for="chkMostrarSenha" style="cursor: pointer;">
-                    Mostrar minha senha
+                    Mostrar senha
                 </label>
             </div>
-            <button type="submit" id="btnSubmitLogin" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">
-                Entrar no Sistema
+            <button type="submit" id="btnSubmitLogin" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">
+                Entrar
             </button>
         </form>
         <div class="text-center mt-4">
-            <a href="{% url 'registro' %}" class="text-decoration-none small text-secondary">Ainda não tem conta? <span class="text-primary fw-bold">Criar agora</span></a>
+            <a href="{% url 'registro' %}" class="text-decoration-none small text-secondary">Não possui conta? <span class="text-primary fw-semibold">Cadastre-se</span></a>
         </div>
     </div>
     
     <script>
         document.querySelectorAll('input').forEach(e => {
             if(e.type !== 'submit' && e.type !== 'checkbox') {
-                e.classList.add('form-control', 'bg-light', 'border-0', 'rounded-4', 'mb-3', 'py-2');
+                e.classList.add('form-control', 'bg-light', 'mb-3', 'py-2');
             }
         });
         document.querySelectorAll('label').forEach(e => {
             if(e.htmlFor !== 'chkMostrarSenha') {
-                e.classList.add('small', 'text-muted', 'fw-bold', 'mb-1', 'ms-1');
+                e.classList.add('small', 'text-secondary', 'fw-semibold', 'mb-1');
             }
         });
         document.getElementById('chkMostrarSenha').addEventListener('change', function() {
@@ -64,7 +63,7 @@
         document.getElementById('formLogin').addEventListener('submit', function() {
             const btn = document.getElementById('btnSubmitLogin');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Autenticando...';
+            btn.innerHTML = 'Entrando...';
         });
     </script>
 </body>

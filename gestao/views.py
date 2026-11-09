@@ -49,11 +49,23 @@ def get_client_ip(request) -> str:
 
 
 def verificar_bloqueio_ip(request, escopo='login', max_tentativas=6, tempo_bloqueio=300):
-    """Controle de taxa de requisições por IP para mitigação de força bruta."""
+    """Consulta o cache compartilhado (DatabaseCache/Redis) entre todos os workers."""
     ip = get_client_ip(request)
     chave = f"finpro_ratelimit_{escopo}_{ip}"
-    tentativas = cache.get(chave, 0)
+    try:
+        tentativas = cache.get(chave, 0)
+    except Exception:
+        tentativas = 0
     return tentativas >= max_tentativas, chave, tentativas, tempo_bloqueio
+
+
+def registrar_falha_ip(chave: str, tempo_bloqueio=300):
+    """Incrementa atomicamente o contador de falhas no cache compartilhado."""
+    try:
+        if not cache.add(chave, 1, tempo_bloqueio):
+            cache.incr(chave)
+    except Exception:
+        pass
 
 
 def sanitizar_texto_csv(texto: str) -> str:
@@ -452,10 +464,10 @@ def registro_view(request):
         if request.POST.get('website_url_honeypot'):
             return redirect('login')
 
-        bloqueado, chave, tentativas, _ = verificar_bloqueio_ip(request, escopo='registro', max_tentativas=10)
+        bloqueado, chave, _, tempo_bloq = verificar_bloqueio_ip(request, escopo='registro', max_tentativas=10)
         if bloqueado:
             messages.error(request, 'Muitas tentativas realizadas. Aguarde alguns minutos.')
-            return render(request, 'gestao/register.html', {'form': RegistroUsuarioForm()})
+            return render(request, 'gestao/register.html', {'form': RegistroUsuarioForm()}, status=429)
 
         form = RegistroUsuarioForm(request.POST)
         if form.is_valid():
@@ -465,7 +477,7 @@ def registro_view(request):
             cache.delete(chave)
             return redirect('dashboard')
         else:
-            cache.set(chave, tentativas + 1, 300)
+            registrar_falha_ip(chave, tempo_bloq)
     else:
         form = RegistroUsuarioForm()
     return render(request, 'gestao/register.html', {'form': form})
@@ -477,10 +489,10 @@ def login_view(request):
         return redirect('dashboard')
 
     if request.method == 'POST':
-        bloqueado, chave, tentativas, _ = verificar_bloqueio_ip(request, escopo='login', max_tentativas=6)
+        bloqueado, chave, _, tempo_bloq = verificar_bloqueio_ip(request, escopo='login', max_tentativas=6)
         if bloqueado:
             messages.error(request, 'Muitas tentativas de acesso. Aguarde 5 minutos antes de tentar novamente.')
-            return render(request, 'gestao/login.html', {'form': LoginUsuarioForm()})
+            return render(request, 'gestao/login.html', {'form': LoginUsuarioForm()}, status=429)
 
         form = LoginUsuarioForm(request, data=request.POST)
         if form.is_valid():
@@ -490,7 +502,7 @@ def login_view(request):
             cache.delete(chave)
             return redirect('dashboard')
         else:
-            cache.set(chave, tentativas + 1, 300)
+            registrar_falha_ip(chave, tempo_bloq)
             messages.error(request, 'Usuário ou senha inválidos.')
     else:
         form = LoginUsuarioForm()
@@ -1150,17 +1162,19 @@ def dashboard(request):
 
 
 # ==========================================
-# ROTAS DE EXCLUSÃO E CONFORMIDADE LGPD
+# ROTAS DE EXCLUSÃO E CONFORMIDADE LGPD (BLINDADAS COM @require_POST)
 # ==========================================
 
 @login_required(login_url='login')
+@require_POST
 def excluir_transacao(request, id):
+    """Exige método POST com validação CSRF para impedir exclusão forjada via GET."""
     transacao = get_object_or_404(Transacao, id=id, conta__iexact=request.user.username)
     nome_desc = transacao.descricao
     transacao.delete()
     messages.success(request, f"Lançamento '{nome_desc}' removido.")
-    mes = request.POST.get('mes') or request.GET.get('mes')
-    ano = request.POST.get('ano') or request.GET.get('ano')
+    mes = request.POST.get('mes')
+    ano = request.POST.get('ano')
     return redirect(f"/?mes={mes}&ano={ano}") if (mes and ano) else redirect('dashboard')
 
 
@@ -1287,18 +1301,12 @@ def exportar_dados_lgpd(request):
 @login_required(login_url='login')
 @require_POST
 def excluir_conta_lgpd(request):
+    """Exige confirmação estrita da senha atual do usuário autenticado."""
     senha_confirmacao = request.POST.get('senha_confirmacao', '')
-    confirmacao_texto = request.POST.get('confirmacao_texto', '').strip().upper()
     usuario = request.user
 
-    senha_valida = (
-        usuario.check_password(senha_confirmacao)
-        or usuario.check_password(senha_confirmacao.strip())
-        or confirmacao_texto == 'EXCLUIR'
-    )
-
-    if not senha_valida:
-        messages.error(request, 'Confirmação inválida. Digite EXCLUIR ou informe sua senha atual.')
+    if not senha_confirmacao or not usuario.check_password(senha_confirmacao):
+        messages.error(request, 'Senha incorreta. A exclusão da conta foi cancelada por segurança.')
         return redirect('dashboard')
 
     minha_conta = usuario.username

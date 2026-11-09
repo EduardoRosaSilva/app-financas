@@ -31,7 +31,7 @@ class Transacao(models.Model):
     categoria = models.CharField(max_length=50, default='Outros')
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     data = models.DateField()
-    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='DESPESA')  # <-- Removido o max_digits aqui!
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='DESPESA')
     dono = models.ForeignKey(Pessoa, on_delete=models.CASCADE)
     conta = models.CharField(max_length=255)
     recorrente = models.BooleanField(default=False)

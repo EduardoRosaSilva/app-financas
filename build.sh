@@ -1,16 +1,35 @@
 #!/usr/bin/env bash
 set -o errexit
 
-echo "📦 Instalando dependências..."
+echo "Instalando dependências..."
 pip install -r requirements.txt
 
-echo "🎨 Coletando arquivos visuais do Admin..."
+echo "Coletando arquivos estáticos..."
 python manage.py collectstatic --no-input --clear
 
-echo "🗄️ Construindo tabelas no PostgreSQL oficial..."
+echo "Aplicando migrações no banco de dados..."
 python manage.py migrate
 
-echo "👑 Configurando conta de superusuário de emergência..."
-python manage.py shell -c "import os; from django.contrib.auth.models import User; u=os.environ.get('SUPER_USER', 'eduardoadmin'); p=os.environ.get('SUPER_PASS', 'Finpro@2026'); not User.objects.filter(username=u).exists() and User.objects.create_superuser(u, '', p)"
+echo "Criando tabela de cache compartilhado para Rate Limiting..."
+python manage.py createcachetable
 
-echo "✅ Sistema pronto para produção!"
+echo "Verificando configuração de superusuário via variáveis de ambiente..."
+python manage.py shell -c "
+import os
+from django.contrib.auth.models import User
+
+u = os.environ.get('SUPER_USER', '').strip()
+p = os.environ.get('SUPER_PASS', '').strip()
+
+if u and p:
+    user, _ = User.objects.get_or_create(username=u)
+    user.is_staff = True
+    user.is_superuser = True
+    user.set_password(p)
+    user.save()
+    print('Superusuário sincronizado com segurança.')
+else:
+    print('Variáveis SUPER_USER/SUPER_PASS não definidas; criação ignorada.')
+"
+
+echo "Build concluído com sucesso!"
