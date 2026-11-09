@@ -7,7 +7,7 @@ import unicodedata
 import urllib.parse
 from collections import defaultdict
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
@@ -29,7 +29,7 @@ from .models import Cartao, MetaMensal, Pessoa, Transacao
 
 @never_cache
 def health_check(request):
-    """Responde instantaneamente para serviços de monitoramento (Cron-job/UptimeRobot) sem criar sessão."""
+    """Responde em <2ms para serviços de ping (Cron-job.org) manterem o container acordado."""
     return JsonResponse({
         'status': 'ok',
         'app': 'FinPro',
@@ -38,7 +38,7 @@ def health_check(request):
 
 
 # ==========================================
-# UTILITÁRIOS DE SEGURANÇA E CONVERSÃO
+# ENGENHARIA DE SEGURANÇA E PRECISÃO CONTÁBIL
 # ==========================================
 
 def get_client_ip(request) -> str:
@@ -49,7 +49,7 @@ def get_client_ip(request) -> str:
 
 
 def verificar_bloqueio_ip(request, escopo='login', max_tentativas=6, tempo_bloqueio=300):
-    """Proteção nativa contra Brute Force usando o cache em memória do Django."""
+    """Rate-limiting nativo por IP usando cache em memória."""
     ip = get_client_ip(request)
     chave = f"finpro_ratelimit_{escopo}_{ip}"
     tentativas = cache.get(chave, 0)
@@ -57,7 +57,7 @@ def verificar_bloqueio_ip(request, escopo='login', max_tentativas=6, tempo_bloqu
 
 
 def sanitizar_texto_csv(texto: str) -> str:
-    """Previne ataques de CSV Injection / Formula Injection e XSS."""
+    """Previne CSV Injection (Formula Injection) e higieniza entradas."""
     if not texto:
         return ""
     limpo = str(texto).strip()
@@ -67,7 +67,6 @@ def sanitizar_texto_csv(texto: str) -> str:
 
 
 def normalizar_chave_coluna(chave: str) -> str:
-    """Remove acentos e caracteres especiais dos nomes de colunas do CSV."""
     if not chave:
         return ""
     return ''.join(
@@ -76,13 +75,15 @@ def normalizar_chave_coluna(chave: str) -> str:
     )
 
 
-def parse_moeda(valor_raw) -> float:
-    """Converte strings monetárias de qualquer banco ('R$ 1.250,50', '-45.90', '50,00')."""
+def parse_moeda_decimal(valor_raw) -> Decimal:
+    """Converte qualquer entrada monetária para Decimal com precisão de 2 casas."""
     if valor_raw is None or valor_raw == '':
-        return 0.0
+        return Decimal('0.00')
+    if isinstance(valor_raw, Decimal):
+        return valor_raw.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     s = str(valor_raw).replace('R$', '').replace('r$', '').replace(' ', '').strip()
     if not s:
-        return 0.0
+        return Decimal('0.00')
     if ',' in s and '.' in s:
         if s.rfind(',') > s.rfind('.'):
             s = s.replace('.', '').replace(',', '.')
@@ -91,13 +92,35 @@ def parse_moeda(valor_raw) -> float:
     elif ',' in s:
         s = s.replace(',', '.')
     try:
-        return float(Decimal(s))
+        return Decimal(s).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     except (InvalidOperation, ValueError):
-        return 0.0
+        return Decimal('0.00')
+
+
+def parse_moeda(valor_raw) -> float:
+    return float(parse_moeda_decimal(valor_raw))
+
+
+def dividir_em_parcelas_exatas(valor_total: float, qtd_parcelas: int) -> list[Decimal]:
+    """
+    Regra de Negócio Contábil: divide um valor em N parcelas sem perder centavos.
+    O centavo residual (ex: R$ 100,00 / 3) é alocado na 1ª parcela (R$ 33,34 + R$ 33,33 + R$ 33,33).
+    """
+    qtd = max(1, int(qtd_parcelas))
+    total_dec = parse_moeda_decimal(valor_total)
+    if qtd == 1:
+        return [total_dec]
+
+    parcela_base = (total_dec / Decimal(qtd)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    soma_base = parcela_base * Decimal(qtd)
+    diferenca = total_dec - soma_base
+
+    lista = [parcela_base for _ in range(qtd)]
+    lista[0] = (lista[0] + diferenca).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    return lista
 
 
 def parse_data_flexivel(data_raw: str):
-    """Reconhece formatos de data de todos os bancos brasileiros."""
     if not data_raw:
         return None
     s = str(data_raw).strip().split(' ')[0].split('T')[0]
@@ -111,22 +134,17 @@ def parse_data_flexivel(data_raw: str):
 
 
 def interpretar_comando_inteligente(texto: str, cartoes_usuario):
-    """
-    Motor NLP Local: interpreta frases como 'Uber 24,90 Nubank', 'Tenis 300 3x Inter' ou 'Netflix 55,90 fixo'.
-    Retorna dict com descricao, valor, parcelas, recorrente, cartao_obj, tipo.
-    """
+    """Motor NLP Local: interpreta frases naturais como 'Uber 24,90 Nubank' ou 'Mercado 300 3x'."""
     texto_limpo = texto.strip()
     recorrente = bool(re.search(r'\b(fixo|fixa|mensal|recorrente|assinatura)\b', texto_limpo, re.IGNORECASE))
     texto_limpo = re.sub(r'\b(fixo|fixa|mensal|recorrente|assinatura)\b', '', texto_limpo, flags=re.IGNORECASE)
 
-    # Detecta parcelas ex: 3x, 10x
     parcelas = 1
     match_parc = re.search(r'\b(\d{1,2})\s*[xX]\b', texto_limpo)
     if match_parc and not recorrente:
         parcelas = max(1, min(120, int(match_parc.group(1))))
         texto_limpo = texto_limpo[:match_parc.start()] + texto_limpo[match_parc.end():]
 
-    # Detecta cartão cadastrado pelo nome
     cartao_detectado = None
     for c in cartoes_usuario:
         nome_c = c.nome.strip()
@@ -135,7 +153,6 @@ def interpretar_comando_inteligente(texto: str, cartoes_usuario):
             texto_limpo = re.sub(r'\b' + re.escape(nome_c) + r'\b', '', texto_limpo, flags=re.IGNORECASE)
             break
 
-    # Detecta valor monetário (ex: 1.250,50 ou 45,90 ou 45.90 ou 100)
     matches_valor = list(re.finditer(r'(?:R\$\s*)?(\d+(?:[.,]\d{3})*(?:[.,]\d{1,2})|\d+)', texto_limpo))
     valor = 0.0
     if matches_valor:
@@ -143,7 +160,6 @@ def interpretar_comando_inteligente(texto: str, cartoes_usuario):
         valor = parse_moeda(ultimo_match.group(1))
         texto_limpo = texto_limpo[:ultimo_match.start()] + texto_limpo[ultimo_match.end():]
 
-    # Limpa preposições soltas no final/início
     descricao = re.sub(r'\s+', ' ', texto_limpo).strip(' -/,;')
     descricao = re.sub(r'\b(no|na|em|de|do|da)\s*$', '', descricao, flags=re.IGNORECASE).strip()
 
@@ -157,7 +173,6 @@ def interpretar_comando_inteligente(texto: str, cartoes_usuario):
 
 
 def garantir_titular_conta(username: str) -> Pessoa:
-    """Garante que toda conta possua uma Pessoa titular."""
     titular = Pessoa.objects.filter(conta__iexact=username, is_titular=True).first()
     if not titular:
         primeira = Pessoa.objects.filter(conta__iexact=username).first()
@@ -176,21 +191,17 @@ def garantir_titular_conta(username: str) -> Pessoa:
 
 
 def get_mes_fatura(data_compra, dia_fechamento, dia_vencimento=None):
-    """Calcula o mês de competência da fatura baseado no dia de fechamento do cartão."""
     mes = data_compra.month
     ano = data_compra.year
-
     if data_compra.day >= dia_fechamento:
         mes += 1
         if mes > 12:
             mes = 1
             ano += 1
-
     return mes, ano
 
 
 def prever_categoria(descricao_nova, transacoes_historicas):
-    """Classificador Naive Bayes com Laplace Smoothing + Regras de Fallback."""
     regra_direta = fallback_rules(descricao_nova)
     if not transacoes_historicas:
         return regra_direta
@@ -208,22 +219,18 @@ def prever_categoria(descricao_nova, transacoes_historicas):
             vocabulario.add(p)
 
     palavras_alvo = re.findall(r'\w+', descricao_nova.lower())
-    if not palavras_alvo or not vocabulario:
-        return regra_direta
-
-    if not any(p in vocabulario for p in palavras_alvo):
+    if not palavras_alvo or not vocabulario or not any(p in vocabulario for p in palavras_alvo):
         return regra_direta
 
     melhor_cat = regra_direta
     maior_score = -1.0
-
     V = len(vocabulario)
+
     for cat, total in total_cat.items():
         score = total
         for p in palavras_alvo:
             prob_palavra = (palavras_cat[cat][p] + 1) / (total + V)
             score *= prob_palavra
-
         if score > maior_score:
             maior_score = score
             melhor_cat = cat
@@ -252,11 +259,53 @@ def fallback_rules(descricao):
     return 'Outros'
 
 
-def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transacoes_mes, eu, mes_sel, ano_sel):
-    """
-    Motor FinPro AI: Calcula Burn Rate, Projeção, Score de Saúde Financeira (0-1000),
-    Divisão 50-30-20 e Impacto Anual de Gastos Fixos.
-    """
+def analisar_inteligencia_cartoes(cartoes, transacoes_mes):
+    """Calcula total por cartão na fatura atual e identifica o Melhor Cartão para Comprar Hoje."""
+    hoje = date.today()
+    resumo = []
+    melhor_cartao = None
+    maior_prazo = -1
+
+    for c in cartoes:
+        total_cartao = sum(float(t.valor) for t in transacoes_mes if t.cartao_id == c.id and t.tipo == 'DESPESA')
+        ja_fechou_este_mes = hoje.day >= c.dia_fechamento
+
+        if ja_fechou_este_mes:
+            status_ciclo = "Melhor Dia! Vai p/ próxima fatura"
+            cor_badge = "success"
+            dias_para_fechar = (calendar.monthrange(hoje.year, hoje.month)[1] - hoje.day) + c.dia_fechamento
+        else:
+            dias_para_fechar = c.dia_fechamento - hoje.day
+            if dias_para_fechar <= 3:
+                status_ciclo = f"Fecha em {dias_para_fechar} dia(s)"
+                cor_badge = "warning"
+            else:
+                status_ciclo = f"Fatura aberta (fecha dia {c.dia_fechamento})"
+                cor_badge = "primary"
+
+        item_cartao = {
+            'id': c.id,
+            'nome': c.nome,
+            'dia_fechamento': c.dia_fechamento,
+            'dia_vencimento': c.dia_vencimento,
+            'total_fatura': total_cartao,
+            'status_ciclo': status_ciclo,
+            'cor_badge': cor_badge,
+            'ja_fechou': ja_fechou_este_mes,
+            'dias_para_fechar': dias_para_fechar,
+        }
+        resumo.append(item_cartao)
+
+        if dias_para_fechar > maior_prazo:
+            maior_prazo = dias_para_fechar
+            melhor_cartao = item_cartao
+
+    return resumo, melhor_cartao
+
+
+def gerar_insights_inteligentes(
+    meus_gastos, gastos_mes_anterior, valor_meta, gastos_por_cat, transacoes_mes, eu, mes_sel, ano_sel
+):
     hoje = date.today()
     dias_no_mes = calendar.monthrange(ano_sel, mes_sel)[1]
     if ano_sel == hoje.year and mes_sel == hoje.month:
@@ -269,17 +318,27 @@ def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transac
         dias_decorridos = 1
         dias_restantes = dias_no_mes
 
+    minhas_despesas_lista = [
+        t for t in transacoes_mes if eu and t.dono_id == eu.id and t.tipo == 'DESPESA'
+    ]
+    qtd_transacoes_pessoais = len(minhas_despesas_lista)
+    ticket_medio = (meus_gastos / qtd_transacoes_pessoais) if qtd_transacoes_pessoais > 0 else 0.0
+
     media_diaria = meus_gastos / dias_decorridos if meus_gastos > 0 else 0.0
     projecao_mes = media_diaria * dias_no_mes if (ano_sel == hoje.year and mes_sel == hoje.month) else meus_gastos
 
-    gastos_fixos = sum(
-        float(t.valor) for t in transacoes_mes
-        if eu and t.dono_id == eu.id and t.recorrente and t.tipo == 'DESPESA'
-    )
+    gastos_fixos = sum(float(t.valor) for t in minhas_despesas_lista if t.recorrente)
+    gastos_variaveis = max(0.0, meus_gastos - gastos_fixos)
     custo_fixo_anual = gastos_fixos * 12
     perc_fixos = (gastos_fixos / meus_gastos * 100) if meus_gastos > 0 else 0.0
+    perc_variaveis = (gastos_variaveis / meus_gastos * 100) if meus_gastos > 0 else 0.0
 
-    # Termômetro 50-30-20 (Essenciais vs Estilo de Vida)
+    # Variação Month-over-Month (MoM)
+    if gastos_mes_anterior > 0:
+        variacao_mom = ((meus_gastos - gastos_mes_anterior) / gastos_mes_anterior) * 100.0
+    else:
+        variacao_mom = 0.0
+
     cat_essenciais = {'Moradia', 'Mercado', 'Saúde', 'Transporte'}
     gastos_essenciais = sum(v for k, v in gastos_por_cat.items() if k in cat_essenciais)
     gastos_estilo_vida = sum(v for k, v in gastos_por_cat.items() if k not in cat_essenciais)
@@ -290,15 +349,10 @@ def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transac
     economia_atual = max(0.0, valor_meta - meus_gastos) if valor_meta > 0 else 0.0
     perc_economia = min(100.0, (economia_atual / valor_meta) * 100) if valor_meta > 0 else 0.0
 
-    # Score de Saúde Financeira FinPro (0 a 1000)
     if valor_meta <= 0 and meus_gastos == 0:
-        score = 750
-        nivel_score = "Defina sua Meta"
-        cor_score = "secondary"
+        score, nivel_score, cor_score = 750, "Defina sua Meta", "secondary"
     elif valor_meta <= 0:
-        score = 600
-        nivel_score = "Sem Meta Definida"
-        cor_score = "warning"
+        score, nivel_score, cor_score = 600, "Sem Meta Definida", "warning"
     else:
         uso_meta = meus_gastos / valor_meta
         if uso_meta <= 0.5:
@@ -310,7 +364,6 @@ def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transac
         else:
             score = max(150, int(600 - ((uso_meta - 1.0) * 600)))
 
-        # Penaliza se os gastos fixos passarem de 50% da meta
         if (gastos_fixos / valor_meta) > 0.5:
             score = max(100, score - 80)
 
@@ -338,21 +391,21 @@ def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transac
             insights.append({
                 'tipo': 'warning',
                 'icone': 'bi-graph-up-arrow',
-                'texto': f"Ritmo acelerado: gastando R$ {media_diaria:.2f}/dia, você fechará o mês em R$ {projecao_mes:.2f}. Limite seguro: R$ {orcamento_diario_seguro:.2f}/dia."
+                'texto': f"Ritmo acelerado: gastando R$ {media_diaria:.2f}/dia, a projeção é R$ {projecao_mes:.2f}. Teto diário sugerido: R$ {orcamento_diario_seguro:.2f}/dia."
             })
         else:
             economia_proj = max(0.0, valor_meta - projecao_mes)
             insights.append({
                 'tipo': 'success',
                 'icone': 'bi-shield-check',
-                'texto': f"Ritmo saudável! Você pode gastar até R$ {orcamento_diario_seguro:.2f}/dia e ainda economizar R$ {economia_proj:.2f} no mês."
+                'texto': f"Orçamento sob controle! Teto diário disponível de R$ {orcamento_diario_seguro:.2f}/dia com economia projetada de R$ {economia_proj:.2f}."
             })
 
     if gastos_fixos > 0:
         insights.append({
             'tipo': 'primary',
             'icone': 'bi-arrow-repeat',
-            'texto': f"Radar de Recorrência: Seus gastos fixos somam R$ {gastos_fixos:.2f}/mês, comprometendo R$ {custo_fixo_anual:.2f} por ano."
+            'texto': f"Custos Recorrentes: R$ {gastos_fixos:.2f}/mês ({perc_fixos:.0f}% dos gastos), somando R$ {custo_fixo_anual:.2f} ao ano."
         })
 
     if gastos_por_cat:
@@ -363,16 +416,22 @@ def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transac
             insights.append({
                 'tipo': 'info',
                 'icone': 'bi-lightbulb-fill',
-                'texto': f"Foco de Gastos: '{cat_vila}' representa {peso_vila:.0f}% (R$ {val_vila:.2f}) das suas despesas pessoais."
+                'texto': f"Concentração relevante: '{cat_vila}' absorve {peso_vila:.0f}% (R$ {val_vila:.2f}) das suas despesas."
             })
 
     return {
         'media_diaria': media_diaria,
         'projecao_mes': projecao_mes,
         'orcamento_diario_seguro': orcamento_diario_seguro,
+        'ticket_medio': ticket_medio,
+        'qtd_transacoes_pessoais': qtd_transacoes_pessoais,
         'gastos_fixos': gastos_fixos,
+        'gastos_variaveis': gastos_variaveis,
         'custo_fixo_anual': custo_fixo_anual,
         'perc_fixos': perc_fixos,
+        'perc_variaveis': perc_variaveis,
+        'variacao_mom': variacao_mom,
+        'gastos_mes_anterior': gastos_mes_anterior,
         'gastos_essenciais': gastos_essenciais,
         'gastos_estilo_vida': gastos_estilo_vida,
         'perc_essenciais': perc_essenciais,
@@ -386,7 +445,7 @@ def gerar_insights_inteligentes(meus_gastos, valor_meta, gastos_por_cat, transac
 
 
 # ==========================================
-# VIEWS DE AUTENTICAÇÃO COM PROTEÇÃO BRUTE FORCE
+# VIEWS DE AUTENTICAÇÃO
 # ==========================================
 
 @never_cache
@@ -449,7 +508,7 @@ def logout_view(request):
 
 
 # ==========================================
-# DASHBOARD, NLP QUICK-ADD E IMPORTADOR DE FATURA
+# DASHBOARD PRINCIPAL
 # ==========================================
 
 @login_required(login_url='login')
@@ -483,10 +542,10 @@ def dashboard(request):
                 historico = list(Transacao.objects.filter(conta__iexact=minha_conta).exclude(categoria='Outros'))
                 cat_prevista = prever_categoria(dados_ia['descricao'], historico)
                 parcelas = dados_ia['parcelas']
-                valor_parcela = round(dados_ia['valor'] / parcelas, 2) if parcelas > 1 else dados_ia['valor']
+                lista_parcelas_dec = dividir_em_parcelas_exatas(dados_ia['valor'], parcelas)
 
                 with transaction.atomic():
-                    for i in range(parcelas):
+                    for i, val_parc in enumerate(lista_parcelas_dec):
                         mes_loop = hoje.month + i
                         ano_loop = hoje.year + ((mes_loop - 1) // 12)
                         mes_calc = ((mes_loop - 1) % 12) + 1
@@ -496,7 +555,7 @@ def dashboard(request):
 
                         Transacao.objects.create(
                             descricao=desc_final,
-                            valor=valor_parcela,
+                            valor=val_parc,
                             data=nova_dt,
                             tipo='DESPESA',
                             categoria=cat_prevista,
@@ -657,8 +716,8 @@ def dashboard(request):
             with transaction.atomic():
                 for t_id in ids_marcados:
                     desc = sanitizar_texto_csv(request.POST.get(f'desc_{t_id}', 'Gasto Importado'))
-                    valor = parse_moeda(request.POST.get(f'valor_{t_id}', '0'))
-                    if valor <= 0:
+                    valor_dec = parse_moeda_decimal(request.POST.get(f'valor_{t_id}', '0'))
+                    if valor_dec <= Decimal('0.00'):
                         continue
                     data_val = request.POST.get(f'data_{t_id}')
                     dono_id = request.POST.get(f'dono_{t_id}')
@@ -673,7 +732,7 @@ def dashboard(request):
 
                     novas_transacoes.append(Transacao(
                         descricao=desc,
-                        valor=valor,
+                        valor=valor_dec,
                         data=data_parsed,
                         tipo='DESPESA',
                         categoria=categoria,
@@ -695,7 +754,7 @@ def dashboard(request):
             messages.success(request, f"{len(novas_transacoes)} transações importadas com sucesso para {ultimo_mes:02d}/{ultimo_ano}!")
             return redirect(f'/?mes={ultimo_mes}&ano={ultimo_ano}')
 
-        # 3. NOVA TRANSAÇÃO
+        # 3. NOVA TRANSAÇÃO (COM DIVISÃO EXATA DE CENTAVOS)
         elif tipo_formulario == 'nova_transacao':
             descricao_digitada = sanitizar_texto_csv(request.POST.get('descricao', ''))
             valor_digitado = parse_moeda(request.POST.get('valor', '0'))
@@ -716,12 +775,8 @@ def dashboard(request):
             cartao_obj = get_object_or_404(Cartao, id=cartao_id_escolhido, conta__iexact=minha_conta) if cartao_id_escolhido else None
             data_base = parse_data_flexivel(data_digitada) or hoje
 
-            if parcelas > 1:
-                valor_final_parcela = round(valor_digitado / parcelas, 2)
-                valores_finais_extras = [round(parse_moeda(v) / parcelas, 2) for v in valores_extras_str]
-            else:
-                valor_final_parcela = valor_digitado
-                valores_finais_extras = [parse_moeda(v) for v in valores_extras_str]
+            parcelas_totais_dec = dividir_em_parcelas_exatas(valor_digitado, parcelas)
+            matriz_extras_dec = [dividir_em_parcelas_exatas(parse_moeda(v), parcelas) for v in valores_extras_str]
 
             with transaction.atomic():
                 for i in range(parcelas):
@@ -733,8 +788,8 @@ def dashboard(request):
                     nova_data = date(ano_atual_loop, mes_calculado, dia_calculado)
 
                     desc_salvar = f"{descricao_digitada} ({i+1}/{parcelas})" if parcelas > 1 else descricao_digitada
-                    soma_extras = sum(valores_finais_extras)
-                    valor_dono_1 = max(0.0, round(valor_final_parcela - soma_extras, 2))
+                    soma_extras_i = sum((col[i] for col in matriz_extras_dec), Decimal('0.00'))
+                    valor_dono_1 = max(Decimal('0.00'), parcelas_totais_dec[i] - soma_extras_i)
 
                     Transacao.objects.create(
                         descricao=desc_salvar,
@@ -749,8 +804,8 @@ def dashboard(request):
                     )
 
                     for idx, dono_extra_id in enumerate(donos_extras):
-                        valor_deste_amigo = valores_finais_extras[idx] if idx < len(valores_finais_extras) else 0.0
-                        if dono_extra_id and valor_deste_amigo > 0:
+                        valor_deste_amigo = matriz_extras_dec[idx][i] if idx < len(matriz_extras_dec) else Decimal('0.00')
+                        if dono_extra_id and valor_deste_amigo > Decimal('0.00'):
                             d_obj = get_object_or_404(Pessoa, id=dono_extra_id, conta__iexact=minha_conta)
                             Transacao.objects.create(
                                 descricao=f"{desc_salvar} (Parte de {d_obj.nome})",
@@ -788,20 +843,22 @@ def dashboard(request):
 
             donos_extras = request.POST.getlist('dono_id_extra')
             valores_extras_str = request.POST.getlist('valor_extra')
-            valores_extras = [parse_moeda(v) for v in valores_extras_str]
 
-            if parcelas > 1:
-                valor_parcela = round(valor / parcelas, 2)
-                valores_extras = [round(v / parcelas, 2) for v in valores_extras]
-            else:
-                valor_parcela = valor
-
-            soma_extras = sum(valores_extras)
-            valor_principal = round(valor_parcela - soma_extras, 2) if (0 < soma_extras < valor_parcela) else valor_parcela
+            parcelas_totais_dec = dividir_em_parcelas_exatas(valor, parcelas)
+            valores_extras_dec = [
+                ( parse_moeda_decimal(v) / Decimal(parcelas) ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                for v in valores_extras_str
+            ]
+            soma_extras = sum(valores_extras_dec, Decimal('0.00'))
+            valor_principal_1 = (
+                parcelas_totais_dec[0] - soma_extras
+                if (Decimal('0.00') < soma_extras < parcelas_totais_dec[0])
+                else parcelas_totais_dec[0]
+            )
 
             data_base = parse_data_flexivel(data_val) or transacao.data
             transacao.descricao = f"{descricao} (1/{parcelas})" if parcelas > 1 else descricao
-            transacao.valor = valor_principal
+            transacao.valor = valor_principal_1
             transacao.data = data_base
             transacao.tipo = tipo
             transacao.categoria = categoria
@@ -816,10 +873,15 @@ def dashboard(request):
                 mes_calculado = ((mes_atual - 1) % 12) + 1
                 ultimo_dia_mes = calendar.monthrange(ano_atual_loop, mes_calculado)[1]
                 nova_data = date(ano_atual_loop, mes_calculado, min(data_base.day, ultimo_dia_mes))
+                val_parc_i = (
+                    parcelas_totais_dec[i] - soma_extras
+                    if (Decimal('0.00') < soma_extras < parcelas_totais_dec[i])
+                    else parcelas_totais_dec[i]
+                )
 
                 Transacao.objects.create(
                     descricao=f"{descricao} ({i+1}/{parcelas})",
-                    valor=valor_principal,
+                    valor=val_parc_i,
                     data=nova_data,
                     tipo=tipo,
                     categoria=categoria,
@@ -829,9 +891,9 @@ def dashboard(request):
                     recorrente=False
                 )
 
-            if donos_extras and any(v > 0 for v in valores_extras):
-                for extra_id, extra_val in zip(donos_extras, valores_extras):
-                    if extra_id and extra_val > 0:
+            if donos_extras and any(v > Decimal('0.00') for v in valores_extras_dec):
+                for extra_id, extra_val in zip(donos_extras, valores_extras_dec):
+                    if extra_id and extra_val > Decimal('0.00'):
                         amigo_obj = Pessoa.objects.filter(id=extra_id, conta__iexact=minha_conta).first()
                         if amigo_obj:
                             Transacao.objects.create(
@@ -850,7 +912,7 @@ def dashboard(request):
 
         # 5. OUTROS GERENCIAMENTOS
         elif tipo_formulario == 'atualizar_meta':
-            novo_valor = parse_moeda(request.POST.get('valor_meta'))
+            novo_valor = parse_moeda_decimal(request.POST.get('valor_meta'))
             meta = MetaMensal.objects.filter(conta__iexact=minha_conta).first()
             if meta:
                 meta.valor = novo_valor
@@ -901,7 +963,7 @@ def dashboard(request):
 
             Transacao.objects.create(
                 descricao=descricao_pagamento,
-                valor=parse_moeda(request.POST.get('valor')),
+                valor=parse_moeda_decimal(request.POST.get('valor')),
                 dono=dono_obj,
                 tipo='PAGAMENTO',
                 categoria='Outros',
@@ -914,10 +976,10 @@ def dashboard(request):
         return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
     # ==========================================
-    # CÁLCULOS E CONSULTAS OTIMIZADAS
+    # CÁLCULOS E CONSULTAS OTIMIZADAS (COM HISTÓRICO DE 6 MESES)
     # ==========================================
     todas_pessoas = Pessoa.objects.filter(conta__iexact=minha_conta)
-    todos_cartoes = Cartao.objects.filter(conta__iexact=minha_conta)
+    todos_cartoes = list(Cartao.objects.filter(conta__iexact=minha_conta))
     filtra_pessoa_id = request.GET.get('pessoa')
 
     mes_anterior = mes_selecionado - 1 if mes_selecionado > 1 else 12
@@ -927,47 +989,74 @@ def dashboard(request):
 
     ultimo_dia_mes = calendar.monthrange(ano_selecionado, mes_selecionado)[1]
 
-    data_inicio_janela = date(ano_anterior, mes_anterior, 1)
+    # Janela de 7 meses para alimentar tanto o mês atual quanto o gráfico de evolução de 6 meses e variação MoM
+    mes_6_atras = mes_selecionado - 6
+    ano_6_atras = ano_selecionado
+    while mes_6_atras <= 0:
+        mes_6_atras += 12
+        ano_6_atras -= 1
+
+    data_inicio_janela = date(ano_6_atras, mes_6_atras, 1)
     data_fim_janela = date(ano_selecionado, mes_selecionado, ultimo_dia_mes)
 
-    trans_normais = Transacao.objects.filter(
+    trans_normais = list(Transacao.objects.filter(
         conta__iexact=minha_conta,
         recorrente=False,
         data__gte=data_inicio_janela,
         data__lte=data_fim_janela
-    ).select_related('cartao', 'dono')
+    ).select_related('cartao', 'dono'))
 
-    trans_rec = Transacao.objects.filter(
+    trans_rec = list(Transacao.objects.filter(
         conta__iexact=minha_conta,
         recorrente=True,
         data__lte=data_fim_janela
-    ).select_related('cartao', 'dono')
+    ).select_related('cartao', 'dono'))
 
-    lista_transacoes_mes = []
+    def obter_transacoes_competencia(m_alvo, a_alvo):
+        ult_dia = calendar.monthrange(a_alvo, m_alvo)[1]
+        itens = []
+        for t in trans_normais:
+            if t.cartao:
+                m_fat, a_fat = get_mes_fatura(t.data, t.cartao.dia_fechamento, t.cartao.dia_vencimento)
+                if m_fat == m_alvo and a_fat == a_alvo:
+                    itens.append(t)
+            else:
+                if t.data.month == m_alvo and t.data.year == a_alvo:
+                    itens.append(t)
 
-    for t in trans_normais:
-        if t.cartao:
-            m_fat, a_fat = get_mes_fatura(t.data, t.cartao.dia_fechamento, t.cartao.dia_vencimento)
-            if m_fat == mes_selecionado and a_fat == ano_selecionado:
-                lista_transacoes_mes.append(t)
-        else:
-            if t.data.month == mes_selecionado and t.data.year == ano_selecionado:
-                lista_transacoes_mes.append(t)
+        for t in trans_rec:
+            if t.cartao:
+                m_fat_orig, a_fat_orig = get_mes_fatura(t.data, t.cartao.dia_fechamento, t.cartao.dia_vencimento)
+                if a_fat_orig < a_alvo or (a_fat_orig == a_alvo and m_fat_orig <= m_alvo):
+                    if m_alvo == mes_selecionado and a_alvo == ano_selecionado:
+                        t.data_exibicao = date(a_alvo, m_alvo, min(t.data.day, ult_dia))
+                    itens.append(t)
+            else:
+                if t.data.year < a_alvo or (t.data.year == a_alvo and t.data.month <= m_alvo):
+                    if m_alvo == mes_selecionado and a_alvo == ano_selecionado:
+                        t.data_exibicao = date(a_alvo, m_alvo, min(t.data.day, ult_dia))
+                    itens.append(t)
+        return itens
 
-    for t in trans_rec:
-        if t.cartao:
-            m_fat_orig, a_fat_orig = get_mes_fatura(t.data, t.cartao.dia_fechamento, t.cartao.dia_vencimento)
-            if a_fat_orig < ano_selecionado or (a_fat_orig == ano_selecionado and m_fat_orig <= mes_selecionado):
-                dia_valido = min(t.data.day, ultimo_dia_mes)
-                t.data_exibicao = date(ano_selecionado, mes_selecionado, dia_valido)
-                lista_transacoes_mes.append(t)
-        else:
-            if t.data.year < ano_selecionado or (t.data.year == ano_selecionado and t.data.month <= mes_selecionado):
-                dia_valido = min(t.data.day, ultimo_dia_mes)
-                t.data_exibicao = date(ano_selecionado, mes_selecionado, dia_valido)
-                lista_transacoes_mes.append(t)
-
+    lista_transacoes_mes = obter_transacoes_competencia(mes_selecionado, ano_selecionado)
     lista_transacoes_mes.sort(key=lambda x: getattr(x, 'data_exibicao', x.data), reverse=True)
+
+    # Série de evolução dos últimos 6 meses para o gráfico de tendência
+    nomes_meses = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    labels_evolucao = []
+    valores_evolucao = []
+    for offset in range(5, -1, -1):
+        m_hist = mes_selecionado - offset
+        a_hist = ano_selecionado
+        while m_hist <= 0:
+            m_hist += 12
+            a_hist -= 1
+        itens_h = obter_transacoes_competencia(m_hist, a_hist)
+        total_pessoal_h = sum(float(t.valor) for t in itens_h if eu and t.dono_id == eu.id and t.tipo == 'DESPESA')
+        labels_evolucao.append(f"{nomes_meses[m_hist]}/{str(a_hist)[2:]}")
+        valores_evolucao.append(round(total_pessoal_h, 2))
+
+    gastos_mes_anterior = valores_evolucao[-2] if len(valores_evolucao) >= 2 else 0.0
 
     if filtra_pessoa_id:
         lista_transacoes_mes = [t for t in lista_transacoes_mes if str(t.dono.id) == str(filtra_pessoa_id)]
@@ -1031,14 +1120,17 @@ def dashboard(request):
     valor_maior_cat = gastos_pessoais_dict.get(maior_categoria, 0.0)
     percentual_gasto = (meus_gastos / valor_meta * 100) if valor_meta > 0 else 0.0
 
+    resumo_cartoes, melhor_cartao_hoje = analisar_inteligencia_cartoes(todos_cartoes, lista_transacoes_mes)
     analise_ia = gerar_insights_inteligentes(
-        meus_gastos, valor_meta, gastos_pessoais_dict, lista_transacoes_mes, eu, mes_selecionado, ano_selecionado
+        meus_gastos, gastos_mes_anterior, valor_meta, gastos_pessoais_dict, lista_transacoes_mes, eu, mes_selecionado, ano_selecionado
     )
 
     contexto = {
         'transacoes': lista_transacoes_mes,
         'pessoas': todas_pessoas,
         'cartoes': todos_cartoes,
+        'resumo_cartoes': resumo_cartoes,
+        'melhor_cartao_hoje': melhor_cartao_hoje,
         'meus_gastos': meus_gastos,
         'valor_meta': valor_meta,
         'saldo_restante': saldo_restante,
@@ -1052,6 +1144,8 @@ def dashboard(request):
         'filtra_pessoa_id': int(filtra_pessoa_id) if filtra_pessoa_id else None,
         'labels_grafico': list(gastos_pessoais_dict.keys()),
         'valores_grafico': list(gastos_pessoais_dict.values()),
+        'labels_evolucao': labels_evolucao,
+        'valores_evolucao': valores_evolucao,
         'maior_categoria': maior_categoria,
         'valor_maior_cat': valor_maior_cat,
         'percentual_gasto': percentual_gasto,
@@ -1063,12 +1157,11 @@ def dashboard(request):
 
 
 # ==========================================
-# ROTAS DE EXCLUSÃO CORRIGIDAS (TRANSAÇÃO, CARTÃO, LIMPEZA E LGPD)
+# ROTAS DE EXCLUSÃO E CONFORMIDADE LGPD
 # ==========================================
 
 @login_required(login_url='login')
 def excluir_transacao(request, id):
-    """Exclui uma transação individual via POST ou GET com confirmação visual."""
     transacao = get_object_or_404(Transacao, id=id, conta__iexact=request.user.username)
     nome_desc = transacao.descricao
     transacao.delete()
@@ -1081,7 +1174,6 @@ def excluir_transacao(request, id):
 @login_required(login_url='login')
 @require_POST
 def excluir_cartao(request, id):
-    """Permite ao usuário excluir um cartão cadastrado."""
     cartao = get_object_or_404(Cartao, id=id, conta__iexact=request.user.username)
     nome = cartao.nome
     cartao.delete()
@@ -1092,10 +1184,6 @@ def excluir_cartao(request, id):
 @login_required(login_url='login')
 @require_POST
 def limpar_dados_financeiros(request):
-    """
-    Permite zerar/excluir todas as transações (do mês atual ou de toda a conta)
-    com 1 clique, mantendo a conta do usuário ativa.
-    """
     minha_conta = request.user.username
     escopo = request.POST.get('escopo', 'tudo')
     mes = request.POST.get('mes')
@@ -1122,7 +1210,6 @@ def limpar_dados_financeiros(request):
 
 @login_required(login_url='login')
 def exportar_relatorio_csv(request):
-    """Exporta as transações do usuário em CSV seguro (UTF-8 com BOM para Excel)."""
     minha_conta = request.user.username
     mes = request.GET.get('mes')
     ano = request.GET.get('ano')
@@ -1155,7 +1242,6 @@ def exportar_relatorio_csv(request):
 
 @login_required(login_url='login')
 def exportar_dados_lgpd(request):
-    """Direito de Portabilidade e Acesso (Art. 18, II e V da LGPD): exporta todos os dados pessoais em JSON."""
     minha_conta = request.user.username
     dados = {
         'titular_conta': {
@@ -1201,10 +1287,6 @@ def exportar_dados_lgpd(request):
 @login_required(login_url='login')
 @require_POST
 def excluir_conta_lgpd(request):
-    """
-    Direito à Eliminação / Esquecimento (Art. 18, VI da LGPD):
-    Aceita confirmação por senha (com fallback sem espaços) ou confirmação explícita 'EXCLUIR'.
-    """
     senha_confirmacao = request.POST.get('senha_confirmacao', '')
     confirmacao_texto = request.POST.get('confirmacao_texto', '').strip().upper()
     usuario = request.user

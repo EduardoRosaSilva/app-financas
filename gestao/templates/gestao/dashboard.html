@@ -16,14 +16,16 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            --bg-body: #f8fafc;
+            --bg-body: #f4f7fb;
             --bg-card: #ffffff;
-            --text-main: #1e293b;
+            --text-main: #0f172a;
+            --border-subtle: rgba(15, 23, 42, 0.07);
         }
         body.dark-mode {
-            --bg-body: #0f172a;
+            --bg-body: #0b1120;
             --bg-card: #1e293b;
             --text-main: #f8fafc;
+            --border-subtle: rgba(255, 255, 255, 0.08);
             background-color: var(--bg-body) !important;
             color: var(--text-main) !important;
         }
@@ -35,14 +37,37 @@
         body.dark-mode .bg-light { background-color: #334155 !important; color: #f8fafc !important; }
         body.dark-mode .form-control, body.dark-mode .form-select { color: #f8fafc !important; }
 
+        /* Modo Privacidade Fintech (Olho Mágico) */
+        body.privacy-blur .valor-sensivel {
+            filter: blur(8px);
+            user-select: none;
+            transition: filter 0.2s ease;
+        }
+        .valor-sensivel { transition: filter 0.2s ease; }
+
         body { font-family: 'Poppins', sans-serif; background-color: var(--bg-body); transition: background-color 0.25s; }
-        .card { transition: all 0.2s ease-in-out; }
+        .card {
+            border: 1px solid var(--border-subtle);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
         .card:hover { transform: translateY(-2px); }
         .scroll-mobile::-webkit-scrollbar { display: none; }
         .scroll-mobile { -ms-overflow-style: none; scrollbar-width: none; }
-        .linha-clicavel { transition: background-color 0.2s; }
+        .linha-clicavel { transition: background-color 0.18s; }
         .linha-clicavel:hover { background-color: rgba(13, 110, 253, 0.06) !important; }
-        
+
+        .chip-filtro {
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            font-size: 0.75rem;
+        }
+        .chip-filtro.active {
+            background-color: #0d6efd !important;
+            color: #ffffff !important;
+            border-color: #0d6efd !important;
+        }
+
         .alerta-flutuante {
             position: fixed;
             top: 20px;
@@ -66,22 +91,25 @@
     </style>
 </head>
 <body>
-    <!-- Header Topo Responsivo -->
+    <!-- Header Topo Responsivo com Modo Privacidade e Dark Mode -->
     <div class="bg-white sticky-top shadow-sm py-3 mb-4 rounded-bottom-5">
         <div class="container px-3 px-md-4">
             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3">
                 <div class="d-flex align-items-center justify-content-between w-100 w-sm-auto">
                     <h4 class="fw-bold text-primary mb-0 d-flex align-items-center gap-2">
                         <i class="bi bi-wallet2"></i> FinPro
-                        <span class="badge bg-{{ analise_ia.cor_score }} rounded-pill ms-1" style="font-size: 0.65rem;" title="Score de Saúde Financeira">
+                        <span class="badge bg-{{ analise_ia.cor_score }} rounded-pill ms-1" style="font-size: 0.65rem;" title="Score FinPro de Saúde Financeira">
                             Score {{ analise_ia.score }}
                         </span>
                     </h4>
                     <div class="d-flex align-items-center gap-2">
                         <button id="btnInstalarApp" class="btn btn-sm btn-warning fw-bold rounded-pill shadow-sm px-3 text-dark" style="display: none; font-size: 0.75rem;">
-                            <i class="bi bi-download"></i> Instalar App
+                            <i class="bi bi-download"></i> Instalar
                         </button>
-                        <button id="btnDarkMode" class="btn btn-sm btn-light border rounded-circle shadow-sm" title="Alternar Tema">
+                        <button id="btnPrivacyMode" class="btn btn-sm btn-light border rounded-circle shadow-sm" title="Ocultar/Mostrar Valores (Modo Privacidade)">
+                            <i class="bi bi-eye" id="iconPrivacy"></i>
+                        </button>
+                        <button id="btnDarkMode" class="btn btn-sm btn-light border rounded-circle shadow-sm" title="Alternar Tema Claro/Escuro">
                             <i class="bi bi-moon-stars"></i>
                         </button>
                     </div>
@@ -89,9 +117,9 @@
 
                 <div class="d-flex align-items-center justify-content-center gap-2 w-100 w-sm-auto">
                     <div class="d-flex align-items-center bg-light rounded-pill px-3 py-1 border">
-                        <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-left"></i></a>
+                        <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" class="text-secondary text-decoration-none p-1" title="Mês Anterior"><i class="bi bi-chevron-left"></i></a>
                         <span class="fw-bold small mx-3 text-dark">{{ mes_atual }}/{{ ano_atual }}</span>
-                        <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" class="text-secondary text-decoration-none p-1"><i class="bi bi-chevron-right"></i></a>
+                        <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" class="text-secondary text-decoration-none p-1" title="Próximo Mês"><i class="bi bi-chevron-right"></i></a>
                     </div>
                     <button class="btn btn-light text-secondary rounded-pill px-3 fw-bold border shadow-sm" style="font-size: 0.85rem;" data-bs-toggle="modal" data-bs-target="#modalLGPD" title="Privacidade, Limpeza de Dados e LGPD">
                         <i class="bi bi-shield-check text-success"></i> Dados/LGPD
@@ -119,7 +147,7 @@
         <!-- BARRA DE COMANDO INTELIGENTE (NLP QUICK-ADD) -->
         <div class="card border-0 shadow-sm rounded-4 mb-3">
             <div class="card-body p-3">
-                <form method="POST" class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center">
+                <form method="POST" class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center form-protegido">
                     {% csrf_token %}
                     <input type="hidden" name="form_type" value="lancamento_inteligente">
                     <div class="d-flex align-items-center flex-grow-1 bg-light rounded-pill px-3 py-1 border">
@@ -134,84 +162,119 @@
         </div>
 
         <!-- PAINEL DE INTELIGÊNCIA FINANCEIRA (FINPRO AI INSIGHTS) -->
-        {% if analise_ia.lista_insights %}
+        {% if analise_ia.lista_insights or melhor_cartao_hoje %}
         <div class="card border-0 shadow-sm rounded-4 mb-4 bg-primary bg-opacity-10">
             <div class="card-body p-3 px-4">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                     <div>
-                        <span class="badge bg-primary rounded-pill mb-1"><i class="bi bi-stars"></i> FinPro Inteligência ({{ analise_ia.nivel_score }})</span>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                            <span class="badge bg-primary rounded-pill"><i class="bi bi-stars"></i> FinPro IA ({{ analise_ia.nivel_score }})</span>
+                            {% if melhor_cartao_hoje %}
+                            <span class="badge bg-white text-dark border rounded-pill">
+                                <i class="bi bi-credit-card-2-front text-primary"></i> Melhor Cartão Hoje: <strong>{{ melhor_cartao_hoje.nome }}</strong> ({{ melhor_cartao_hoje.status_ciclo }})
+                            </span>
+                            {% endif %}
+                        </div>
                         {% for item in analise_ia.lista_insights %}
                             <p class="small text-dark mb-1"><i class="bi {{ item.icone }} text-{{ item.tipo }} me-1"></i> {{ item.texto }}</p>
                         {% endfor %}
                     </div>
-                    <div class="text-md-end small text-secondary text-nowrap">
-                        <div><strong>Média/dia:</strong> R$ {{ analise_ia.media_diaria|floatformat:2 }}</div>
-                        <div><strong>Projeção Mês:</strong> R$ {{ analise_ia.projecao_mes|floatformat:2 }}</div>
+                    <div class="text-md-end small text-secondary text-nowrap valor-sensivel">
+                        <div><strong>Burn Rate:</strong> R$ {{ analise_ia.media_diaria|floatformat:2 }}/dia</div>
+                        <div><strong>Ticket Médio:</strong> R$ {{ analise_ia.ticket_medio|floatformat:2 }} ({{ analise_ia.qtd_transacoes_pessoais }} lanç.)</div>
                     </div>
                 </div>
             </div>
         </div>
         {% endif %}
 
-        <!-- Grid de Indicadores -->
+        <!-- Bento Grid de KPIs Financeiros -->
         <div class="row flex-nowrap flex-xl-wrap overflow-x-auto pb-3 mb-4 g-3 scroll-mobile">
+            <!-- KPI 1: Saldo Disponível da Meta -->
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4">
-                        <h6 class="text-secondary fw-bold small mb-2">SALDO DISPONÍVEL</h6>
-                        <h2 class="fw-bold {% if saldo_restante >= 0 %}text-success{% else %}text-danger{% endif %} mb-1">
-                            R$ {{ saldo_restante|floatformat:2 }}
-                        </h2>
-                        <div class="progress mt-2 mb-1" style="height: 6px;">
-                            <div class="progress-bar {% if percentual_gasto > 100 %}bg-danger{% elif percentual_gasto > 80 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ percentual_barra }}%"></div>
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="text-secondary fw-bold small mb-0">SALDO DA META</h6>
+                                <span class="badge bg-light text-secondary rounded-pill" style="font-size: 0.68rem;">{{ percentual_gasto|floatformat:0 }}% usado</span>
+                            </div>
+                            <h2 class="fw-bold {% if saldo_restante >= 0 %}text-success{% else %}text-danger{% endif %} mb-1 valor-sensivel">
+                                R$ {{ saldo_restante|floatformat:2 }}
+                            </h2>
                         </div>
-                        <p class="text-muted small mb-0">
-                            {% if saldo_restante >= 0 %}{{ percentual_gasto|floatformat:0 }}% da meta utilizada{% else %}Limite estourado{% endif %}
-                        </p>
+                        <div>
+                            <div class="progress mt-2 mb-2" style="height: 6px;">
+                                <div class="progress-bar {% if percentual_gasto > 95 %}bg-danger{% elif percentual_gasto > 75 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ percentual_barra }}%"></div>
+                            </div>
+                            <p class="text-muted small mb-0 valor-sensivel">
+                                Teto seguro: <strong>R$ {{ analise_ia.orcamento_diario_seguro|floatformat:2 }}/dia</strong>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <!-- KPI 2: Meus Gastos Pessoais + Variação MoM -->
+            <div class="col-11 col-md-6 col-xl-3">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="text-secondary fw-bold small mb-0">MEUS GASTOS</h6>
+                                {% if analise_ia.variacao_mom != 0 %}
+                                <span class="badge {% if analise_ia.variacao_mom <= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 {% if analise_ia.variacao_mom <= 0 %}text-success{% else %}text-danger{% endif %} rounded-pill" style="font-size: 0.68rem;">
+                                    {% if analise_ia.variacao_mom > 0 %}+{% endif %}{{ analise_ia.variacao_mom|floatformat:1 }}% vs mês ant.
+                                </span>
+                                {% endif %}
+                            </div>
+                            <h2 class="fw-bold text-dark mb-1 valor-sensivel">R$ {{ meus_gastos|floatformat:2 }}</h2>
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted border-top pt-2 mt-2 valor-sensivel">
+                            <span>Fixos: <strong>R$ {{ analise_ia.gastos_fixos|floatformat:0 }}</strong></span>
+                            <span>Variáveis: <strong>R$ {{ analise_ia.gastos_variaveis|floatformat:0 }}</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI 3: Acertos Pendentes (Terceiros) -->
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
                         <h6 class="fw-bold text-dark mb-3"><i class="bi bi-cash-coin text-primary"></i> Acertos Pendentes</h6>
                         {% if dividas_detalhadas %}
                             {% for divida in dividas_detalhadas %}
-                            <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
                                 <div>
-                                    <span class="fw-bold text-dark">{{ divida.nome }}</span><br>
-                                    <span class="small {% if divida.saldo > 0 %}text-danger{% else %}text-success{% endif %} fw-bold">R$ {{ divida.saldo|floatformat:2 }}</span>
+                                    <span class="fw-bold text-dark small">{{ divida.nome }}</span><br>
+                                    <span class="small {% if divida.saldo > 0 %}text-danger{% else %}text-success{% endif %} fw-bold valor-sensivel">R$ {{ divida.saldo|floatformat:2 }}</span>
                                 </div>
-                                <div class="d-flex flex-column gap-2">
-                                    <a href="{{ divida.whatsapp_link }}" target="_blank" class="btn btn-sm rounded-pill fw-bold shadow-sm px-3 d-flex align-items-center justify-content-center gap-1" style="background-color: #25D366; color: white; border: none; font-size: 0.75rem;"><i class="bi bi-whatsapp"></i> Cobrar</a>
-                                    <button class="btn btn-sm btn-outline-primary rounded-pill fw-bold shadow-sm px-3 d-flex align-items-center justify-content-center gap-1" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalReceber{{ divida.id }}"><i class="bi bi-check2-circle"></i> Receber</button>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ divida.whatsapp_link }}" target="_blank" class="btn btn-sm rounded-pill fw-bold shadow-sm px-2" style="background-color: #25D366; color: white; border: none; font-size: 0.72rem;" title="Cobrar no WhatsApp"><i class="bi bi-whatsapp"></i></a>
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill fw-bold shadow-sm px-2" style="font-size: 0.72rem;" data-bs-toggle="modal" data-bs-target="#modalReceber{{ divida.id }}" title="Dar Baixa"><i class="bi bi-check2-circle"></i> Baixar</button>
                                 </div>
                             </div>
                             {% endfor %}
                         {% else %}
-                            <div class="text-center py-3"><p class="text-muted small mb-0">Tudo zerado! ✌️</p></div>
+                            <div class="text-center py-3"><p class="text-muted small mb-0">Nenhum valor pendente! ✌️</p></div>
                         {% endif %}
                     </div>
                 </div>
             </div>
+
+            <!-- KPI 4: Meta do Mês -->
             <div class="col-11 col-md-6 col-xl-3">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4">
-                        <h6 class="text-secondary fw-bold small mb-2">MEUS GASTOS PESSOAIS</h6>
-                        <h2 class="fw-bold text-dark mb-1">R$ {{ meus_gastos|floatformat:2 }}</h2>
-                        <p class="text-muted small mb-0">Fixos: R$ {{ analise_ia.gastos_fixos|floatformat:2 }}/mês</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-11 col-md-6 col-xl-3">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4">
-                        <h6 class="text-secondary fw-bold small mb-2">META DO MÊS</h6>
-                        <h2 class="fw-bold text-primary mb-2">R$ {{ valor_meta|floatformat:2 }}</h2>
-                        <form method="POST" class="d-flex gap-2">
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <h6 class="text-secondary fw-bold small mb-2">META MENSAL</h6>
+                            <h2 class="fw-bold text-primary mb-2 valor-sensivel">R$ {{ valor_meta|floatformat:2 }}</h2>
+                        </div>
+                        <form method="POST" class="d-flex gap-2 form-protegido">
                             {% csrf_token %}
                             <input type="hidden" name="form_type" value="atualizar_meta">
-                            <input type="number" step="0.01" class="form-control form-control-sm bg-light border-0 rounded-3" name="valor_meta" placeholder="Nova meta..." required>
+                            <input type="number" step="0.01" class="form-control form-control-sm bg-light border-0 rounded-3" name="valor_meta" placeholder="Definir meta..." required>
                             <button type="submit" class="btn btn-primary btn-sm rounded-3 px-3"><i class="bi bi-check2"></i></button>
                         </form>
                     </div>
@@ -238,13 +301,24 @@
             </div>
         </div>
 
-        <!-- Raio-X e Regra 50-30-20 -->
+        <!-- Gráficos Analíticos (Alternância Categorias vs Evolução 6 Meses) e Bússola 50-30-20 -->
         <div class="row g-3 mb-4">
             <div class="col-12 col-lg-7">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold text-dark mb-3"><i class="bi bi-pie-chart text-primary"></i> Raio-X por Categoria</h6>
-                        <div style="position: relative; height: 250px; width: 100%;"><canvas id="graficoGastos"></canvas></div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-bar-chart-line text-primary"></i> Análise Visual</h6>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary rounded-start-pill active" id="btnVerCategorias">Por Categoria</button>
+                                <button type="button" class="btn btn-outline-primary rounded-end-pill" id="btnVerEvolucao">Evolução 6M</button>
+                            </div>
+                        </div>
+                        <div id="containerGraficoCategorias" style="position: relative; height: 250px; width: 100%;">
+                            <canvas id="graficoGastos"></canvas>
+                        </div>
+                        <div id="containerGraficoEvolucao" style="position: relative; height: 250px; width: 100%; display: none;">
+                            <canvas id="graficoEvolucao"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -253,12 +327,12 @@
                     <div class="card-body p-4 d-flex flex-column justify-content-between">
                         <div>
                             <h6 class="fw-bold text-dark mb-1"><i class="bi bi-compass text-primary"></i> Bússola 50-30-20</h6>
-                            <p class="text-muted small mb-3">Distribuição inteligente do seu orçamento mensal</p>
+                            <p class="text-muted small mb-3">Equilíbrio do orçamento pessoal neste mês</p>
 
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between small mb-1">
-                                    <span class="fw-bold text-dark">Essenciais (Ideal: até 50%)</span>
-                                    <span class="text-secondary">R$ {{ analise_ia.gastos_essenciais|floatformat:2 }} ({{ analise_ia.perc_essenciais|floatformat:0 }}%)</span>
+                                    <span class="fw-bold text-dark">Essenciais (Meta: até 50%)</span>
+                                    <span class="text-secondary valor-sensivel">R$ {{ analise_ia.gastos_essenciais|floatformat:2 }} ({{ analise_ia.perc_essenciais|floatformat:0 }}%)</span>
                                 </div>
                                 <div class="progress" style="height: 8px;">
                                     <div class="progress-bar bg-primary" style="width: {{ analise_ia.perc_essenciais|floatformat:0 }}%"></div>
@@ -267,8 +341,8 @@
 
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between small mb-1">
-                                    <span class="fw-bold text-dark">Estilo de Vida & Lazer (Ideal: até 30%)</span>
-                                    <span class="text-secondary">R$ {{ analise_ia.gastos_estilo_vida|floatformat:2 }} ({{ analise_ia.perc_estilo_vida|floatformat:0 }}%)</span>
+                                    <span class="fw-bold text-dark">Estilo de Vida (Meta: até 30%)</span>
+                                    <span class="text-secondary valor-sensivel">R$ {{ analise_ia.gastos_estilo_vida|floatformat:2 }} ({{ analise_ia.perc_estilo_vida|floatformat:0 }}%)</span>
                                 </div>
                                 <div class="progress" style="height: 8px;">
                                     <div class="progress-bar bg-warning" style="width: {{ analise_ia.perc_estilo_vida|floatformat:0 }}%"></div>
@@ -277,7 +351,7 @@
 
                             <div class="mb-2">
                                 <div class="d-flex justify-content-between small mb-1">
-                                    <span class="fw-bold text-dark">Margem Livre / Economia (Ideal: 20%+)</span>
+                                    <span class="fw-bold text-dark">Margem Livre / Economia (Meta: 20%+)</span>
                                     <span class="text-success fw-bold">{{ analise_ia.perc_economia|floatformat:0 }}%</span>
                                 </div>
                                 <div class="progress" style="height: 8px;">
@@ -286,36 +360,52 @@
                             </div>
                         </div>
 
-                        <div class="bg-light rounded-4 p-3 mt-3 small">
-                            <i class="bi bi-lightning-fill text-warning"></i> <strong>Limite Diário Seguro:</strong> Você pode gastar <strong>R$ {{ analise_ia.orcamento_diario_seguro|floatformat:2 }}/dia</strong> até o fim do mês sem estourar sua meta.
+                        <div class="bg-light rounded-4 p-3 mt-3 small valor-sensivel">
+                            <i class="bi bi-lightning-fill text-warning"></i> <strong>Projeção de Fechamento:</strong> Mantendo a média atual, seus gastos fecharão em <strong>R$ {{ analise_ia.projecao_mes|floatformat:2 }}</strong>.
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Lançamentos com Busca Rápida e Exclusão Funcionando 100% -->
+        <!-- Lançamentos com Chips de Filtro Instantâneo e Busca -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
                     <h6 class="fw-bold text-dark mb-0"><i class="bi bi-list-ul text-primary"></i> Lançamentos da Fatura ({{ mes_atual }}/{{ ano_atual }})</h6>
                     <div class="d-flex gap-2">
-                        <input type="text" id="inputBuscaTransacao" class="form-control form-control-sm bg-light border-0 rounded-pill px-3" placeholder="🔍 Filtrar lançamento...">
+                        <input type="text" id="inputBuscaTransacao" class="form-control form-control-sm bg-light border-0 rounded-pill px-3" placeholder="🔍 Buscar lançamento...">
                         <a href="{% url 'exportar_relatorio_csv' %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 text-nowrap fw-bold">
-                            <i class="bi bi-file-earmark-spreadsheet"></i> Exportar CSV
+                            <i class="bi bi-file-earmark-spreadsheet"></i> CSV
                         </a>
                     </div>
                 </div>
 
+                <!-- Pílulas de Filtro Rápido (UX Zero-Latency) -->
+                <div class="d-flex gap-2 overflow-x-auto pb-2 mb-3 scroll-mobile">
+                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro active" data-filtro="todos">Todos ({{ transacoes|length }})</span>
+                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="titular">Meus Gastos</span>
+                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="terceiros">Terceiros / Amigos</span>
+                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="fixos">Recorrentes / Fixos</span>
+                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="cartao">No Cartão</span>
+                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 chip-filtro" data-filtro="pix">Pix / Dinheiro</span>
+                </div>
+
                 <div class="list-group list-group-flush" id="listaTransacoesContainer">
                     {% for t in transacoes %}
-                    <div class="list-group-item bg-transparent px-2 py-3 d-flex justify-content-between align-items-center border-bottom linha-clicavel rounded-3 item-transacao-lista">
+                    <div class="list-group-item bg-transparent px-2 py-3 d-flex justify-content-between align-items-center border-bottom linha-clicavel rounded-3 item-transacao-lista"
+                         data-titular="{% if t.dono.is_titular %}1{% else %}0{% endif %}"
+                         data-fixo="{% if t.recorrente %}1{% else %}0{% endif %}"
+                         data-cartao="{% if t.cartao %}1{% else %}0{% endif %}">
                         <div class="d-flex align-items-center gap-3 me-2" style="min-width: 0; flex: 1; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" title="Clique para editar ou excluir">
                             <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; background-color: {% if t.tipo == 'DESPESA' %}#ffebee{% else %}#e8f5e9{% endif %};">
                                 {% if t.tipo == 'DESPESA' %}<i class="bi bi-arrow-down-short text-danger fs-4"></i>{% else %}<i class="bi bi-arrow-up-short text-success fs-4"></i>{% endif %}
                             </div>
                             <div style="min-width: 0; flex: 1;">
-                                <h6 class="mb-1 fw-bold text-dark text-truncate">{{ t.descricao }}</h6>
+                                <h6 class="mb-1 fw-bold text-dark text-truncate">
+                                    {{ t.descricao }}
+                                    {% if t.recorrente %}<span class="badge bg-info bg-opacity-10 text-info rounded-pill ms-1" style="font-size: 0.6rem;">FIXO</span>{% endif %}
+                                </h6>
                                 <div class="d-flex align-items-center flex-wrap gap-1 text-muted" style="font-size: 0.7rem;">
                                     <span class="fw-bold text-dark"><i class="bi bi-calendar-event"></i> {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}</span>
                                     <span> • <i class="bi bi-tag-fill text-primary"></i> {{ t.categoria|default:"Outros" }}</span>
@@ -325,7 +415,7 @@
                             </div>
                         </div>
                         <div class="text-end flex-shrink-0 ps-2">
-                            <h6 class="mb-1 fw-bold text-nowrap {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %}" style="font-size: 0.9rem;">
+                            <h6 class="mb-1 fw-bold text-nowrap {% if t.tipo == 'DESPESA' %}text-danger{% else %}text-success{% endif %} valor-sensivel" style="font-size: 0.9rem;">
                                 {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
                             </h6>
                             <form method="POST" action="{% url 'excluir_transacao' t.id %}" class="m-0 p-0 d-inline" onsubmit="event.stopPropagation(); return confirm('Excluir este lançamento?');">
@@ -339,7 +429,12 @@
                         </div>
                     </div>
                     {% empty %}
-                    <div class="text-center py-4"><p class="text-muted small mb-0">Nenhum lançamento encontrado nesta fatura. 🛒</p></div>
+                    <div class="text-center py-5">
+                        <p class="text-muted small mb-3">Nenhum lançamento registrado em {{ mes_atual }}/{{ ano_atual }}. 🛒</p>
+                        <button class="btn btn-sm btn-primary rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#modalTransacao">
+                            <i class="bi bi-plus-lg"></i> Criar Primeiro Lançamento
+                        </button>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
@@ -347,7 +442,7 @@
     </div>
 
     <!-- Botão Flutuante -->
-    <button class="btn btn-primary shadow-lg rounded-circle position-fixed bottom-0 end-0 m-4 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; z-index: 1000;" data-bs-toggle="modal" data-bs-target="#modalTransacao"><i class="bi bi-plus-lg fs-4"></i></button>
+    <button class="btn btn-primary shadow-lg rounded-circle position-fixed bottom-0 end-0 m-4 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; z-index: 1000;" data-bs-toggle="modal" data-bs-target="#modalTransacao" title="Nova Transação"><i class="bi bi-plus-lg fs-4"></i></button>
 
     <!-- ========================================== -->
     <!-- MODAL SIMULADOR "POSSO COMPRAR?"           -->
@@ -360,7 +455,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="small text-muted">Teste o impacto de uma nova compra antes de passar o cartão.</p>
+                    <p class="small text-muted">Simule o impacto de uma nova compra antes de passar o cartão.</p>
                     <div class="row g-2 mb-3">
                         <div class="col-7">
                             <label class="form-label small fw-bold text-secondary">Valor Total do Item (R$)</label>
@@ -391,7 +486,7 @@
                 <div class="modal-body">
                     <div class="bg-light p-3 rounded-4 mb-3 small">
                         <div><strong><i class="bi bi-person-badge"></i> Conta Protegida:</strong> {{ usuario.username }}</div>
-                        <div class="text-muted">Registro de acesso conforme Marco Civil da Internet (Art. 15) e LGPD (Lei nº 13.709/2018).</div>
+                        <div class="text-muted">Conformidade integral com a LGPD (Lei nº 13.709/2018) e Marco Civil da Internet (Lei nº 12.965/2014).</div>
                     </div>
 
                     <h6 class="fw-bold text-dark small mb-2">1. Portabilidade e Backup (Art. 18, V da LGPD)</h6>
@@ -489,7 +584,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST">
+                    <form method="POST" class="form-protegido">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="editar_pessoa">
                         <input type="hidden" name="pessoa_id" value="{{ p.id }}">
@@ -518,7 +613,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST">
+                    <form method="POST" class="form-protegido">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="nova_transacao">
                         
@@ -664,6 +759,10 @@
                             <span class="small text-dark fw-bold">{{ maior_categoria }} (R$ {{ valor_maior_cat|floatformat:2 }})</span>
                         </div>
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
+                            <span class="small text-secondary fw-bold">Ticket Médio:</span>
+                            <span class="small text-dark fw-bold">R$ {{ analise_ia.ticket_medio|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
                             <span class="small text-secondary fw-bold">Impacto Anual dos Fixos:</span>
                             <span class="small text-dark fw-bold">R$ {{ analise_ia.custo_fixo_anual|floatformat:2 }}/ano</span>
                         </div>
@@ -677,16 +776,16 @@
         </div>
     </div>
 
-    <!-- Modal Gerenciar e Criar Cartões -->
+    <!-- Modal Gerenciar e Criar Cartões com Status de Ciclo -->
     <div class="modal fade" id="modalCartao" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-credit-card text-primary"></i> Meus Cartões</h5>
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-credit-card text-primary"></i> Inteligência de Cartões</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST" class="mb-4">
+                    <form method="POST" class="mb-4 form-protegido">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="novo_cartao">
                         <div class="mb-3">
@@ -706,15 +805,18 @@
                         <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">Adicionar Cartão</button>
                     </form>
 
-                    {% if cartoes %}
+                    {% if resumo_cartoes %}
                     <hr>
-                    <h6 class="fw-bold small text-secondary mb-2">Cartões Cadastrados</h6>
+                    <h6 class="fw-bold small text-secondary mb-2">Faturas e Ciclos em {{ mes_atual }}/{{ ano_atual }}</h6>
                     <div class="list-group list-group-flush">
-                        {% for c in cartoes %}
+                        {% for c in resumo_cartoes %}
                         <div class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
                             <div class="small">
                                 <strong>{{ c.nome }}</strong>
-                                <span class="text-muted d-block" style="font-size: 0.72rem;">Fecha dia {{ c.dia_fechamento }} • Vence dia {{ c.dia_vencimento }}</span>
+                                <span class="badge bg-{{ c.cor_badge }} bg-opacity-10 text-{{ c.cor_badge }} rounded-pill ms-1" style="font-size: 0.65rem;">{{ c.status_ciclo }}</span>
+                                <span class="text-muted d-block valor-sensivel" style="font-size: 0.72rem;">
+                                    Fatura atual: <strong>R$ {{ c.total_fatura|floatformat:2 }}</strong> • Fecha dia {{ c.dia_fechamento }} / Vence dia {{ c.dia_vencimento }}
+                                </span>
                             </div>
                             <form method="POST" action="{% url 'excluir_cartao' c.id %}" onsubmit="return confirm('Excluir o cartão {{ c.nome }}?');">
                                 {% csrf_token %}
@@ -738,7 +840,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST">
+                    <form method="POST" class="form-protegido">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="nova_pessoa">
                         <div class="mb-3">
@@ -765,7 +867,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST" enctype="multipart/form-data">
+                    <form method="POST" enctype="multipart/form-data" class="form-protegido">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="upload_fatura">
                         <div class="alert alert-primary bg-primary bg-opacity-10 border-0 small rounded-3 mb-4">
@@ -793,7 +895,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <form method="POST">
+                        <form method="POST" class="form-protegido">
                             {% csrf_token %}
                             <input type="hidden" name="form_type" value="registrar_pagamento">
                             <input type="hidden" name="dono_id" value="{{ divida.id }}">
@@ -839,7 +941,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST">
+                    <form method="POST" class="form-protegido">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="editar_transacao">
                         <input type="hidden" name="transacao_id" value="{{ t.id }}">
@@ -986,9 +1088,86 @@
     
     {{ labels_grafico|json_script:"labels-data" }}
     {{ valores_grafico|json_script:"valores-data" }}
+    {{ labels_evolucao|json_script:"labels-evolucao-data" }}
+    {{ valores_evolucao|json_script:"valores-evolucao-data" }}
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Proteção contra Duplo Clique em Formulários (Idempotência UI/UX)
+            document.querySelectorAll('.form-protegido').forEach(function(form) {
+                form.addEventListener('submit', function() {
+                    const btn = form.querySelector('button[type="submit"]');
+                    if (btn && !btn.disabled) {
+                        btn.disabled = true;
+                        btn.dataset.originalHtml = btn.innerHTML;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processando...';
+                    }
+                });
+            });
+
+            // Modo Privacidade Fintech (Olho Mágico)
+            const btnPrivacy = document.getElementById('btnPrivacyMode');
+            const iconPrivacy = document.getElementById('iconPrivacy');
+            function aplicarEstadoPrivacidade(ativo) {
+                document.body.classList.toggle('privacy-blur', ativo);
+                if (iconPrivacy) {
+                    iconPrivacy.className = ativo ? 'bi bi-eye-slash-fill text-primary' : 'bi bi-eye';
+                }
+            }
+            aplicarEstadoPrivacidade(localStorage.getItem('finpro_privacy_blur') === 'true');
+            if (btnPrivacy) {
+                btnPrivacy.addEventListener('click', function() {
+                    const novoEstado = !document.body.classList.contains('privacy-blur');
+                    localStorage.setItem('finpro_privacy_blur', novoEstado);
+                    aplicarEstadoPrivacidade(novoEstado);
+                });
+            }
+
+            // Modo Escuro (Dark Mode)
+            const btnDark = document.getElementById('btnDarkMode');
+            if (localStorage.getItem('finpro_dark_mode') === 'true') {
+                document.body.classList.add('dark-mode');
+            }
+            if (btnDark) {
+                btnDark.addEventListener('click', function() {
+                    document.body.classList.toggle('dark-mode');
+                    localStorage.setItem('finpro_dark_mode', document.body.classList.contains('dark-mode'));
+                });
+            }
+
+            // Filtro Combinado: Busca por Texto + Pílulas de Categoria/Tipo
+            const inputBusca = document.getElementById('inputBuscaTransacao');
+            let filtroChipAtivo = 'todos';
+
+            function aplicarFiltrosLista() {
+                const termo = (inputBusca ? inputBusca.value : '').toLowerCase().trim();
+                document.querySelectorAll('.item-transacao-lista').forEach(function(item) {
+                    const texto = item.innerText.toLowerCase();
+                    const bateTexto = !termo || texto.includes(termo);
+                    let bateChip = true;
+
+                    if (filtroChipAtivo === 'titular') bateChip = item.dataset.titular === '1';
+                    else if (filtroChipAtivo === 'terceiros') bateChip = item.dataset.titular === '0';
+                    else if (filtroChipAtivo === 'fixos') bateChip = item.dataset.fixo === '1';
+                    else if (filtroChipAtivo === 'cartao') bateChip = item.dataset.cartao === '1';
+                    else if (filtroChipAtivo === 'pix') bateChip = item.dataset.cartao === '0';
+
+                    item.style.display = (bateTexto && bateChip) ? 'flex' : 'none';
+                });
+            }
+
+            if (inputBusca) {
+                inputBusca.addEventListener('input', aplicarFiltrosLista);
+            }
+            document.querySelectorAll('.chip-filtro').forEach(function(chip) {
+                chip.addEventListener('click', function() {
+                    document.querySelectorAll('.chip-filtro').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    filtroChipAtivo = this.dataset.filtro;
+                    aplicarFiltrosLista();
+                });
+            });
+
             // Simulador "Posso Comprar?"
             const btnSimular = document.getElementById('btnAnalisarCompra');
             if (btnSimular) {
@@ -1012,41 +1191,17 @@
 
                     if (valorMeta <= 0) {
                         boxRes.className = 'p-3 rounded-4 small alert alert-info mb-0';
-                        boxRes.innerHTML = `<strong>Parcela: R$ ${valorParcela.toFixed(2)}/mês.</strong> Defina uma Meta do Mês no painel para calcularmos o risco exato.`;
+                        boxRes.innerHTML = `<strong>Parcela: R$ ${valorParcela.toFixed(2)}/mês.</strong> Defina uma Meta Mensal no painel para calcularmos o risco exato.`;
                     } else if (novoSaldo >= valorMeta * 0.15) {
                         boxRes.className = 'p-3 rounded-4 small alert alert-success mb-0';
                         boxRes.innerHTML = `✅ <strong>Compra Aprovada pela IA!</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> cabe com folga na sua meta e ainda sobram R$ ${novoSaldo.toFixed(2)} neste mês.`;
                     } else if (novoSaldo >= 0) {
                         boxRes.className = 'p-3 rounded-4 small alert alert-warning mb-0';
-                        boxRes.innerHTML = `⚠️ <strong>Atenção:</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> cabe no limite, mas deixará sua margem do mês apertada (sobrarão apenas R$ ${novoSaldo.toFixed(2)}).`;
+                        boxRes.innerHTML = `⚠️ <strong>Atenção:</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> cabe no limite, mas deixará sua margem do mês apertada (sobrarão R$ ${novoSaldo.toFixed(2)}).`;
                     } else {
                         boxRes.className = 'p-3 rounded-4 small alert alert-danger mb-0';
-                        boxRes.innerHTML = `🛑 <strong>Alto Risco:</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> fará você estourar sua meta mensal em <strong>R$ ${Math.abs(novoSaldo).toFixed(2)}</strong>. Recomendamos adiar ou aumentar o parcelamento.`;
+                        boxRes.innerHTML = `🛑 <strong>Alto Risco:</strong> A parcela de <strong>R$ ${valorParcela.toFixed(2)}</strong> fará você ultrapassar sua meta mensal em <strong>R$ ${Math.abs(novoSaldo).toFixed(2)}</strong>.`;
                     }
-                });
-            }
-
-            // Modo Escuro (Dark Mode)
-            const btnDark = document.getElementById('btnDarkMode');
-            if (localStorage.getItem('finpro_dark_mode') === 'true') {
-                document.body.classList.add('dark-mode');
-            }
-            if (btnDark) {
-                btnDark.addEventListener('click', function() {
-                    document.body.classList.toggle('dark-mode');
-                    localStorage.setItem('finpro_dark_mode', document.body.classList.contains('dark-mode'));
-                });
-            }
-
-            // Filtro de busca instantânea
-            const inputBusca = document.getElementById('inputBuscaTransacao');
-            if (inputBusca) {
-                inputBusca.addEventListener('input', function() {
-                    const termo = this.value.toLowerCase().trim();
-                    document.querySelectorAll('.item-transacao-lista').forEach(function(item) {
-                        const texto = item.innerText.toLowerCase();
-                        item.style.display = texto.includes(termo) ? 'flex' : 'none';
-                    });
                 });
             }
 
@@ -1188,26 +1343,70 @@
                 });
             }
 
-            // Gráfico Chart.js
-            const ctx = document.getElementById('graficoGastos');
-            const labelsSeguros = JSON.parse(document.getElementById('labels-data').textContent);
-            const dadosSeguros = JSON.parse(document.getElementById('valores-data').textContent);
+            // Gráficos Chart.js (Categorias Doughnut + Evolução 6 Meses Bar)
+            const ctxCat = document.getElementById('graficoGastos');
+            const labelsCat = JSON.parse(document.getElementById('labels-data').textContent);
+            const dadosCat = JSON.parse(document.getElementById('valores-data').textContent);
             
-            if (ctx && labelsSeguros.length > 0) {
-                new Chart(ctx, {
+            if (ctxCat && labelsCat.length > 0) {
+                new Chart(ctxCat, {
                     type: 'doughnut',
                     data: {
-                        labels: labelsSeguros,
+                        labels: labelsCat,
                         datasets: [{
-                            data: dadosSeguros,
+                            data: dadosCat,
                             backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'],
-                            borderWidth: 0, hoverOffset: 4
+                            borderWidth: 0, hoverOffset: 6
                         }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, font: { family: "'Poppins', sans-serif", size: 11 } } } }, cutout: '70%' }
                 });
-            } else if (ctx) {
-                ctx.outerHTML = '<div class="d-flex align-items-center justify-content-center h-100 bg-light rounded-4 border border-dashed"><p class="text-muted small mb-0">Nenhum gasto pessoal registrado neste mês.</p></div>';
+            } else if (ctxCat) {
+                ctxCat.outerHTML = '<div class="d-flex align-items-center justify-content-center h-100 bg-light rounded-4 border"><p class="text-muted small mb-0">Nenhum gasto pessoal registrado neste mês.</p></div>';
+            }
+
+            const ctxEvo = document.getElementById('graficoEvolucao');
+            const labelsEvo = JSON.parse(document.getElementById('labels-evolucao-data').textContent);
+            const dadosEvo = JSON.parse(document.getElementById('valores-evolucao-data').textContent);
+            if (ctxEvo && labelsEvo.length > 0) {
+                new Chart(ctxEvo, {
+                    type: 'bar',
+                    data: {
+                        labels: labelsEvo,
+                        datasets: [{
+                            label: 'Meus Gastos (R$)',
+                            data: dadosEvo,
+                            backgroundColor: '#0d6efd',
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            const btnVerCat = document.getElementById('btnVerCategorias');
+            const btnVerEvo = document.getElementById('btnVerEvolucao');
+            const boxCat = document.getElementById('containerGraficoCategorias');
+            const boxEvo = document.getElementById('containerGraficoEvolucao');
+
+            if (btnVerCat && btnVerEvo) {
+                btnVerCat.addEventListener('click', function() {
+                    btnVerCat.classList.add('active');
+                    btnVerEvo.classList.remove('active');
+                    boxCat.style.display = 'block';
+                    boxEvo.style.display = 'none';
+                });
+                btnVerEvo.addEventListener('click', function() {
+                    btnVerEvo.classList.add('active');
+                    btnVerCat.classList.remove('active');
+                    boxEvo.style.display = 'block';
+                    boxCat.style.display = 'none';
+                });
             }
         });
 

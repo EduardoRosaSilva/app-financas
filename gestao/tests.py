@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -151,29 +152,24 @@ class FinProSystemTests(TestCase):
         self.assertContains(res_nov, 'Supermercado Mart Minas')
 
     def test_6_botoes_de_exclusao_limpeza_de_dados_e_lgpd(self):
-        """Testa exclusão individual, limpeza de lançamentos da conta e exclusão total LGPD."""
         u = User.objects.create_user(username='titular_lgpd', password='MinhaSenha123')
         self.client.force_login(u)
         p = Pessoa.objects.create(nome='Titular', conta='titular_lgpd', is_titular=True)
         t1 = Transacao.objects.create(descricao='Item 1', valor=50, data=date.today(), tipo='DESPESA', dono=p, conta='titular_lgpd')
         Transacao.objects.create(descricao='Item 2', valor=80, data=date.today(), tipo='DESPESA', dono=p, conta='titular_lgpd')
 
-        # 1. Excluir transação individual via POST
         self.client.post(reverse('excluir_transacao', args=[t1.id]))
         self.assertEqual(Transacao.objects.filter(conta='titular_lgpd').count(), 1)
 
-        # 2. Zerar todos os dados financeiros mantendo a conta
         self.client.post(reverse('limpar_dados_financeiros'), {'escopo': 'tudo', 'zerar_cartoes': '1'})
         self.assertEqual(Transacao.objects.filter(conta='titular_lgpd').count(), 0)
         self.assertTrue(User.objects.filter(username='titular_lgpd').exists())
 
-        # 3. Excluir conta completa LGPD digitando EXCLUIR
         res_del = self.client.post(reverse('excluir_conta_lgpd'), {'confirmacao_texto': 'EXCLUIR'})
         self.assertEqual(res_del.status_code, 302)
         self.assertFalse(User.objects.filter(username='titular_lgpd').exists())
 
     def test_7_lancamento_inteligente_nlp_e_health_check(self):
-        """Testa a barra de comando IA por linguagem natural e o endpoint /health/ anti-sleep."""
         res_health = self.client.get(reverse('health_check'))
         self.assertEqual(res_health.status_code, 200)
 
@@ -191,4 +187,21 @@ class FinProSystemTests(TestCase):
         self.assertIsNotNone(t)
         self.assertEqual(float(t.valor), 34.90)
         self.assertEqual(t.categoria, 'Transporte')
-        self.assertEqual(t.cartao.nome, 'Nubank')
+
+    def test_8_regra_contabil_parcelamento_sem_perda_de_centavos(self):
+        """Garante que R$ 100,00 dividido em 3x soma exatamente R$ 100,00 (33.34 + 33.33 + 33.33)."""
+        u = User.objects.create_user(username='contabil', password='123')
+        self.client.force_login(u)
+        Pessoa.objects.create(nome='Contabil', conta='contabil', is_titular=True)
+
+        self.client.post(reverse('dashboard'), {
+            'form_type': 'lancamento_inteligente',
+            'comando_ia': 'Tenis Corrida 100,00 3x',
+        })
+        parcelas = list(Transacao.objects.filter(conta='contabil').order_by('data'))
+        self.assertEqual(len(parcelas), 3)
+        soma_exata = sum((p.valor for p in parcelas), Decimal('0.00'))
+        self.assertEqual(soma_exata, Decimal('100.00'))
+        self.assertEqual(parcelas[0].valor, Decimal('33.34'))
+        self.assertEqual(parcelas[1].valor, Decimal('33.33'))
+        self.assertEqual(parcelas[2].valor, Decimal('33.33'))

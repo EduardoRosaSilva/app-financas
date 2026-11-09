@@ -7,39 +7,65 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <style>body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; }</style>
+    <style>
+        body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #f0f4ff 0%, #f8fafc 100%); }
+    </style>
 </head>
-<body class="d-flex align-items-center justify-content-center vh-100">
-    <div class="card border-0 shadow-lg rounded-4 p-4" style="width: 100%; max-width: 400px; margin: 20px;">
+<body class="d-flex align-items-center justify-content-center min-vh-100">
+    <div class="card border-0 shadow-lg rounded-4 p-4" style="width: 100%; max-width: 410px; margin: 20px;">
         <div class="text-center mb-4">
-            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-wallet2"></i> FinPro</h3>
-            <p class="text-muted small">Acesse sua gestão financeira</p>
+            <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-circle mb-2" style="width: 56px; height: 56px;">
+                <i class="bi bi-wallet2 fs-3"></i>
+            </div>
+            <h3 class="fw-bold text-primary mb-0">FinPro</h3>
+            <p class="text-muted small mb-0">Gestão financeira inteligente e segura</p>
         </div>
         
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-danger rounded-3 small py-2">{{ message }}</div>
+                <div class="alert alert-danger rounded-3 small py-2"><i class="bi bi-exclamation-circle me-1"></i> {{ message }}</div>
             {% endfor %}
         {% endif %}
 
-        <form method="POST">
+        <form method="POST" id="formLogin">
             {% csrf_token %}
             {{ form }}
-            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 mt-3 fw-bold shadow-sm">Entrar no Sistema</button>
+            <div class="form-check mt-1 mb-3 ms-1">
+                <input class="form-check-input" type="checkbox" id="chkMostrarSenha">
+                <label class="form-check-label small text-secondary" for="chkMostrarSenha" style="cursor: pointer;">
+                    Mostrar minha senha
+                </label>
+            </div>
+            <button type="submit" id="btnSubmitLogin" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">
+                Entrar no Sistema
+            </button>
         </form>
         <div class="text-center mt-4">
             <a href="{% url 'registro' %}" class="text-decoration-none small text-secondary">Ainda não tem conta? <span class="text-primary fw-bold">Criar agora</span></a>
         </div>
     </div>
     
-    <!-- Script Mágico para deixar o formulário do Django com cara de Bootstrap -->
     <script>
         document.querySelectorAll('input').forEach(e => {
             if(e.type !== 'submit' && e.type !== 'checkbox') {
                 e.classList.add('form-control', 'bg-light', 'border-0', 'rounded-4', 'mb-3', 'py-2');
             }
         });
-        document.querySelectorAll('label').forEach(e => e.classList.add('small', 'text-muted', 'fw-bold', 'mb-1', 'ms-1'));
+        document.querySelectorAll('label').forEach(e => {
+            if(e.htmlFor !== 'chkMostrarSenha') {
+                e.classList.add('small', 'text-muted', 'fw-bold', 'mb-1', 'ms-1');
+            }
+        });
+        document.getElementById('chkMostrarSenha').addEventListener('change', function() {
+            document.querySelectorAll('input[type="password"], input[name="password"]').forEach(inp => {
+                inp.type = this.checked ? 'text' : 'password';
+            });
+        });
+        document.getElementById('formLogin').addEventListener('submit', function() {
+            const btn = document.getElementById('btnSubmitLogin');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Autenticando...';
+        });
     </script>
 </body>
 </html>
