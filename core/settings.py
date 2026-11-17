@@ -12,7 +12,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 EM_PRODUCAO = os.environ.get('RENDER') is not None
 EM_TESTE = 'test' in sys.argv
-DEBUG = not EM_PRODUCAO and os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
+
+# Seguro por padrão (False se a variável DEBUG não for declarada explicitamente)
+DEBUG = not EM_PRODUCAO and os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 # ==========================================
 # 1. SECRET_KEY SEM FALLBACK EXPOSTO
@@ -74,6 +76,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'gestao.middleware.PostgresRLSMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -164,7 +167,7 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": (
             "django.contrib.staticfiles.storage.StaticFilesStorage"
-            if (DEBUG or EM_TESTE)
+            if (not EM_PRODUCAO or DEBUG or EM_TESTE)
             else "whitenoise.storage.CompressedManifestStaticFilesStorage"
         ),
     },
@@ -177,12 +180,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ==========================================
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 dias
+SESSION_COOKIE_AGE = 60 * 60 * 8  # Expira após 8 horas
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Lax'
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # Trava de 5MB no servidor
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # Trava de 5MB para payloads POST
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 6500  # Suporta revisão de faturas grandes sem erro 400
 
 if EM_PRODUCAO and not EM_TESTE:
     SECURE_SSL_REDIRECT = True
@@ -196,3 +202,30 @@ if EM_PRODUCAO and not EM_TESTE:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+# ==========================================
+# 5. AUDITORIA E LOGGING DE SEGURANÇA (SEM DADOS SENSÍVEIS)
+# ==========================================
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'seguranca': {
+            'format': '[{asctime}] {levelname} [FINPRO-SECURITY] {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'seguranca',
+        },
+    },
+    'loggers': {
+        'finpro.security': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}

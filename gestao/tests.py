@@ -158,20 +158,19 @@ class FinProSystemTests(TestCase):
         t1 = Transacao.objects.create(descricao='Item 1', valor=50, data=date.today(), tipo='DESPESA', dono=p, conta='titular_lgpd')
         Transacao.objects.create(descricao='Item 2', valor=80, data=date.today(), tipo='DESPESA', dono=p, conta='titular_lgpd')
 
-        # 1. Tentativa de excluir transação via GET deve ser bloqueada com 405 (Method Not Allowed)
         res_get = self.client.get(reverse('excluir_transacao', args=[t1.id]))
         self.assertEqual(res_get.status_code, 405)
         self.assertEqual(Transacao.objects.filter(conta='titular_lgpd').count(), 2)
 
-        # 2. Exclusão via POST funciona normalmente
+        res_logout_get = self.client.get(reverse('logout'))
+        self.assertEqual(res_logout_get.status_code, 405)
+
         self.client.post(reverse('excluir_transacao', args=[t1.id]))
         self.assertEqual(Transacao.objects.filter(conta='titular_lgpd').count(), 1)
 
-        # 3. Tentativa de excluir conta LGPD sem a senha real deve ser rejeitada
         self.client.post(reverse('excluir_conta_lgpd'), {'senha_confirmacao': 'EXCLUIR'})
         self.assertTrue(User.objects.filter(username='titular_lgpd').exists())
 
-        # 4. Exclusão de conta LGPD com a senha real remove conta e dados
         res_del_ok = self.client.post(reverse('excluir_conta_lgpd'), {'senha_confirmacao': 'MinhaSenhaForte!2026'})
         self.assertEqual(res_del_ok.status_code, 302)
         self.assertFalse(User.objects.filter(username='titular_lgpd').exists())
@@ -212,10 +211,48 @@ class FinProSystemTests(TestCase):
         self.assertEqual(parcelas[1].valor, Decimal('33.33'))
         self.assertEqual(parcelas[2].valor, Decimal('33.33'))
 
-    def test_9_rate_limiting_bloqueia_forca_bruta_no_login(self):
+    def test_9_rate_limiting_anti_spoofing_bloqueia_forca_bruta_no_login(self):
         User.objects.create_user(username='alvo', password='SenhaCorreta!123')
-        for _ in range(6):
-            self.client.post(reverse('login'), {'username': 'alvo', 'password': 'errada'})
+        for i in range(6):
+            self.client.post(
+                reverse('login'),
+                {'username': 'alvo', 'password': 'errada'},
+                HTTP_X_FORWARDED_FOR=f"10.0.0.{i}, 200.100.50.25"
+            )
 
-        res_bloq = self.client.post(reverse('login'), {'username': 'alvo', 'password': 'SenhaCorreta!123'})
+        res_bloq = self.client.post(
+            reverse('login'),
+            {'username': 'alvo', 'password': 'SenhaCorreta!123'},
+            HTTP_X_FORWARDED_FOR="192.168.1.99, 200.100.50.25"
+        )
         self.assertEqual(res_bloq.status_code, 429)
+
+    def test_10_validacao_inputs_negativos_seo_e_paginas_legais(self):
+        u = User.objects.create_user(username='validador', password='123')
+        self.client.force_login(u)
+        titular = Pessoa.objects.create(nome='Validador', conta='validador', is_titular=True)
+
+        # Tenta criar despesa com valor negativo e parcelas inválidas
+        self.client.post(reverse('dashboard'), {
+            'form_type': 'nova_transacao',
+            'descricao': 'Fraude Negativa',
+            'valor': '-500,00',
+            'data': date.today().strftime('%Y-%m-%d'),
+            'dono_id': titular.id,
+            'parcelas': 'abc'
+        })
+        self.assertEqual(Transacao.objects.filter(conta='validador').count(), 0)
+
+        # Valida páginas de SEO e conformidade jurídica
+        res_robots = self.client.get(reverse('robots_txt'))
+        self.assertEqual(res_robots.status_code, 200)
+        self.assertNotIn('cofre-gestao-admin', res_robots.content.decode('utf-8'))
+
+        res_sitemap = self.client.get(reverse('sitemap_xml'))
+        self.assertEqual(res_sitemap.status_code, 200)
+
+        res_priv = self.client.get(reverse('politica_privacidade'))
+        self.assertEqual(res_priv.status_code, 200)
+
+        res_termos = self.client.get(reverse('termos_uso'))
+        self.assertEqual(res_termos.status_code, 200)

@@ -1,16 +1,24 @@
-# Python
-backend/venv/
-backend/__pycache__/
-backend/*.pyc
-backend/db.sqlite3
-
-# Node
-frontend/node_modules/
-frontend/.next/
-
-.env
-db.sqlite3
-__pycache__/
-*.pyc
+﻿# Ambientes virtuais e cache Python
 venv/
-env/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Segredos, chaves e variáveis de ambiente
+.env
+.env.*
+*.pem
+*.key
+*credentials*.json
+*serviceAccount*.json
+
+# Banco de dados local, estáticos compilados e dumps de texto
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+codigo_completo*.txt
+
+# Pastas de projetos paralelos / Node
+node_modules/
+frontend/
+backend/

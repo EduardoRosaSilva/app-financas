@@ -1,32 +1,25 @@
-from gestao.models import Conta
+from django.db import connection
 
-class ContaInvisivelMiddleware:
+
+class PostgresRLSMiddleware:
+    """Define a variável de sessão 'app.current_tenant' no PostgreSQL para isolamento via RLS."""
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        conta_id = request.COOKIES.get('finpro_conta_id')
-        conta = None
+        if connection.vendor == 'postgresql':
+            tenant = (
+                request.user.username
+                if getattr(request, 'user', None) and request.user.is_authenticated
+                else ''
+            )
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT set_config('app.current_tenant', %s, false);", [tenant])
 
-        if conta_id:
-            try:
-                conta = Conta.objects.get(id=conta_id)
-            except Conta.DoesNotExist:
-                conta = None
-
-        if not conta:
-            conta = Conta.objects.create()
-
-        request.conta = conta
         response = self.get_response(request)
 
-        if not conta_id or conta_id != str(conta.id):
-            response.set_cookie(
-                'finpro_conta_id',
-                str(conta.id),
-                max_age=10 * 365 * 24 * 60 * 60,
-                httponly=True,
-                samesite='Lax'
-            )
+        if connection.vendor == 'postgresql':
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT set_config('app.current_tenant', '', false);")
 
         return response

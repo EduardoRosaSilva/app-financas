@@ -4,9 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-    <title>FinPro</title>
-    
+    <title>FinPro | Painel de Controle Financeiro e Conciliação de Faturas</title>
+    <meta name="description" content="Gerencie despesas mensais, concilie faturas de cartão de crédito em CSV, acompanhe metas de orçamento e divida despesas com precisão contábil.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="{{ request.build_absolute_uri }}">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="FinPro | Controle Financeiro e Conciliação de Faturas">
+    <meta property="og:description" content="Sistema web para controle de orçamento pessoal, rateio de despesas e importação de faturas CSV.">
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'icone.png' %}">
     <meta name="theme-color" content="#0f172a">
+
     <link rel="icon" type="image/png" href="{% static 'icone.png' %}">
     <link rel="apple-touch-icon" href="{% static 'icone.png' %}">
     <link rel="manifest" href="{% static 'manifest.json' %}">
@@ -20,17 +28,17 @@
             --bg-surface: #ffffff;
             --bg-subtle: #f1f5f9;
             --text-primary: #0f172a;
-            --text-secondary: #64748b;
-            --border-color: #e2e8f0;
-            --accent: #2563eb;
+            --text-secondary: #334155;
+            --border-color: #cbd5e1;
+            --accent: #1d4ed8;
         }
         body.dark-mode {
             --bg-app: #090d16;
             --bg-surface: #111827;
             --bg-subtle: #1e293b;
             --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --border-color: #1f2937;
+            --text-secondary: #cbd5e1;
+            --border-color: #334155;
             --accent: #3b82f6;
         }
 
@@ -50,11 +58,32 @@
             -webkit-font-smoothing: antialiased;
         }
 
+        .skip-link {
+            position: absolute;
+            top: -50px;
+            left: 12px;
+            background: var(--accent);
+            color: #ffffff;
+            padding: 8px 14px;
+            z-index: 100000;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .skip-link:focus {
+            top: 10px;
+        }
+        a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, .chip-filtro:focus-visible {
+            outline: 2px solid var(--accent) !important;
+            outline-offset: 2px !important;
+        }
+
         .app-shell {
             width: 100%;
             max-width: 920px;
             margin: 0 auto;
-            padding: 0 12px 90px 12px;
+            padding: 0 12px 40px 12px;
             overflow-x: hidden;
         }
 
@@ -63,8 +92,8 @@
             max-width: 100%;
             background-color: var(--bg-surface);
             border: 1px solid var(--border-color);
-            border-radius: 16px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
             overflow: hidden;
         }
 
@@ -83,7 +112,7 @@
             width: 34px;
             height: 34px;
             flex: 0 0 34px;
-            border-radius: 10px;
+            border-radius: 6px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -100,7 +129,7 @@
             justify-content: space-between;
             background-color: var(--bg-subtle);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
+            border-radius: 6px;
             padding: 6px 12px;
             font-size: 0.85rem;
             font-weight: 600;
@@ -109,7 +138,7 @@
             color: var(--text-primary);
             text-decoration: none;
             padding: 2px 8px;
-            border-radius: 8px;
+            border-radius: 6px;
         }
 
         .quick-actions-grid {
@@ -123,7 +152,7 @@
             width: 100%;
             background-color: var(--bg-surface);
             border: 1px solid var(--border-color);
-            border-radius: 14px;
+            border-radius: 6px;
             padding: 10px 4px;
             display: flex;
             flex-direction: column;
@@ -139,10 +168,13 @@
             text-overflow: ellipsis;
         }
         .action-tile i {
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             color: var(--accent);
         }
 
+        .form-control, .form-select, .btn {
+            border-radius: 6px !important;
+        }
         .form-control, .form-select {
             min-width: 0;
             max-width: 100%;
@@ -150,13 +182,12 @@
             background-color: var(--bg-subtle);
             border: 1px solid var(--border-color);
             color: var(--text-primary);
-            border-radius: 12px;
         }
         .form-control:focus, .form-select:focus {
             background-color: var(--bg-surface);
             color: var(--text-primary);
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            box-shadow: none;
         }
 
         .kpi-mini-grid {
@@ -168,7 +199,7 @@
         .kpi-mini-box {
             min-width: 0;
             background-color: var(--bg-subtle);
-            border-radius: 10px;
+            border-radius: 6px;
             padding: 8px 6px;
             text-align: center;
             overflow: hidden;
@@ -223,7 +254,7 @@
             font-size: 0.75rem;
             font-weight: 500;
             padding: 6px 12px;
-            border-radius: 999px;
+            border-radius: 6px;
             background-color: var(--bg-subtle);
             color: var(--text-secondary);
             border: 1px solid var(--border-color);
@@ -258,6 +289,29 @@
             }
         }
 
+        .whatsapp-float {
+            position: fixed;
+            bottom: 18px;
+            right: 16px;
+            z-index: 1010;
+            background-color: #15803d;
+            color: #ffffff;
+            border: 1px solid #166534;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .whatsapp-float:hover {
+            color: #ffffff;
+            background-color: #166534;
+        }
+
         .alerta-flutuante {
             position: fixed;
             top: 14px;
@@ -285,137 +339,141 @@
     </style>
 </head>
 <body>
-    <header class="top-bar py-2 mb-3">
+    <a href="#conteudo-principal" class="skip-link">Pular para o conteúdo principal</a>
+
+    <header class="top-bar py-2 mb-3" role="banner">
         <div class="app-shell py-1 d-flex justify-content-between align-items-center" style="padding-bottom: 0;">
-            <span class="fw-bold fs-5 d-flex align-items-center gap-2 text-truncate">
-                <i class="bi bi-wallet2 text-primary"></i> FinPro
-            </span>
+            <a href="{% url 'dashboard' %}" class="fw-bold fs-5 d-flex align-items-center gap-2 text-truncate text-decoration-none" style="color: var(--text-primary);">
+                <img src="{% static 'icone.png' %}" alt="Logotipo FinPro" width="24" height="24" loading="eager" decoding="async" style="border-radius: 4px;">
+                <span>FinPro</span>
+            </a>
 
             <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                <button id="btnInstalarApp" class="icon-btn text-primary" style="display: none;" title="Instalar Aplicativo">
-                    <i class="bi bi-download"></i>
+                <button type="button" class="btn btn-primary btn-sm px-2 py-1 fw-semibold" style="font-size: 0.76rem;" data-bs-toggle="modal" data-bs-target="#modalTransacao" aria-label="Criar novo lançamento">
+                    + Lançar
                 </button>
-                <button id="btnPrivacyMode" class="icon-btn" title="Ocultar ou exibir valores">
-                    <i class="bi bi-eye" id="iconPrivacy"></i>
+                <button id="btnInstalarApp" class="icon-btn text-primary" style="display: none;" title="Instalar Aplicativo" aria-label="Instalar aplicativo no dispositivo">
+                    <i class="bi bi-download" aria-hidden="true"></i>
                 </button>
-                <button id="btnDarkMode" class="icon-btn" title="Alternar tema">
-                    <i class="bi bi-moon"></i>
+                <button id="btnPrivacyMode" class="icon-btn" title="Ocultar ou exibir valores monetários" aria-label="Ocultar ou exibir valores monetários">
+                    <i class="bi bi-eye" id="iconPrivacy" aria-hidden="true"></i>
                 </button>
-                <button class="icon-btn" data-bs-toggle="modal" data-bs-target="#modalLGPD" title="Dados e Privacidade">
-                    <i class="bi bi-sliders"></i>
+                <button id="btnDarkMode" class="icon-btn" title="Alternar tema claro ou escuro" aria-label="Alternar tema claro ou escuro">
+                    <i class="bi bi-moon" aria-hidden="true"></i>
                 </button>
-                <a href="{% url 'logout' %}" class="icon-btn text-danger" title="Sair da conta">
-                    <i class="bi bi-box-arrow-right"></i>
-                </a>
+                <button class="icon-btn" data-bs-toggle="modal" data-bs-target="#modalLGPD" title="Privacidade e Gestão de Dados LGPD" aria-label="Abrir configurações de privacidade e LGPD">
+                    <i class="bi bi-sliders" aria-hidden="true"></i>
+                </button>
+                <form method="POST" action="{% url 'logout' %}" class="d-inline m-0 p-0">
+                    {% csrf_token %}
+                    <button type="submit" class="icon-btn text-danger" title="Encerrar sessão" aria-label="Sair da conta">
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    </button>
+                </form>
             </div>
         </div>
     </header>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}dark{% endif %} alert-dismissible fade show rounded-3 py-2 px-3 small alerta-flutuante" role="alert">
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}dark{% endif %} alert-dismissible fade show rounded-2 py-2 px-3 small alerta-flutuante" role="alert">
                 {{ message }}
-                <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Fechar aviso"></button>
             </div>
         {% endfor %}
     {% endif %}
 
-    <main class="app-shell">
+    <main id="conteudo-principal" class="app-shell" role="main">
 
-        <div class="month-selector-bar mb-3">
-            <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" aria-label="Mês anterior">
-                <i class="bi bi-chevron-left me-1"></i>Anterior
+        <nav class="month-selector-bar mb-3" aria-label="Navegação de competência mensal">
+            <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" aria-label="Ir para o mês anterior">
+                <i class="bi bi-chevron-left me-1" aria-hidden="true"></i>Anterior
             </a>
-            <span>Período: {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</span>
-            <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" aria-label="Próximo mês">
-                Próximo<i class="bi bi-chevron-right ms-1"></i>
+            <span>Competência: {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</span>
+            <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" aria-label="Ir para o próximo mês">
+                Próximo<i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
             </a>
-        </div>
+        </nav>
 
-        <section class="surface-card p-3 mb-3">
+        <section class="surface-card p-3 mb-3" aria-label="Resumo do orçamento mensal">
             <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                 <div style="min-width: 0; flex: 1;">
-                    <span class="text-secondary d-block" style="font-size: 0.78rem;">Meus gastos pessoais</span>
+                    <span class="text-secondary d-block" style="font-size: 0.78rem;">Despesas pessoais no mês</span>
                     <div class="fw-bold valor-sensivel text-truncate" style="font-size: clamp(1.35rem, 5vw, 1.7rem); letter-spacing: -0.5px;">
                         R$ {{ meus_gastos|floatformat:2 }}
                     </div>
                     {% if analise_ia.variacao_mom != 0 %}
                     <span class="{% if analise_ia.variacao_mom <= 0 %}text-success{% else %}text-danger{% endif %} fw-medium d-block" style="font-size: 0.74rem;">
-                        {% if analise_ia.variacao_mom > 0 %}+{% endif %}{{ analise_ia.variacao_mom|floatformat:1 }}% vs. mês anterior
+                        {% if analise_ia.variacao_mom > 0 %}+{% endif %}{{ analise_ia.variacao_mom|floatformat:1 }}% em relação ao mês anterior
                     </span>
                     {% endif %}
                 </div>
 
                 <div class="text-end" style="min-width: 0; flex: 1;">
-                    <span class="text-secondary d-block" style="font-size: 0.78rem;">Saldo da meta</span>
+                    <span class="text-secondary d-block" style="font-size: 0.78rem;">Saldo da meta mensal</span>
                     <div class="fw-bold {% if saldo_restante >= 0 %}text-success{% else %}text-danger{% endif %} valor-sensivel text-truncate" style="font-size: clamp(1.15rem, 4.5vw, 1.45rem);">
                         R$ {{ saldo_restante|floatformat:2 }}
                     </div>
                     <button type="button" class="btn btn-link btn-sm text-decoration-none p-0" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalMeta">
-                        Meta: <span class="valor-sensivel">R$ {{ valor_meta|floatformat:0 }}</span> <i class="bi bi-pencil-square"></i>
+                        Meta: <span class="valor-sensivel">R$ {{ valor_meta|floatformat:2 }}</span> <i class="bi bi-pencil-square" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="progress my-2" style="height: 6px; background-color: var(--bg-subtle);">
-                <div class="progress-bar {% if percentual_gasto > 95 %}bg-danger{% elif percentual_gasto > 75 %}bg-warning{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ percentual_barra }}%"></div>
+            <div class="progress my-2" style="height: 6px; background-color: var(--bg-subtle);" role="progressbar" aria-label="Consumo da meta mensal" aria-valuenow="{{ percentual_barra }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar {% if percentual_gasto > 95 %}bg-danger{% elif percentual_gasto > 75 %}bg-warning{% else %}bg-primary{% endif %}" data-width="{{ percentual_barra }}"></div>
             </div>
 
             <div class="kpi-mini-grid mt-2 valor-sensivel">
                 <div class="kpi-mini-box">
-                    <span>Fixos</span>
-                    <strong>R$ {{ analise_ia.gastos_fixos|floatformat:0 }}</strong>
+                    <span>Gastos fixos</span>
+                    <strong>R$ {{ analise_ia.gastos_fixos|floatformat:2 }}</strong>
                 </div>
                 <div class="kpi-mini-box">
                     <span>Limite/dia</span>
-                    <strong>R$ {{ analise_ia.orcamento_diario_seguro|floatformat:0 }}</strong>
+                    <strong>R$ {{ analise_ia.orcamento_diario_seguro|floatformat:2 }}</strong>
                 </div>
                 <div class="kpi-mini-box">
                     <span>Projeção</span>
-                    <strong>R$ {{ analise_ia.projecao_mes|floatformat:0 }}</strong>
+                    <strong>R$ {{ analise_ia.projecao_mes|floatformat:2 }}</strong>
                 </div>
             </div>
         </section>
 
-        <section class="surface-card p-2 mb-3">
+        <section class="surface-card p-2 mb-3" aria-label="Cadastro rápido de despesa">
             <form method="POST" class="d-flex align-items-center gap-2 w-100 form-protegido">
                 {% csrf_token %}
                 <input type="hidden" name="form_type" value="lancamento_inteligente">
-                <input type="text" name="comando_ia" class="form-control border-0 bg-transparent shadow-none py-1 px-2" style="flex: 1 1 0%; min-width: 0;" placeholder="Ex: Uber 24,90 Nubank ou Mercado 200 2x" required>
-                <button type="submit" class="btn btn-primary btn-sm rounded-3 px-3 py-2 fw-semibold flex-shrink-0">
-                    Lançar
+                <label for="inputLancamentoRapido" class="visually-hidden">Descrição, valor e cartão</label>
+                <input type="text" id="inputLancamentoRapido" name="comando_ia" class="form-control border-0 bg-transparent shadow-none py-1 px-2" style="flex: 1 1 0%; min-width: 0;" placeholder="Cadastro rápido: ex. Uber 24,90 Nubank ou Mercado 200 2x" required>
+                <button type="submit" class="btn btn-primary btn-sm px-3 py-2 fw-semibold flex-shrink-0">
+                    Registrar
                 </button>
             </form>
-            <div class="border-top mt-2 pt-2 px-1 d-flex justify-content-between align-items-center">
-                <span class="text-secondary" style="font-size: 0.72rem;">Prefere preencher todos os campos?</span>
-                <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 fw-semibold" style="font-size: 0.76rem;" data-bs-toggle="modal" data-bs-target="#modalTransacao">
-                    + Formulário completo
-                </button>
-            </div>
         </section>
 
-        <section class="quick-actions-grid mb-3">
+        <section class="quick-actions-grid mb-3" aria-label="Ferramentas de gestão">
             <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalFatura">
-                <i class="bi bi-file-earmark-arrow-up"></i>
-                <span>Importar</span>
+                <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
+                <span>Importar CSV</span>
             </button>
             <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalCartao">
-                <i class="bi bi-credit-card"></i>
+                <i class="bi bi-credit-card" aria-hidden="true"></i>
                 <span>Cartões</span>
             </button>
             <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalGerenciarPessoas">
-                <i class="bi bi-people"></i>
+                <i class="bi bi-people" aria-hidden="true"></i>
                 <span>Pessoas</span>
             </button>
             <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalSimuladorCompra">
-                <i class="bi bi-calculator"></i>
-                <span>Simular</span>
+                <i class="bi bi-calculator" aria-hidden="true"></i>
+                <span>Simulador</span>
             </button>
         </section>
 
         {% if dividas_detalhadas %}
-        <section class="surface-card p-3 mb-3">
-            <h6 class="fw-bold small text-uppercase text-secondary mb-2" style="font-size: 0.72rem; letter-spacing: 0.4px;">A receber de terceiros</h6>
+        <section class="surface-card p-3 mb-3" aria-label="Valores a receber de terceiros">
+            <h2 class="fw-bold small text-uppercase text-secondary mb-2" style="font-size: 0.72rem; letter-spacing: 0.4px;">Valores a receber de terceiros</h2>
             {% for divida in dividas_detalhadas %}
             <div class="d-flex justify-content-between align-items-center gap-2 py-2 {% if not forloop.last %}border-bottom{% endif %}">
                 <div style="min-width: 0; flex: 1;">
@@ -423,10 +481,10 @@
                     <span class="small fw-bold text-danger valor-sensivel">R$ {{ divida.saldo|floatformat:2 }}</span>
                 </div>
                 <div class="d-flex gap-1 flex-shrink-0">
-                    <a href="{{ divida.whatsapp_link }}" target="_blank" class="btn btn-sm btn-outline-success rounded-3 px-2 py-1 fw-medium" style="font-size: 0.75rem;">
-                        <i class="bi bi-whatsapp"></i> Cobrar
+                    <a href="{{ divida.whatsapp_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success px-2 py-1 fw-medium" style="font-size: 0.75rem;">
+                        <i class="bi bi-whatsapp" aria-hidden="true"></i> Cobrar
                     </a>
-                    <button class="btn btn-sm btn-outline-primary rounded-3 px-2 py-1 fw-medium" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalReceber{{ divida.id }}">
+                    <button type="button" class="btn btn-sm btn-outline-primary px-2 py-1 fw-medium" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalReceber{{ divida.id }}">
                         Baixar
                     </button>
                 </div>
@@ -435,30 +493,31 @@
         </section>
         {% endif %}
 
-        <section class="surface-card p-3 mb-3">
+        <section class="surface-card p-3 mb-3" aria-label="Lista de lançamentos do período">
             <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-                <h6 class="fw-bold mb-0 text-truncate" style="font-size: 0.92rem;">Lançamentos ({{ transacoes|length }})</h6>
+                <h2 class="fw-bold mb-0 text-truncate" style="font-size: 0.92rem;">Lançamentos ({{ transacoes|length }})</h2>
                 <div class="d-flex gap-1 flex-shrink-0">
-                    <button type="button" class="btn btn-sm btn-light border rounded-3 px-2 py-1" style="font-size: 0.73rem;" data-bs-toggle="modal" data-bs-target="#modalResumoMes">
-                        Resumo
+                    <button type="button" class="btn btn-sm btn-light border px-2 py-1" style="font-size: 0.73rem;" data-bs-toggle="modal" data-bs-target="#modalResumoMes">
+                        Indicadores
                     </button>
-                    <a href="{% url 'exportar_relatorio_csv' %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="btn btn-sm btn-light border rounded-3 px-2 py-1" style="font-size: 0.73rem;">
-                        CSV
+                    <a href="{% url 'exportar_relatorio_csv' %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="btn btn-sm btn-light border px-2 py-1" style="font-size: 0.73rem;">
+                        Exportar CSV
                     </a>
                 </div>
             </div>
 
             <div class="mb-2">
-                <input type="text" id="inputBuscaTransacao" class="form-control form-control-sm py-1 px-3 w-100" placeholder="Buscar lançamento...">
+                <label for="inputBuscaTransacao" class="visually-hidden">Filtrar lançamentos por texto</label>
+                <input type="text" id="inputBuscaTransacao" class="form-control form-control-sm py-1 px-3 w-100" placeholder="Filtrar por descrição, responsável ou cartão...">
             </div>
 
-            <div class="chips-scroll mb-2">
-                <span class="chip-filtro active" data-filtro="todos">Todos</span>
-                <span class="chip-filtro" data-filtro="titular">Meus gastos</span>
-                <span class="chip-filtro" data-filtro="terceiros">Terceiros</span>
-                <span class="chip-filtro" data-filtro="fixos">Fixos</span>
-                <span class="chip-filtro" data-filtro="cartao">Cartão</span>
-                <span class="chip-filtro" data-filtro="pix">Pix/Conta</span>
+            <div class="chips-scroll mb-2" role="tablist" aria-label="Filtros rápidos de lançamentos">
+                <button type="button" class="chip-filtro active" data-filtro="todos">Todos</button>
+                <button type="button" class="chip-filtro" data-filtro="titular">Meus gastos</button>
+                <button type="button" class="chip-filtro" data-filtro="terceiros">Terceiros</button>
+                <button type="button" class="chip-filtro" data-filtro="fixos">Fixos</button>
+                <button type="button" class="chip-filtro" data-filtro="cartao">Cartão</button>
+                <button type="button" class="chip-filtro" data-filtro="pix">Pix/Conta</button>
             </div>
 
             <div id="listaTransacoesContainer">
@@ -467,12 +526,12 @@
                      data-titular="{% if t.dono.is_titular %}1{% else %}0{% endif %}"
                      data-fixo="{% if t.recorrente %}1{% else %}0{% endif %}"
                      data-cartao="{% if t.cartao %}1{% else %}0{% endif %}">
-                    <div class="d-flex align-items-center gap-2" style="min-width: 0; flex: 1 1 0%; cursor: pointer; overflow: hidden;" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}">
-                        <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px; background-color: var(--bg-subtle);">
+                    <div class="d-flex align-items-center gap-2" style="min-width: 0; flex: 1 1 0%; cursor: pointer; overflow: hidden;" tabindex="0" role="button" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" aria-label="Editar lançamento {{ t.descricao }}">
+                        <div class="d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px; border-radius: 6px; background-color: var(--bg-subtle);">
                             {% if t.tipo == 'DESPESA' %}
-                                <i class="bi bi-arrow-up-right text-danger"></i>
+                                <i class="bi bi-arrow-up-right text-danger" aria-hidden="true"></i>
                             {% else %}
-                                <i class="bi bi-arrow-down-left text-success"></i>
+                                <i class="bi bi-arrow-down-left text-success" aria-hidden="true"></i>
                             {% endif %}
                         </div>
                         <div style="min-width: 0; flex: 1 1 0%; overflow: hidden;">
@@ -481,9 +540,9 @@
                             </div>
                             <div class="text-secondary text-truncate" style="font-size: 0.7rem;">
                                 {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}
-                                • {{ t.categoria|default:"Outros" }}
-                                • {{ t.dono.nome }}
-                                • {% if t.cartao %}{{ t.cartao.nome }}{% else %}Pix{% endif %}
+                                / {{ t.categoria|default:"Outros" }}
+                                / {{ t.dono.nome }}
+                                / {% if t.cartao %}{{ t.cartao.nome }}{% else %}Pix{% endif %}
                             </div>
                         </div>
                     </div>
@@ -504,18 +563,18 @@
                 </div>
                 {% empty %}
                 <div class="text-center py-4">
-                    <p class="text-secondary small mb-0">Nenhum lançamento registrado neste período.</p>
+                    <p class="text-secondary small mb-0">Nenhum lançamento registrado nesta competência.</p>
                 </div>
                 {% endfor %}
             </div>
         </section>
 
-        <section class="surface-card p-3 mb-3">
+        <section class="surface-card p-3 mb-3" aria-label="Gráfico de distribuição de despesas">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Análise por categoria</h6>
-                <div class="btn-group btn-group-sm" role="group">
+                <h2 class="fw-bold mb-0" style="font-size: 0.9rem;">Análise por categoria</h2>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Alternar visualização de gráfico">
                     <button type="button" class="btn btn-outline-secondary active py-0 px-2" style="font-size: 0.72rem;" id="btnVerCategorias">Categorias</button>
-                    <button type="button" class="btn btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" id="btnVerEvolucao">6 Meses</button>
+                    <button type="button" class="btn btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" id="btnVerEvolucao">Histórico 6M</button>
                 </div>
             </div>
             <div id="containerGraficoCategorias" style="position: relative; height: 240px; width: 100%; max-width: 100%;">
@@ -526,15 +585,15 @@
             </div>
         </section>
 
-        <section class="surface-card p-3">
-            <h6 class="fw-bold mb-2" style="font-size: 0.9rem;">Equilíbrio do orçamento (50-30-20)</h6>
+        <section class="surface-card p-3 mb-4" aria-label="Proporção orçamentária 50-30-20">
+            <h2 class="fw-bold mb-2" style="font-size: 0.9rem;">Proporção orçamentária (50-30-20)</h2>
             <div class="mb-2">
                 <div class="d-flex justify-content-between small mb-1">
                     <span class="text-secondary">Essenciais ({{ analise_ia.perc_essenciais|floatformat:0 }}%)</span>
                     <span class="fw-semibold valor-sensivel">R$ {{ analise_ia.gastos_essenciais|floatformat:2 }}</span>
                 </div>
                 <div class="progress" style="height: 5px;">
-                    <div class="progress-bar bg-primary" style="width: {{ analise_ia.perc_essenciais|floatformat:0 }}%"></div>
+                    <div class="progress-bar bg-primary" data-width="{{ analise_ia.perc_essenciais|floatformat:0 }}"></div>
                 </div>
             </div>
 
@@ -544,7 +603,7 @@
                     <span class="fw-semibold valor-sensivel">R$ {{ analise_ia.gastos_estilo_vida|floatformat:2 }}</span>
                 </div>
                 <div class="progress" style="height: 5px;">
-                    <div class="progress-bar bg-warning" style="width: {{ analise_ia.perc_estilo_vida|floatformat:0 }}%"></div>
+                    <div class="progress-bar bg-warning" data-width="{{ analise_ia.perc_estilo_vida|floatformat:0 }}"></div>
                 </div>
             </div>
 
@@ -554,22 +613,44 @@
                     <span class="fw-semibold text-success">{{ analise_ia.perc_economia|floatformat:0 }}%</span>
                 </div>
                 <div class="progress" style="height: 5px;">
-                    <div class="progress-bar bg-success" style="width: {{ analise_ia.perc_economia|floatformat:0 }}%"></div>
+                    <div class="progress-bar bg-success" data-width="{{ analise_ia.perc_economia|floatformat:0 }}"></div>
                 </div>
             </div>
         </section>
 
+        <footer class="border-top pt-3 mt-4 text-secondary" style="font-size: 0.74rem;" role="contentinfo">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <div>
+                    <strong>FinPro Sistemas de Gestão Pessoal</strong> | Responsável Técnico: Eduardo Henrique Rosa Silva
+                </div>
+                <div class="d-flex gap-3">
+                    <a href="{% url 'politica_privacidade' %}" class="text-secondary text-decoration-underline">Política de Privacidade</a>
+                    <a href="{% url 'termos_uso' %}" class="text-secondary text-decoration-underline">Termos de Uso e Cancelamento</a>
+                    <a href="{% url 'pagina_obrigado' %}" class="text-secondary text-decoration-underline">Institucional</a>
+                </div>
+            </div>
+            <p class="mb-1">
+                Endereço de contato e atendimento LGPD: Ituiutaba, MG, Brasil | Canal de suporte direto disponível via botão de atendimento.
+            </p>
+            <p class="mb-0">
+                Aviso Legal: O FinPro é um software de organização contábil e orçamentária pessoal. As projeções matemáticas apresentadas não configuram consultoria financeira, análise de valores mobiliários ou recomendação de investimento (CVM/BACEN). Todos os direitos reservados &copy; 2026.
+            </p>
+        </footer>
+
     </main>
 
-    <!-- MODAIS DO SISTEMA -->
+    <a href="https://wa.me/5534999999999?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20sistema%20FinPro." target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Atendimento e suporte via WhatsApp">
+        <i class="bi bi-whatsapp" aria-hidden="true"></i>
+        <span>Suporte</span>
+    </a>
 
-    <!-- Modal Meta Mensal -->
-    <div class="modal fade" id="modalMeta" tabindex="-1">
+    <!-- MODAIS DO SISTEMA -->
+    <div class="modal fade" id="modalMeta" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Meta de gastos mensal</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
                     <form method="POST" class="form-protegido">
@@ -579,20 +660,19 @@
                             <label class="form-label small text-secondary">Valor limite (R$)</label>
                             <input type="number" step="0.01" class="form-control" name="valor_meta" value="{{ valor_meta|stringformat:'f' }}" required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">Salvar meta</button>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Salvar meta</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Simulador -->
-    <div class="modal fade" id="modalSimuladorCompra" tabindex="-1">
+    <div class="modal fade" id="modalSimuladorCompra" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Simulador de impacto no orçamento</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-2 mb-3">
@@ -605,33 +685,32 @@
                             <input type="number" id="simParcelas" class="form-control" value="1" min="1" max="48">
                         </div>
                     </div>
-                    <button type="button" id="btnAnalisarCompra" class="btn btn-primary w-100 rounded-3 fw-semibold py-2 mb-2">Calcular impacto</button>
-                    <div id="resultadoSimulador" style="display: none;" class="p-3 rounded-3 small mt-2"></div>
+                    <button type="button" id="btnAnalisarCompra" class="btn btn-primary w-100 fw-semibold py-2 mb-2">Calcular impacto</button>
+                    <div id="resultadoSimulador" style="display: none;" class="p-3 rounded-2 small mt-2"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Dados & LGPD (Com confirmação estrita por Senha) -->
-    <div class="modal fade" id="modalLGPD" tabindex="-1">
+    <div class="modal fade" id="modalLGPD" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Dados, Privacidade e LGPD</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="p-2 rounded-3 mb-3 small" style="background-color: var(--bg-subtle);">
-                        <div><strong>Conta:</strong> {{ usuario.username }}</div>
+                    <div class="p-2 rounded-2 mb-3 small" style="background-color: var(--bg-subtle);">
+                        <div><strong>Conta autenticada:</strong> {{ usuario.username }}</div>
                         <div class="text-secondary" style="font-size: 0.74rem;">Protegido conforme Lei nº 13.709/2018 (LGPD).</div>
                     </div>
 
-                    <p class="fw-semibold small mb-2">Portabilidade</p>
+                    <p class="fw-semibold small mb-2">Portabilidade de dados (Art. 18, V)</p>
                     <div class="d-grid gap-2 mb-3">
-                        <a href="{% url 'exportar_dados_lgpd' %}" class="btn btn-outline-primary btn-sm rounded-3 py-2 fw-medium">
-                            Exportar todos os dados (JSON)
+                        <a href="{% url 'exportar_dados_lgpd' %}" class="btn btn-outline-primary btn-sm py-2 fw-medium">
+                            Exportar todos os dados pessoais (JSON)
                         </a>
-                        <a href="{% url 'exportar_relatorio_csv' %}" class="btn btn-outline-secondary btn-sm rounded-3 py-2 fw-medium">
+                        <a href="{% url 'exportar_relatorio_csv' %}" class="btn btn-outline-secondary btn-sm py-2 fw-medium">
                             Baixar planilha completa (CSV)
                         </a>
                     </div>
@@ -644,7 +723,7 @@
                             <input type="hidden" name="escopo" value="mes">
                             <input type="hidden" name="mes" value="{{ mes_atual }}">
                             <input type="hidden" name="ano" value="{{ ano_atual }}">
-                            <button type="submit" class="btn btn-outline-warning btn-sm w-100 rounded-3 py-2 fw-medium">
+                            <button type="submit" class="btn btn-outline-warning btn-sm w-100 py-2 fw-medium">
                                 Limpar mês {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}
                             </button>
                         </form>
@@ -652,14 +731,14 @@
                             {% csrf_token %}
                             <input type="hidden" name="escopo" value="tudo">
                             <input type="hidden" name="zerar_cartoes" value="1">
-                            <button type="submit" class="btn btn-outline-danger btn-sm w-100 rounded-3 py-2 fw-medium">
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100 py-2 fw-medium">
                                 Zerar histórico completo
                             </button>
                         </form>
                     </div>
 
                     <hr>
-                    <p class="fw-semibold text-danger small mb-1">Encerramento da conta</p>
+                    <p class="fw-semibold text-danger small mb-1">Eliminação definitiva da conta (Art. 18, VI)</p>
                     <p class="text-secondary mb-2" style="font-size: 0.75rem;">Confirme sua senha atual para excluir permanentemente sua conta e todos os dados:</p>
                     <form method="POST" action="{% url 'excluir_conta_lgpd' %}" onsubmit="return confirm('Confirmar exclusão permanente da conta?')">
                         {% csrf_token %}
@@ -673,16 +752,15 @@
         </div>
     </div>
 
-    <!-- Modal Pessoas -->
-    <div class="modal fade" id="modalGerenciarPessoas" tabindex="-1">
+    <div class="modal fade" id="modalGerenciarPessoas" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Pessoas vinculadas</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST" class="mb-3 p-3 rounded-3 form-protegido" style="background-color: var(--bg-subtle);">
+                    <form method="POST" class="mb-3 p-3 rounded-2 form-protegido" style="background-color: var(--bg-subtle);">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="nova_pessoa">
                         <div class="mb-2">
@@ -691,7 +769,7 @@
                         <div class="mb-2">
                             <input type="text" class="form-control bg-white" name="telefone" placeholder="WhatsApp com DDD (opcional)">
                         </div>
-                        <button type="submit" class="btn btn-primary btn-sm w-100 rounded-3 py-2 fw-semibold">Adicionar pessoa</button>
+                        <button type="submit" class="btn btn-primary btn-sm w-100 py-2 fw-semibold">Adicionar pessoa</button>
                     </form>
 
                     <div class="list-group list-group-flush">
@@ -702,13 +780,13 @@
                                 <small class="text-secondary d-block text-truncate" style="font-size: 0.72rem;">{{ p.telefone|default:"Sem telefone" }}</small>
                             </div>
                             <div class="d-flex gap-1 flex-shrink-0">
-                                <button class="icon-btn" data-bs-toggle="modal" data-bs-target="#modalEditarPessoa{{ p.id }}" data-bs-dismiss="modal"><i class="bi bi-pencil"></i></button>
+                                <button class="icon-btn" data-bs-toggle="modal" data-bs-target="#modalEditarPessoa{{ p.id }}" data-bs-dismiss="modal" aria-label="Editar {{ p.nome }}"><i class="bi bi-pencil"></i></button>
                                 {% if not p.is_titular %}
                                 <form method="POST" class="m-0 p-0" onsubmit="return confirm('Remover {{ p.nome }}?')">
                                     {% csrf_token %}
                                     <input type="hidden" name="form_type" value="excluir_pessoa">
                                     <input type="hidden" name="pessoa_id" value="{{ p.id }}">
-                                    <button type="submit" class="icon-btn text-danger"><i class="bi bi-trash3"></i></button>
+                                    <button type="submit" class="icon-btn text-danger" aria-label="Excluir {{ p.nome }}"><i class="bi bi-trash3"></i></button>
                                 </form>
                                 {% endif %}
                             </div>
@@ -721,12 +799,12 @@
     </div>
 
     {% for p in pessoas %}
-    <div class="modal fade" id="modalEditarPessoa{{ p.id }}" tabindex="-1">
+    <div class="modal fade" id="modalEditarPessoa{{ p.id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Editar {{ p.nome }}</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
                     <form method="POST" class="form-protegido">
@@ -741,7 +819,7 @@
                             <label class="form-label small text-secondary">Telefone</label>
                             <input type="text" class="form-control" name="telefone" value="{{ p.telefone|default:'' }}">
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">Salvar</button>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Salvar</button>
                     </form>
                 </div>
             </div>
@@ -749,13 +827,12 @@
     </div>
     {% endfor %}
 
-    <!-- Modal Nova Transação -->
-    <div class="modal fade" id="modalTransacao" tabindex="-1">
+    <div class="modal fade" id="modalTransacao" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Novo lançamento</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
                     <form method="POST" class="form-protegido">
@@ -838,7 +915,7 @@
                                 Dividir lançamento com outra pessoa
                             </label>
                         </div>
-                        <div id="secaoDivisaoAmigos" style="display: none;" class="p-2 rounded-3 mb-2" style="background-color: var(--bg-subtle);">
+                        <div id="secaoDivisaoAmigos" style="display: none;" class="p-2 rounded-2 mb-2" style="background-color: var(--bg-subtle);">
                             <div id="listaCamposDivisao">
                                 <div class="d-flex gap-2 align-items-center mb-2 linha-divisao">
                                     <select class="form-select form-select-sm" name="dono_id_extra" style="flex: 1 1 0%; min-width: 0;">
@@ -848,17 +925,17 @@
                                         {% endfor %}
                                     </select>
                                     <input type="text" inputmode="decimal" class="form-control form-control-sm input-valor-extra" name="valor_extra" placeholder="R$" style="flex: 1 1 0%; min-width: 0;">
-                                    <button type="button" class="btn btn-sm text-danger p-1 flex-shrink-0 btn-remover-linha"><i class="bi bi-x-lg"></i></button>
+                                    <button type="button" class="btn btn-sm text-danger p-1 flex-shrink-0 btn-remover-linha" aria-label="Remover linha"><i class="bi bi-x-lg"></i></button>
                                 </div>
                             </div>
                             <div class="d-flex gap-2 mt-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-3" id="btnAddPessoaExtra">+ Pessoa</button>
-                                <button type="button" class="btn btn-sm btn-outline-primary rounded-3" id="btnDividirIgualmente">Dividir igual</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddPessoaExtra">+ Pessoa</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnDividirIgualmente">Dividir igual</button>
                             </div>
                         </div>
 
                         <div class="mt-3">
-                            <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">
+                            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
                                 Salvar lançamento
                             </button>
                         </div>
@@ -868,30 +945,29 @@
         </div>
     </div>
 
-    <!-- Modal Resumo do Mês -->
-    <div class="modal fade" id="modalResumoMes" tabindex="-1">
+    <div class="modal fade" id="modalResumoMes" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
-                    <h6 class="modal-title fw-bold">Resumo de {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h6 class="modal-title fw-bold">Indicadores contábeis de {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="p-3 rounded-3" style="background-color: var(--bg-subtle);">
+                    <div class="p-3 rounded-2" style="background-color: var(--bg-subtle);">
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
-                            <span class="text-secondary">Índice financeiro</span>
-                            <span class="fw-bold">{{ analise_ia.score }} / 1000 ({{ analise_ia.nivel_score }})</span>
+                            <span class="text-secondary">Situação orçamentária</span>
+                            <span class="fw-bold">{{ analise_ia.nivel_score }}</span>
                         </div>
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
                             <span class="text-secondary">Maior categoria</span>
                             <span class="fw-bold">{{ maior_categoria }} (R$ {{ valor_maior_cat|floatformat:2 }})</span>
                         </div>
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
-                            <span class="text-secondary">Ticket médio</span>
+                            <span class="text-secondary">Ticket médio ({{ analise_ia.qtd_transacoes_pessoais }} compras)</span>
                             <span class="fw-bold">R$ {{ analise_ia.ticket_medio|floatformat:2 }}</span>
                         </div>
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
-                            <span class="text-secondary">Custo fixo anual</span>
+                            <span class="text-secondary">Custo fixo anualizado</span>
                             <span class="fw-bold">R$ {{ analise_ia.custo_fixo_anual|floatformat:2 }}/ano</span>
                         </div>
                         <div class="d-flex justify-content-between small">
@@ -904,16 +980,15 @@
         </div>
     </div>
 
-    <!-- Modal Cartões -->
-    <div class="modal fade" id="modalCartao" tabindex="-1">
+    <div class="modal fade" id="modalCartao" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Cartões de crédito</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="POST" class="mb-3 p-3 rounded-3 form-protegido" style="background-color: var(--bg-subtle);">
+                    <form method="POST" class="mb-3 p-3 rounded-2 form-protegido" style="background-color: var(--bg-subtle);">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="novo_cartao">
                         <div class="mb-2">
@@ -927,7 +1002,7 @@
                                 <input type="number" class="form-control bg-white" name="dia_vencimento" placeholder="Vencimento" min="1" max="31" required>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-sm w-100 rounded-3 py-2 fw-semibold">Cadastrar cartão</button>
+                        <button type="submit" class="btn btn-primary btn-sm w-100 py-2 fw-semibold">Cadastrar cartão</button>
                     </form>
 
                     {% if resumo_cartoes %}
@@ -937,12 +1012,12 @@
                             <div class="small" style="min-width: 0; flex: 1;">
                                 <span class="fw-semibold d-block text-truncate">{{ c.nome }}</span>
                                 <span class="text-secondary d-block text-truncate valor-sensivel" style="font-size: 0.72rem;">
-                                    Fatura: R$ {{ c.total_fatura|floatformat:2 }} • Fecha dia {{ c.dia_fechamento }}
+                                    Fatura: R$ {{ c.total_fatura|floatformat:2 }} / Fecha dia {{ c.dia_fechamento }}
                                 </span>
                             </div>
                             <form method="POST" action="{% url 'excluir_cartao' c.id %}" class="flex-shrink-0" onsubmit="return confirm('Remover cartão {{ c.nome }}?');">
                                 {% csrf_token %}
-                                <button type="submit" class="icon-btn text-danger"><i class="bi bi-trash3"></i></button>
+                                <button type="submit" class="icon-btn text-danger" aria-label="Excluir cartão {{ c.nome }}"><i class="bi bi-trash3"></i></button>
                             </form>
                         </div>
                         {% endfor %}
@@ -953,13 +1028,12 @@
         </div>
     </div>
 
-    <!-- Modal Importar Fatura CSV -->
-    <div class="modal fade" id="modalFatura" tabindex="-1">
+    <div class="modal fade" id="modalFatura" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Importar fatura em CSV</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
                     <form method="POST" enctype="multipart/form-data" class="form-protegido">
@@ -971,22 +1045,21 @@
                         <div class="mb-3">
                             <input type="file" class="form-control" name="arquivo_csv" accept=".csv,text/csv" required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">Continuar</button>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Continuar</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modais Receber Pagamento -->
     {% if dividas_detalhadas %}
         {% for divida in dividas_detalhadas %}
-        <div class="modal fade" id="modalReceber{{ divida.id }}" tabindex="-1">
+        <div class="modal fade" id="modalReceber{{ divida.id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content rounded-4">
+                <div class="modal-content rounded-2">
                     <div class="modal-header border-0 pb-0">
                         <h6 class="modal-title fw-bold">Recebimento de {{ divida.nome }}</h6>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                     </div>
                     <div class="modal-body">
                         <form method="POST" class="form-protegido">
@@ -1014,7 +1087,7 @@
                                 <input type="date" class="form-control input-data-hoje" name="data" required>
                             </div>
                             
-                            <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">Confirmar</button>
+                            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Confirmar</button>
                         </form>
                     </div>
                 </div>
@@ -1023,14 +1096,13 @@
         {% endfor %}
     {% endif %}
 
-    <!-- Modais Editar Transação -->
     {% for t in transacoes %}
-    <div class="modal fade" id="modalEditar{{ t.id }}" tabindex="-1">
+    <div class="modal fade" id="modalEditar{{ t.id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4">
+            <div class="modal-content rounded-2">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Editar lançamento</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
                     <form method="POST" class="form-protegido">
@@ -1108,7 +1180,7 @@
                         </div>
 
                         <div class="mt-3">
-                            <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">
+                            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
                                 Salvar alterações
                             </button>
                         </div>
@@ -1118,7 +1190,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="mes" value="{{ mes_atual }}">
                         <input type="hidden" name="ano" value="{{ ano_atual }}">
-                        <button type="submit" class="btn btn-outline-danger w-100 rounded-3 py-2 fw-medium small">
+                        <button type="submit" class="btn btn-outline-danger w-100 py-2 fw-medium small">
                             Excluir lançamento
                         </button>
                     </form>
@@ -1128,15 +1200,19 @@
     </div>
     {% endfor %}
 
-    <!-- Banner LGPD -->
-    <div id="lgpd-banner" class="py-3 px-3">
+    <div id="lgpd-banner" class="py-3 px-3" role="region" aria-label="Aviso de privacidade e cookies">
         <div class="app-shell d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2" style="padding-bottom: 0;">
             <div class="small">
-                Utilizamos apenas cookies essenciais para segurança da sessão (Lei nº 13.709/2018).
+                Utilizamos cookies essenciais para segurança da sessão e, mediante seu consentimento, métricas anônimas de desempenho conforme nossa <a href="{% url 'politica_privacidade' %}" class="text-white text-decoration-underline">Política de Privacidade</a>.
             </div>
-            <button id="btn-aceitar-cookies" class="btn btn-primary btn-sm rounded-3 px-4 fw-semibold w-100 w-sm-auto">
-                Concordo
-            </button>
+            <div class="d-flex gap-2 w-100 w-sm-auto flex-shrink-0">
+                <button id="btn-apenas-essenciais" class="btn btn-outline-light btn-sm px-3 fw-medium">
+                    Apenas essenciais
+                </button>
+                <button id="btn-aceitar-cookies" class="btn btn-primary btn-sm px-3 fw-semibold">
+                    Aceitar todos
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1149,13 +1225,31 @@
     {{ valores_evolucao|json_script:"valores-evolucao-data" }}
 
     <script>
+        function carregarAnalyticsConsentido() {
+            const gaId = "{{ ga_measurement_id|default:'' }}";
+            if (!gaId || window.gaCarregado) return;
+            window.gaCarregado = true;
+            const s = document.createElement('script');
+            s.async = true;
+            s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(gaId);
+            document.head.appendChild(s);
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', gaId, { 'anonymize_ip': true });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll("[data-width]").forEach(function(el) {
+                el.style.width = (el.dataset.width || 0) + "%";
+            });
+
             document.querySelectorAll('.form-protegido').forEach(function(form) {
                 form.addEventListener('submit', function() {
                     const btn = form.querySelector('button[type="submit"]');
                     if (btn && !btn.disabled) {
                         btn.disabled = true;
-                        btn.innerHTML = 'Salvando...';
+                        btn.innerHTML = 'Carregando...';
                     }
                 });
             });
@@ -1229,7 +1323,7 @@
 
                     if (valTotal <= 0) {
                         boxRes.style.display = 'block';
-                        boxRes.className = 'p-3 rounded-3 small alert alert-secondary mb-0';
+                        boxRes.className = 'p-3 rounded-2 small alert alert-secondary mb-0';
                         boxRes.innerHTML = 'Informe um valor válido.';
                         return;
                     }
@@ -1239,26 +1333,36 @@
                     boxRes.style.display = 'block';
 
                     if (valorMeta <= 0) {
-                        boxRes.className = 'p-3 rounded-3 small alert alert-secondary mb-0';
+                        boxRes.className = 'p-3 rounded-2 small alert alert-secondary mb-0';
                         boxRes.innerHTML = `Parcela de <strong>R$ ${valorParcela.toFixed(2)}/mês</strong>. Defina uma meta mensal para calcular a margem.`;
                     } else if (novoSaldo >= valorMeta * 0.15) {
-                        boxRes.className = 'p-3 rounded-3 small alert alert-success mb-0';
+                        boxRes.className = 'p-3 rounded-2 small alert alert-success mb-0';
                         boxRes.innerHTML = `<strong>Viável:</strong> A parcela de R$ ${valorParcela.toFixed(2)} mantém R$ ${novoSaldo.toFixed(2)} livres na meta.`;
                     } else if (novoSaldo >= 0) {
-                        boxRes.className = 'p-3 rounded-3 small alert alert-warning mb-0';
+                        boxRes.className = 'p-3 rounded-2 small alert alert-warning mb-0';
                         boxRes.innerHTML = `<strong>Atenção:</strong> A parcela de R$ ${valorParcela.toFixed(2)} deixará R$ ${novoSaldo.toFixed(2)} disponíveis na meta.`;
                     } else {
-                        boxRes.className = 'p-3 rounded-3 small alert alert-danger mb-0';
+                        boxRes.className = 'p-3 rounded-2 small alert alert-danger mb-0';
                         boxRes.innerHTML = `<strong>Acima da meta:</strong> A parcela de R$ ${valorParcela.toFixed(2)} excede o limite em R$ ${Math.abs(novoSaldo).toFixed(2)}.`;
                     }
                 });
             }
 
-            if (!localStorage.getItem("lgpd_consentido")) {
+            const statusConsentimento = localStorage.getItem("lgpd_consentido");
+            if (!statusConsentimento) {
                 document.getElementById("lgpd-banner").style.display = "block";
+            } else if (statusConsentimento === "todos") {
+                carregarAnalyticsConsentido();
             }
+
             document.getElementById("btn-aceitar-cookies").addEventListener("click", function() {
-                localStorage.setItem("lgpd_consentido", "true");
+                localStorage.setItem("lgpd_consentido", "todos");
+                document.getElementById("lgpd-banner").style.display = "none";
+                carregarAnalyticsConsentido();
+            });
+
+            document.getElementById("btn-apenas-essenciais").addEventListener("click", function() {
+                localStorage.setItem("lgpd_consentido", "essenciais");
                 document.getElementById("lgpd-banner").style.display = "none";
             });
 
@@ -1333,7 +1437,7 @@
                         labels: labelsCat,
                         datasets: [{
                             data: dadosCat,
-                            backgroundColor: ['#2563eb', '#0f172a', '#475569', '#0284c7', '#64748b', '#0d9488', '#d97706', '#dc2626'],
+                            backgroundColor: ['#1d4ed8', '#0f172a', '#475569', '#0284c7', '#64748b', '#0d9488', '#d97706', '#dc2626'],
                             borderWidth: 0
                         }]
                     },
@@ -1350,7 +1454,7 @@
                     }
                 });
             } else if (ctxCat) {
-                ctxCat.outerHTML = '<div class="d-flex align-items-center justify-content-center h-100 rounded-3" style="background-color: var(--bg-subtle);"><p class="text-secondary small mb-0">Sem dados pessoais neste período.</p></div>';
+                ctxCat.outerHTML = '<div class="d-flex align-items-center justify-content-center h-100 rounded-2" style="background-color: var(--bg-subtle);"><p class="text-secondary small mb-0">Sem lançamentos pessoais neste período.</p></div>';
             }
 
             const ctxEvo = document.getElementById('graficoEvolucao');
@@ -1364,8 +1468,8 @@
                         datasets: [{
                             label: 'Gastos (R$)',
                             data: dadosEvo,
-                            backgroundColor: '#2563eb',
-                            borderRadius: 6
+                            backgroundColor: '#1d4ed8',
+                            borderRadius: 4
                         }]
                     },
                     options: {

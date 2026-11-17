@@ -1,7 +1,10 @@
 import calendar
 import csv
 import io
+import itertools
 import json
+import logging
+import os
 import re
 import unicodedata
 import urllib.parse
@@ -10,26 +13,36 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.contrib import messages
+from django.contrib.admin.sites import site as admin_site
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from .forms import LoginUsuarioForm, RegistroUsuarioForm
 from .models import Cartao, MetaMensal, Pessoa, Transacao
 
+security_logger = logging.getLogger('finpro.security')
+
+CATEGORIAS_PERMITIDAS = {
+    'Alimentação', 'Mercado', 'Transporte', 'Moradia',
+    'Saúde', 'Lazer', 'Compras', 'Assinaturas', 'Outros'
+}
+TIPOS_PERMITIDOS = {'DESPESA', 'PAGAMENTO'}
+
 
 # ==========================================
-# INFRAESTRUTURA E HEALTH CHECK
+# INFRAESTRUTURA, SEO E PÁGINAS INSTITUCIONAIS
 # ==========================================
 
 @never_cache
 def health_check(request):
-    """Endpoint de baixa latência para monitoramento de disponibilidade (keep-alive)."""
+    """Endpoint de baixa latência para verificação de integridade."""
     return JsonResponse({
         'status': 'ok',
         'service': 'finpro-web',
@@ -37,42 +50,104 @@ def health_check(request):
     })
 
 
+def robots_txt_view(request):
+    """Arquivo robots.txt padrão para indexadores de busca (sem expor rota secreta de admin)."""
+    base_url = request.build_absolute_uri('/').rstrip('/')
+    linhas = [
+        "User-agent: *",
+        "Allow: /login/",
+        "Allow: /registro/",
+        "Allow: /privacidade/",
+        "Allow: /termos/",
+        "Disallow: /lgpd/",
+        "Disallow: /exportar-csv/",
+        f"Sitemap: {base_url}/sitemap.xml",
+    ]
+    return HttpResponse("\n".join(linhas), content_type="text/plain; charset=utf-8")
+
+
+def sitemap_xml_view(request):
+    """Mapa do site em XML para motores de busca (SEO)."""
+    base_url = request.build_absolute_uri('/').rstrip('/')
+    hoje_iso = date.today().isoformat()
+    rotas_publicas = [
+        reverse('login'),
+        reverse('registro'),
+        reverse('politica_privacidade'),
+        reverse('termos_uso'),
+    ]
+    xml_items = "".join([
+        f"<url><loc>{base_url}{rota}</loc><lastmod>{hoje_iso}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>"
+        for rota in rotas_publicas
+    ])
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{xml_items}</urlset>'
+    return HttpResponse(xml, content_type="application/xml; charset=utf-8")
+
+
+def politica_privacidade_view(request):
+    return render(request, 'gestao/privacidade.html')
+
+
+def termos_uso_view(request):
+    return render(request, 'gestao/termos.html')
+
+
+@login_required(login_url='login')
+def pagina_obrigado_view(request):
+    return render(request, 'gestao/obrigado.html')
+
+
+def erro_404_personalizado(request, exception=None):
+    return render(request, 'gestao/404.html', status=404)
+
+
+def erro_500_personalizado(request):
+    return render(request, '500.html', status=500)
+
+
 # ==========================================
-# SEGURANÇA E HIGIENIZAÇÃO DE DADOS
+# SEGURANÇA, RATE LIMIT E HIGIENIZAÇÃO DE INPUT
 # ==========================================
 
 def get_client_ip(request) -> str:
+    """Obtém o último IP adicionado pelo proxy reverso confiável (evita spoofing de X-Forwarded-For)."""
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded:
-        return x_forwarded.split(',')[0].strip()
+        ips = [ip.strip() for ip in x_forwarded.split(',') if ip.strip()]
+        if ips:
+            return ips[-1]
     return request.META.get('REMOTE_ADDR', '127.0.0.1')
 
 
-def verificar_bloqueio_ip(request, escopo='login', max_tentativas=6, tempo_bloqueio=300):
-    """Consulta o cache compartilhado (DatabaseCache/Redis) entre todos os workers."""
+def verificar_bloqueio_ip(request, escopo='login', identificador_extra='', max_tentativas=6, tempo_bloqueio=300):
     ip = get_client_ip(request)
-    chave = f"finpro_ratelimit_{escopo}_{ip}"
+    sufixo = re.sub(r'[^a-zA-Z0-9_-]', '', str(identificador_extra).lower())[:40]
+    chave_ip = f"finpro_ratelimit_{escopo}_{ip}"
+    chave_usr = f"finpro_ratelimit_{escopo}_usr_{sufixo}" if sufixo else None
     try:
-        tentativas = cache.get(chave, 0)
+        tentativas_ip = cache.get(chave_ip, 0)
+        tentativas_usr = cache.get(chave_usr, 0) if chave_usr else 0
     except Exception:
-        tentativas = 0
-    return tentativas >= max_tentativas, chave, tentativas, tempo_bloqueio
+        tentativas_ip, tentativas_usr = 0, 0
+
+    bloqueado = (tentativas_ip >= max_tentativas) or (tentativas_usr >= max_tentativas)
+    return bloqueado, chave_ip, chave_usr, tempo_bloqueio
 
 
-def registrar_falha_ip(chave: str, tempo_bloqueio=300):
-    """Incrementa atomicamente o contador de falhas no cache compartilhado."""
-    try:
-        if not cache.add(chave, 1, tempo_bloqueio):
-            cache.incr(chave)
-    except Exception:
-        pass
+def registrar_falha_ip(chave_ip: str, tempo_bloqueio=300, chave_usr: str = None):
+    for ch in (chave_ip, chave_usr):
+        if ch:
+            try:
+                if not cache.add(ch, 1, tempo_bloqueio):
+                    cache.incr(ch)
+            except Exception:
+                pass
 
 
 def sanitizar_texto_csv(texto: str) -> str:
-    """Neutraliza vetores de Formula Injection (CSV Injection) e limita comprimento."""
     if not texto:
         return ""
-    limpo = str(texto).strip()
+    limpo = str(texto).strip().replace('—', '-')
     if limpo and limpo[0] in ('=', '+', '-', '@', '\t', '\r'):
         limpo = "'" + limpo
     return limpo[:200]
@@ -87,12 +162,29 @@ def normalizar_chave_coluna(chave: str) -> str:
     )
 
 
+def parse_int_seguro(valor_raw, padrao=1, minimo=1, maximo=120) -> int:
+    try:
+        val = int(str(valor_raw).strip())
+        return max(minimo, min(maximo, val))
+    except (ValueError, TypeError):
+        return padrao
+
+
+def validar_categoria(cat_raw: str) -> str:
+    cat = str(cat_raw or 'Outros').strip()
+    return cat if cat in CATEGORIAS_PERMITIDAS else 'Outros'
+
+
+def validar_tipo_transacao(tipo_raw: str) -> str:
+    tipo = str(tipo_raw or 'DESPESA').strip().upper()
+    return tipo if tipo in TIPOS_PERMITIDOS else 'DESPESA'
+
+
 # ==========================================
 # REGRAS DE NEGÓCIO CONTÁBEIS E PARSERS
 # ==========================================
 
 def parse_moeda_decimal(valor_raw) -> Decimal:
-    """Converte entradas monetárias textuais ou numéricas em Decimal exato (2 casas)."""
     if valor_raw is None or valor_raw == '':
         return Decimal('0.00')
     if isinstance(valor_raw, Decimal):
@@ -108,7 +200,10 @@ def parse_moeda_decimal(valor_raw) -> Decimal:
     elif ',' in s:
         s = s.replace(',', '.')
     try:
-        return Decimal(s).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        val = Decimal(s).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        if val > Decimal('9999999.99'):
+            return Decimal('9999999.99')
+        return val
     except (InvalidOperation, ValueError):
         return Decimal('0.00')
 
@@ -118,12 +213,8 @@ def parse_moeda(valor_raw) -> float:
 
 
 def dividir_em_parcelas_exatas(valor_total: float, qtd_parcelas: int) -> list[Decimal]:
-    """
-    Divide um montante em N parcelas preservando a integridade contábil do total.
-    Qualquer centavo residual é alocado na primeira parcela.
-    """
     qtd = max(1, int(qtd_parcelas))
-    total_dec = parse_moeda_decimal(valor_total)
+    total_dec = max(Decimal('0.00'), parse_moeda_decimal(valor_total))
     if qtd == 1:
         return [total_dec]
 
@@ -150,7 +241,6 @@ def parse_data_flexivel(data_raw: str):
 
 
 def interpretar_comando_inteligente(texto: str, cartoes_usuario):
-    """Extrai descrição, valor, parcelas, recorrência e cartão a partir de texto livre."""
     texto_limpo = texto.strip()
     recorrente = bool(re.search(r'\b(fixo|fixa|mensal|recorrente|assinatura)\b', texto_limpo, re.IGNORECASE))
     texto_limpo = re.sub(r'\b(fixo|fixa|mensal|recorrente|assinatura)\b', '', texto_limpo, flags=re.IGNORECASE)
@@ -318,7 +408,7 @@ def analisar_inteligencia_cartoes(cartoes, transacoes_mes):
     return resumo, melhor_cartao
 
 
-def gerar_insights_inteligentes(
+def calcular_indicadores_contabeis(
     meus_gastos, gastos_mes_anterior, valor_meta, gastos_por_cat, transacoes_mes, eu, mes_sel, ano_sel
 ):
     hoje = date.today()
@@ -363,32 +453,16 @@ def gerar_insights_inteligentes(
     economia_atual = max(0.0, valor_meta - meus_gastos) if valor_meta > 0 else 0.0
     perc_economia = min(100.0, (economia_atual / valor_meta) * 100) if valor_meta > 0 else 0.0
 
-    if valor_meta <= 0 and meus_gastos == 0:
-        score, nivel_score, cor_score = 750, "Sem meta", "secondary"
-    elif valor_meta <= 0:
-        score, nivel_score, cor_score = 600, "Defina a meta", "warning"
+    if valor_meta <= 0:
+        status_orcamento, cor_orcamento = "Meta não definida", "secondary"
     else:
-        uso_meta = meus_gastos / valor_meta
-        if uso_meta <= 0.5:
-            score = 950
-        elif uso_meta <= 0.8:
-            score = int(900 - ((uso_meta - 0.5) * 400))
-        elif uso_meta <= 1.0:
-            score = int(780 - ((uso_meta - 0.8) * 900))
+        uso_meta = (meus_gastos / valor_meta) * 100
+        if uso_meta <= 75:
+            status_orcamento, cor_orcamento = "Dentro do orçamento", "success"
+        elif uso_meta <= 100:
+            status_orcamento, cor_orcamento = "Próximo ao limite", "warning"
         else:
-            score = max(150, int(600 - ((uso_meta - 1.0) * 600)))
-
-        if (gastos_fixos / valor_meta) > 0.5:
-            score = max(100, score - 80)
-
-        if score >= 800:
-            nivel_score, cor_score = "Saudável", "success"
-        elif score >= 600:
-            nivel_score, cor_score = "Equilibrado", "primary"
-        elif score >= 450:
-            nivel_score, cor_score = "Atenção", "warning"
-        else:
-            nivel_score, cor_score = "Acima da meta", "danger"
+            status_orcamento, cor_orcamento = "Orçamento excedido", "danger"
 
     orcamento_diario_seguro = max(0.0, (valor_meta - meus_gastos) / dias_restantes) if valor_meta > meus_gastos else 0.0
 
@@ -399,20 +473,20 @@ def gerar_insights_inteligentes(
             insights.append({
                 'tipo': 'danger',
                 'icone': 'bi-exclamation-circle',
-                'texto': f"Orçamento excedido em R$ {excesso:.2f} neste mês."
+                'texto': f"Orçamento excedido em R$ {excesso:.2f} neste período."
             })
         elif projecao_mes > valor_meta and ano_sel == hoje.year and mes_sel == hoje.month:
             insights.append({
                 'tipo': 'warning',
                 'icone': 'bi-graph-up-arrow',
-                'texto': f"Média atual de R$ {media_diaria:.2f}/dia projeta fechamento em R$ {projecao_mes:.2f}. Limite diário recomendado: R$ {orcamento_diario_seguro:.2f}."
+                'texto': f"Média de R$ {media_diaria:.2f}/dia projeta R$ {projecao_mes:.2f} no mês. Teto diário sugerido: R$ {orcamento_diario_seguro:.2f}."
             })
         else:
             economia_proj = max(0.0, valor_meta - projecao_mes)
             insights.append({
                 'tipo': 'success',
                 'icone': 'bi-check-circle',
-                'texto': f"Dentro do planejado. Limite disponível de R$ {orcamento_diario_seguro:.2f}/dia (economia projetada de R$ {economia_proj:.2f})."
+                'texto': f"Margem diária disponível de R$ {orcamento_diario_seguro:.2f}/dia (economia estimada de R$ {economia_proj:.2f})."
             })
 
     if gastos_por_cat:
@@ -423,7 +497,7 @@ def gerar_insights_inteligentes(
             insights.append({
                 'tipo': 'secondary',
                 'icone': 'bi-pie-chart',
-                'texto': f"A categoria '{cat_maior}' concentra {peso_maior:.0f}% (R$ {val_maior:.2f}) das suas despesas no período."
+                'texto': f"A categoria '{cat_maior}' representa {peso_maior:.0f}% (R$ {val_maior:.2f}) das despesas pessoais."
             })
 
     return {
@@ -444,16 +518,30 @@ def gerar_insights_inteligentes(
         'perc_essenciais': perc_essenciais,
         'perc_estilo_vida': perc_estilo_vida,
         'perc_economia': perc_economia,
-        'score': score,
-        'nivel_score': nivel_score,
-        'cor_score': cor_score,
+        'nivel_score': status_orcamento,
+        'cor_score': cor_orcamento,
         'lista_insights': insights,
     }
 
 
 # ==========================================
-# VIEWS DE AUTENTICAÇÃO
+# VIEWS DE AUTENTICAÇÃO E PROTEÇÃO DO ADMIN
 # ==========================================
+
+@never_cache
+def admin_login_protegido(request, extra_context=None):
+    """Protege o painel administrativo contra ataques de força bruta."""
+    if request.method == 'POST':
+        usr_alvo = request.POST.get('username', '')
+        bloqueado, chave_ip, chave_usr, tempo_bloq = verificar_bloqueio_ip(
+            request, escopo='admin_login', identificador_extra=usr_alvo, max_tentativas=5, tempo_bloqueio=600
+        )
+        if bloqueado:
+            security_logger.warning("Bloqueio de rate limit no Admin para IP=%s usuario=%s", get_client_ip(request), usr_alvo)
+            return HttpResponse("Muitas tentativas falhas. Acesso temporariamente bloqueado.", status=429)
+        registrar_falha_ip(chave_ip, tempo_bloq, chave_usr)
+    return admin_site.login(request, extra_context=extra_context)
+
 
 @never_cache
 def registro_view(request):
@@ -462,10 +550,15 @@ def registro_view(request):
 
     if request.method == 'POST':
         if request.POST.get('website_url_honeypot'):
+            security_logger.warning("Honeypot acionado no registro pelo IP=%s", get_client_ip(request))
             return redirect('login')
 
-        bloqueado, chave, _, tempo_bloq = verificar_bloqueio_ip(request, escopo='registro', max_tentativas=10)
+        usr_tentativa = request.POST.get('username', '')
+        bloqueado, chave_ip, chave_usr, tempo_bloq = verificar_bloqueio_ip(
+            request, escopo='registro', identificador_extra=usr_tentativa, max_tentativas=10
+        )
         if bloqueado:
+            security_logger.warning("Bloqueio de rate limit em registro para IP=%s", get_client_ip(request))
             messages.error(request, 'Muitas tentativas realizadas. Aguarde alguns minutos.')
             return render(request, 'gestao/register.html', {'form': RegistroUsuarioForm()}, status=429)
 
@@ -474,10 +567,13 @@ def registro_view(request):
             usuario = form.save()
             garantir_titular_conta(usuario.username)
             login(request, usuario)
-            cache.delete(chave)
+            cache.delete(chave_ip)
+            if chave_usr:
+                cache.delete(chave_usr)
             return redirect('dashboard')
         else:
-            registrar_falha_ip(chave, tempo_bloq)
+            registrar_falha_ip(chave_ip, tempo_bloq, chave_usr)
+            messages.error(request, 'Verifique os campos destacados no formulário abaixo.')
     else:
         form = RegistroUsuarioForm()
     return render(request, 'gestao/register.html', {'form': form})
@@ -489,8 +585,14 @@ def login_view(request):
         return redirect('dashboard')
 
     if request.method == 'POST':
-        bloqueado, chave, _, tempo_bloq = verificar_bloqueio_ip(request, escopo='login', max_tentativas=6)
+        usr_tentativa = request.POST.get('username', '')
+        bloqueado, chave_ip, chave_usr, tempo_bloq = verificar_bloqueio_ip(
+            request, escopo='login', identificador_extra=usr_tentativa, max_tentativas=6
+        )
         if bloqueado:
+            security_logger.warning(
+                "Bloqueio de forca bruta no login para IP=%s usuario=%s", get_client_ip(request), usr_tentativa
+            )
             messages.error(request, 'Muitas tentativas de acesso. Aguarde 5 minutos antes de tentar novamente.')
             return render(request, 'gestao/login.html', {'form': LoginUsuarioForm()}, status=429)
 
@@ -499,17 +601,24 @@ def login_view(request):
             usuario = form.get_user()
             garantir_titular_conta(usuario.username)
             login(request, usuario)
-            cache.delete(chave)
+            cache.delete(chave_ip)
+            if chave_usr:
+                cache.delete(chave_usr)
             return redirect('dashboard')
         else:
-            registrar_falha_ip(chave, tempo_bloq)
+            registrar_falha_ip(chave_ip, tempo_bloq, chave_usr)
+            security_logger.warning(
+                "Falha de autenticacao para usuario=%s IP=%s", usr_tentativa, get_client_ip(request)
+            )
             messages.error(request, 'Usuário ou senha inválidos.')
     else:
         form = LoginUsuarioForm()
     return render(request, 'gestao/login.html', {'form': form})
 
 
+@require_POST
 def logout_view(request):
+    """Exige método POST com validação CSRF para impedir logout forçado por sites externos."""
     logout(request)
     return redirect('login')
 
@@ -524,26 +633,20 @@ def dashboard(request):
     eu = garantir_titular_conta(minha_conta)
 
     hoje = date.today()
-    try:
-        mes_selecionado = int(request.GET.get('mes', hoje.month))
-        ano_selecionado = int(request.GET.get('ano', hoje.year))
-        if not (1 <= mes_selecionado <= 12):
-            mes_selecionado = hoje.month
-    except (ValueError, TypeError):
-        mes_selecionado = hoje.month
-        ano_selecionado = hoje.year
+    mes_selecionado = parse_int_seguro(request.GET.get('mes'), padrao=hoje.month, minimo=1, maximo=12)
+    ano_selecionado = parse_int_seguro(request.GET.get('ano'), padrao=hoje.year, minimo=2000, maximo=2100)
 
     if request.method == 'POST':
         tipo_formulario = request.POST.get('form_type')
 
         # 0. LANÇAMENTO RÁPIDO POR TEXTO
-        if tipo_formulario == 'lancamento_inteligente':
-            comando = request.POST.get('comando_ia', '').strip()
+        if tipo_formulario in ('lancamento_inteligente', 'lancamento_rapido'):
+            comando = (request.POST.get('comando_ia') or request.POST.get('texto_rapido') or '').strip()
             if comando:
                 cartoes_usr = list(Cartao.objects.filter(conta__iexact=minha_conta))
                 dados_cmd = interpretar_comando_inteligente(comando, cartoes_usr)
                 if dados_cmd['valor'] <= 0:
-                    messages.error(request, "Informe a descrição e o valor. Exemplo: Uber 24,90")
+                    messages.error(request, "Informe a descrição e um valor maior que zero. Exemplo: Uber 24,90")
                     return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
                 historico = list(Transacao.objects.filter(conta__iexact=minha_conta).exclude(categoria='Outros'))
@@ -583,8 +686,17 @@ def dashboard(request):
                 )
                 return redirect(f'/?mes={m_dest}&ano={a_dest}')
 
-        # 1. IMPORTAÇÃO DE FATURA CSV
+        # 1. IMPORTAÇÃO DE FATURA CSV (COM RATE LIMIT E LIMITE DE 1.000 LINHAS)
         elif tipo_formulario == 'upload_fatura':
+            bloqueado_csv, ch_csv_ip, ch_csv_usr, t_bloq_csv = verificar_bloqueio_ip(
+                request, escopo='upload_csv', identificador_extra=minha_conta, max_tentativas=15, tempo_bloqueio=300
+            )
+            if bloqueado_csv:
+                security_logger.warning("Rate limit de upload CSV atingido para usuario=%s", minha_conta)
+                messages.error(request, 'Muitos envios de arquivo em sequência. Aguarde alguns minutos.')
+                return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
+            registrar_falha_ip(ch_csv_ip, t_bloq_csv, ch_csv_usr)
+
             arquivo_csv = request.FILES.get('arquivo_csv')
             if not arquivo_csv:
                 messages.error(request, 'Selecione um arquivo CSV válido.')
@@ -635,7 +747,7 @@ def dashboard(request):
             possiveis_valores = ('amount', 'valor', 'valor (r$)', 'valor r$', 'total', 'preco', 'debito')
             possiveis_categorias = ('category', 'categoria', 'tipo')
 
-            for index, row in enumerate(reader):
+            for index, row in enumerate(itertools.islice(reader, 1000)):
                 row_norm = {normalizar_chave_coluna(k): str(v).strip() for k, v in row.items() if k is not None and v is not None}
                 if not row_norm:
                     continue
@@ -701,7 +813,7 @@ def dashboard(request):
 
         # 2. SALVAR ITENS IMPORTADOS EM LOTE
         elif tipo_formulario == 'salvar_fatura_lote':
-            ids_marcados = request.POST.getlist('importar_chk')
+            ids_marcados = request.POST.getlist('importar_chk')[:1000]
             cartao_id = request.POST.get('cartao_lote')
             novo_cartao_nome = request.POST.get('novo_cartao_lote_nome', '').strip()
 
@@ -709,8 +821,8 @@ def dashboard(request):
             if cartao_id == 'NOVO_CARTAO' and novo_cartao_nome:
                 cartao_obj = Cartao.objects.create(
                     nome=sanitizar_texto_csv(novo_cartao_nome),
-                    dia_fechamento=max(1, min(31, int(request.POST.get('novo_cartao_fechamento', 25) or 25))),
-                    dia_vencimento=max(1, min(31, int(request.POST.get('novo_cartao_vencimento', 5) or 5))),
+                    dia_fechamento=parse_int_seguro(request.POST.get('novo_cartao_fechamento'), padrao=25, minimo=1, maximo=31),
+                    dia_vencimento=parse_int_seguro(request.POST.get('novo_cartao_vencimento'), padrao=5, minimo=1, maximo=31),
                     conta=minha_conta
                 )
             elif cartao_id and cartao_id not in ('', 'SEM_CARTAO', 'NOVO_CARTAO') and str(cartao_id).isdigit():
@@ -728,7 +840,7 @@ def dashboard(request):
                         continue
                     data_val = request.POST.get(f'data_{t_id}')
                     dono_id = request.POST.get(f'dono_{t_id}')
-                    categoria = request.POST.get(f'cat_{t_id}', 'Outros')
+                    categoria = validar_categoria(request.POST.get(f'cat_{t_id}', 'Outros'))
 
                     dono_obj = None
                     if dono_id and str(dono_id).isdigit():
@@ -761,29 +873,32 @@ def dashboard(request):
             messages.success(request, f"{len(novas_transacoes)} lançamentos importados para {ultimo_mes:02d}/{ultimo_ano}.")
             return redirect(f'/?mes={ultimo_mes}&ano={ultimo_ano}')
 
-        # 3. NOVA TRANSAÇÃO
+        # 3. NOVA TRANSAÇÃO (COM VALIDAÇÃO ESTRITA DE VALORES POSITIVOS E TIPOS)
         elif tipo_formulario == 'nova_transacao':
             descricao_digitada = sanitizar_texto_csv(request.POST.get('descricao', ''))
-            valor_digitado = parse_moeda(request.POST.get('valor', '0'))
+            valor_dec = parse_moeda_decimal(request.POST.get('valor', '0'))
+            if not descricao_digitada or valor_dec <= Decimal('0.00'):
+                messages.error(request, "Informe uma descrição válida e um valor maior que zero.")
+                return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
             dono_id_escolhido = request.POST.get('dono_id')
-            tipo_escolhido = request.POST.get('tipo', 'DESPESA')
-            categoria_escolhida = request.POST.get('categoria', 'Outros')
+            tipo_escolhido = validar_tipo_transacao(request.POST.get('tipo', 'DESPESA'))
+            categoria_escolhida = validar_categoria(request.POST.get('categoria', 'Outros'))
             data_digitada = request.POST.get('data')
             cartao_id_escolhido = request.POST.get('cartao_id')
 
             recorrente = request.POST.get('recorrente') == '1'
-            parcelas = 1 if recorrente else max(1, min(120, int(request.POST.get('parcelas', 1) or 1)))
+            parcelas = 1 if recorrente else parse_int_seguro(request.POST.get('parcelas', 1), padrao=1, minimo=1, maximo=120)
 
             donos_extras = request.POST.getlist('dono_id_extra')
             valores_extras_str = request.POST.getlist('valor_extra')
 
-            dono_obj = get_object_or_404(Pessoa, id=dono_id_escolhido, conta__iexact=minha_conta) if dono_id_escolhido else eu
-            cartao_obj = get_object_or_404(Cartao, id=cartao_id_escolhido, conta__iexact=minha_conta) if cartao_id_escolhido else None
+            dono_obj = get_object_or_404(Pessoa, id=dono_id_escolhido, conta__iexact=minha_conta) if (dono_id_escolhido and str(dono_id_escolhido).isdigit()) else eu
+            cartao_obj = get_object_or_404(Cartao, id=cartao_id_escolhido, conta__iexact=minha_conta) if (cartao_id_escolhido and str(cartao_id_escolhido).isdigit()) else None
             data_base = parse_data_flexivel(data_digitada) or hoje
 
-            parcelas_totais_dec = dividir_em_parcelas_exatas(valor_digitado, parcelas)
-            matriz_extras_dec = [dividir_em_parcelas_exatas(parse_moeda(v), parcelas) for v in valores_extras_str]
+            parcelas_totais_dec = dividir_em_parcelas_exatas(float(valor_dec), parcelas)
+            matriz_extras_dec = [dividir_em_parcelas_exatas(max(0.0, parse_moeda(v)), parcelas) for v in valores_extras_str]
 
             with transaction.atomic():
                 for i in range(parcelas):
@@ -812,7 +927,7 @@ def dashboard(request):
 
                     for idx, dono_extra_id in enumerate(donos_extras):
                         valor_deste_amigo = matriz_extras_dec[idx][i] if idx < len(matriz_extras_dec) else Decimal('0.00')
-                        if dono_extra_id and valor_deste_amigo > Decimal('0.00'):
+                        if dono_extra_id and str(dono_extra_id).isdigit() and valor_deste_amigo > Decimal('0.00'):
                             d_obj = get_object_or_404(Pessoa, id=dono_extra_id, conta__iexact=minha_conta)
                             Transacao.objects.create(
                                 descricao=f"{desc_salvar} (Parte de {d_obj.nome})",
@@ -839,21 +954,25 @@ def dashboard(request):
             transacao = get_object_or_404(Transacao, id=t_id, conta__iexact=minha_conta)
 
             descricao = sanitizar_texto_csv(request.POST.get('descricao', ''))
-            valor = parse_moeda(request.POST.get('valor', '0'))
+            valor_dec = parse_moeda_decimal(request.POST.get('valor', '0'))
+            if not descricao or valor_dec <= Decimal('0.00'):
+                messages.error(request, "Informe uma descrição válida e um valor maior que zero.")
+                return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
+
             data_val = request.POST.get('data')
-            tipo = request.POST.get('tipo', 'DESPESA')
-            categoria = request.POST.get('categoria', 'Outros')
+            tipo = validar_tipo_transacao(request.POST.get('tipo', 'DESPESA'))
+            categoria = validar_categoria(request.POST.get('categoria', 'Outros'))
             recorrente = request.POST.get('recorrente') == '1'
-            parcelas = 1 if recorrente else max(1, min(120, int(request.POST.get('parcelas', 1) or 1)))
+            parcelas = 1 if recorrente else parse_int_seguro(request.POST.get('parcelas', 1), padrao=1, minimo=1, maximo=120)
             dono_id = request.POST.get('dono_id')
             cartao_id = request.POST.get('cartao_id')
 
             donos_extras = request.POST.getlist('dono_id_extra')
             valores_extras_str = request.POST.getlist('valor_extra')
 
-            parcelas_totais_dec = dividir_em_parcelas_exatas(valor, parcelas)
+            parcelas_totais_dec = dividir_em_parcelas_exatas(float(valor_dec), parcelas)
             valores_extras_dec = [
-                (parse_moeda_decimal(v) / Decimal(parcelas)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                (max(Decimal('0.00'), parse_moeda_decimal(v)) / Decimal(parcelas)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                 for v in valores_extras_str
             ]
             soma_extras = sum(valores_extras_dec, Decimal('0.00'))
@@ -871,7 +990,7 @@ def dashboard(request):
             transacao.categoria = categoria
             transacao.recorrente = recorrente
             transacao.dono = get_object_or_404(Pessoa, id=dono_id, conta__iexact=minha_conta)
-            transacao.cartao = get_object_or_404(Cartao, id=cartao_id, conta__iexact=minha_conta) if cartao_id else None
+            transacao.cartao = get_object_or_404(Cartao, id=cartao_id, conta__iexact=minha_conta) if (cartao_id and str(cartao_id).isdigit()) else None
             transacao.save()
 
             for i in range(1, parcelas):
@@ -900,26 +1019,25 @@ def dashboard(request):
 
             if donos_extras and any(v > Decimal('0.00') for v in valores_extras_dec):
                 for extra_id, extra_val in zip(donos_extras, valores_extras_dec):
-                    if extra_id and extra_val > Decimal('0.00'):
-                        amigo_obj = Pessoa.objects.filter(id=extra_id, conta__iexact=minha_conta).first()
-                        if amigo_obj:
-                            Transacao.objects.create(
-                                descricao=f"{descricao} (Parte de {amigo_obj.nome})",
-                                valor=extra_val,
-                                data=transacao.data,
-                                tipo=tipo,
-                                categoria=categoria,
-                                dono=amigo_obj,
-                                cartao=transacao.cartao,
-                                conta=minha_conta,
-                                recorrente=recorrente
-                            )
+                    if extra_id and str(extra_id).isdigit() and extra_val > Decimal('0.00'):
+                        amigo_obj = get_object_or_404(Pessoa, id=extra_id, conta__iexact=minha_conta)
+                        Transacao.objects.create(
+                            descricao=f"{descricao} (Parte de {amigo_obj.nome})",
+                            valor=extra_val,
+                            data=transacao.data,
+                            tipo=tipo,
+                            categoria=categoria,
+                            dono=amigo_obj,
+                            cartao=transacao.cartao,
+                            conta=minha_conta,
+                            recorrente=recorrente
+                        )
 
             messages.success(request, "Lançamento atualizado.")
 
         # 5. OUTROS GERENCIAMENTOS
         elif tipo_formulario == 'atualizar_meta':
-            novo_valor = parse_moeda_decimal(request.POST.get('valor_meta'))
+            novo_valor = max(Decimal('0.00'), parse_moeda_decimal(request.POST.get('valor_meta')))
             meta = MetaMensal.objects.filter(conta__iexact=minha_conta).first()
             if meta:
                 meta.valor = novo_valor
@@ -929,21 +1047,25 @@ def dashboard(request):
             messages.success(request, "Meta mensal atualizada.")
 
         elif tipo_formulario == 'nova_pessoa':
-            Pessoa.objects.create(
-                nome=sanitizar_texto_csv(request.POST.get('nome', '')),
-                telefone=re.sub(r'[^\d+]', '', request.POST.get('telefone', '')),
-                is_titular=not Pessoa.objects.filter(conta__iexact=minha_conta, is_titular=True).exists(),
-                conta=minha_conta
-            )
-            messages.success(request, "Pessoa cadastrada.")
+            nome_p = sanitizar_texto_csv(request.POST.get('nome', ''))
+            if nome_p:
+                Pessoa.objects.create(
+                    nome=nome_p,
+                    telefone=re.sub(r'[^\d+]', '', request.POST.get('telefone', ''))[:20],
+                    is_titular=not Pessoa.objects.filter(conta__iexact=minha_conta, is_titular=True).exists(),
+                    conta=minha_conta
+                )
+                messages.success(request, "Pessoa cadastrada.")
 
         elif tipo_formulario == 'editar_pessoa':
             p_id = request.POST.get('pessoa_id')
             p = get_object_or_404(Pessoa, id=p_id, conta__iexact=minha_conta)
-            p.nome = sanitizar_texto_csv(request.POST.get('nome', ''))
-            p.telefone = re.sub(r'[^\d+]', '', request.POST.get('telefone', ''))
-            p.save()
-            messages.success(request, f"Cadastro de {p.nome} atualizado.")
+            nome_p = sanitizar_texto_csv(request.POST.get('nome', ''))
+            if nome_p:
+                p.nome = nome_p
+                p.telefone = re.sub(r'[^\d+]', '', request.POST.get('telefone', ''))[:20]
+                p.save()
+                messages.success(request, f"Cadastro de {p.nome} atualizado.")
 
         elif tipo_formulario == 'excluir_pessoa':
             p_id = request.POST.get('pessoa_id')
@@ -955,30 +1077,34 @@ def dashboard(request):
                 messages.success(request, "Pessoa removida.")
 
         elif tipo_formulario == 'novo_cartao':
-            Cartao.objects.create(
-                nome=sanitizar_texto_csv(request.POST.get('nome', '')),
-                dia_fechamento=max(1, min(31, int(request.POST.get('dia_fechamento', 25) or 25))),
-                dia_vencimento=max(1, min(31, int(request.POST.get('dia_vencimento', 5) or 5))),
-                conta=minha_conta
-            )
-            messages.success(request, "Cartão adicionado.")
+            nome_c = sanitizar_texto_csv(request.POST.get('nome', ''))
+            if nome_c:
+                Cartao.objects.create(
+                    nome=nome_c,
+                    dia_fechamento=parse_int_seguro(request.POST.get('dia_fechamento'), padrao=25, minimo=1, maximo=31),
+                    dia_vencimento=parse_int_seguro(request.POST.get('dia_vencimento'), padrao=5, minimo=1, maximo=31),
+                    conta=minha_conta
+                )
+                messages.success(request, "Cartão adicionado.")
 
         elif tipo_formulario == 'registrar_pagamento':
             dono_obj = get_object_or_404(Pessoa, id=request.POST.get('dono_id'), conta__iexact=minha_conta)
-            referencia = request.POST.get('referencia_gasto')
-            descricao_pagamento = f"Pagamento de {dono_obj.nome}" + (f" (Ref: {referencia})" if referencia else "")
+            valor_pag = parse_moeda_decimal(request.POST.get('valor'))
+            if valor_pag > Decimal('0.00'):
+                referencia = sanitizar_texto_csv(request.POST.get('referencia_gasto', ''))
+                descricao_pagamento = f"Pagamento de {dono_obj.nome}" + (f" (Ref: {referencia})" if referencia else "")
 
-            Transacao.objects.create(
-                descricao=descricao_pagamento,
-                valor=parse_moeda_decimal(request.POST.get('valor')),
-                dono=dono_obj,
-                tipo='PAGAMENTO',
-                categoria='Outros',
-                data=parse_data_flexivel(request.POST.get('data')) or hoje,
-                conta=minha_conta,
-                recorrente=False
-            )
-            messages.success(request, "Recebimento registrado.")
+                Transacao.objects.create(
+                    descricao=descricao_pagamento,
+                    valor=valor_pag,
+                    dono=dono_obj,
+                    tipo='PAGAMENTO',
+                    categoria='Outros',
+                    data=parse_data_flexivel(request.POST.get('data')) or hoje,
+                    conta=minha_conta,
+                    recorrente=False
+                )
+                messages.success(request, "Recebimento registrado.")
 
         return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
@@ -1063,7 +1189,7 @@ def dashboard(request):
 
     gastos_mes_anterior = valores_evolucao[-2] if len(valores_evolucao) >= 2 else 0.0
 
-    if filtra_pessoa_id:
+    if filtra_pessoa_id and str(filtra_pessoa_id).isdigit():
         lista_transacoes_mes = [t for t in lista_transacoes_mes if str(t.dono.id) == str(filtra_pessoa_id)]
 
     meus_gastos = sum(float(t.valor) for t in lista_transacoes_mes if eu and t.dono_id == eu.id and t.tipo == 'DESPESA')
@@ -1126,7 +1252,7 @@ def dashboard(request):
     percentual_gasto = (meus_gastos / valor_meta * 100) if valor_meta > 0 else 0.0
 
     resumo_cartoes, melhor_cartao_hoje = analisar_inteligencia_cartoes(todos_cartoes, lista_transacoes_mes)
-    analise_ia = gerar_insights_inteligentes(
+    indicadores = calcular_indicadores_contabeis(
         meus_gastos, gastos_mes_anterior, valor_meta, gastos_pessoais_dict, lista_transacoes_mes, eu, mes_selecionado, ano_selecionado
     )
 
@@ -1146,7 +1272,7 @@ def dashboard(request):
         'mes_proximo': mes_proximo,
         'ano_proximo': ano_proximo,
         'dividas_detalhadas': dividas_detalhadas,
-        'filtra_pessoa_id': int(filtra_pessoa_id) if filtra_pessoa_id else None,
+        'filtra_pessoa_id': int(filtra_pessoa_id) if (filtra_pessoa_id and str(filtra_pessoa_id).isdigit()) else None,
         'labels_grafico': list(gastos_pessoais_dict.keys()),
         'valores_grafico': list(gastos_pessoais_dict.values()),
         'labels_evolucao': labels_evolucao,
@@ -1155,21 +1281,29 @@ def dashboard(request):
         'valor_maior_cat': valor_maior_cat,
         'percentual_gasto': percentual_gasto,
         'percentual_barra': min(100, int(percentual_gasto)),
-        'analise_ia': analise_ia,
+        'analise_ia': indicadores,
+        'indicadores': indicadores,
+        'ga_measurement_id': os.environ.get('GA_MEASUREMENT_ID', ''),
         'usuario': request.user
     }
     return render(request, 'gestao/dashboard.html', contexto)
 
 
 # ==========================================
-# ROTAS DE EXCLUSÃO E CONFORMIDADE LGPD (BLINDADAS COM @require_POST)
+# ROTAS DE EXCLUSÃO E CONFORMIDADE LGPD
 # ==========================================
 
 @login_required(login_url='login')
 @require_POST
 def excluir_transacao(request, id):
-    """Exige método POST com validação CSRF para impedir exclusão forjada via GET."""
-    transacao = get_object_or_404(Transacao, id=id, conta__iexact=request.user.username)
+    transacao = Transacao.objects.filter(id=id, conta__iexact=request.user.username).first()
+    if not transacao:
+        security_logger.warning(
+            "Tentativa de exclusao de transacao inexistente ou de outra conta (id=%s) por usuario=%s",
+            id, request.user.username
+        )
+        return render(request, 'gestao/404.html', status=404)
+
     nome_desc = transacao.descricao
     transacao.delete()
     messages.success(request, f"Lançamento '{nome_desc}' removido.")
@@ -1191,7 +1325,6 @@ def excluir_cartao(request, id):
 @login_required(login_url='login')
 @require_POST
 def limpar_dados_financeiros(request):
-    """Remove transações do ciclo selecionado (considerando fechamento de cartões) ou de toda a conta."""
     minha_conta = request.user.username
     escopo = request.POST.get('escopo', 'tudo')
     mes = request.POST.get('mes')
@@ -1301,11 +1434,19 @@ def exportar_dados_lgpd(request):
 @login_required(login_url='login')
 @require_POST
 def excluir_conta_lgpd(request):
-    """Exige confirmação estrita da senha atual do usuário autenticado."""
-    senha_confirmacao = request.POST.get('senha_confirmacao', '')
     usuario = request.user
+    bloqueado, ch_ip, ch_usr, t_bloq = verificar_bloqueio_ip(
+        request, escopo='excluir_conta', identificador_extra=usuario.username, max_tentativas=5, tempo_bloqueio=600
+    )
+    if bloqueado:
+        security_logger.warning("Bloqueio de rate limit na exclusao de conta para usuario=%s", usuario.username)
+        messages.error(request, 'Muitas tentativas incorretas. Aguarde 10 minutos.')
+        return redirect('dashboard')
 
+    senha_confirmacao = request.POST.get('senha_confirmacao', '')
     if not senha_confirmacao or not usuario.check_password(senha_confirmacao):
+        registrar_falha_ip(ch_ip, t_bloq, ch_usr)
+        security_logger.warning("Tentativa falha de exclusao de conta (senha incorreta) para usuario=%s", usuario.username)
         messages.error(request, 'Senha incorreta. A exclusão da conta foi cancelada por segurança.')
         return redirect('dashboard')
 

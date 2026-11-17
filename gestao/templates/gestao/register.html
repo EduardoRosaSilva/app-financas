@@ -1,70 +1,23 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>FinPro - Criar Conta</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidade (LGPD) | FinPro</title>
+    <link rel="icon" type="image/png" href="{% static 'icone.png' %}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <style>
-        *, *::before, *::after { box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; overflow-x: hidden; }
-        .form-control { font-size: 16px !important; border-radius: 12px; }
-    </style>
 </head>
-<body class="d-flex align-items-center justify-content-center min-vh-100 p-3">
-    <div class="bg-white border rounded-4 p-4 shadow-sm" style="width: 100%; max-width: 420px;">
-        <div class="text-center mb-4">
-            <h4 class="fw-bold mb-1"><i class="bi bi-wallet2 text-primary me-1"></i>FinPro</h4>
-            <p class="text-secondary small mb-0">Crie sua conta gratuita</p>
-        </div>
-        
-        <form method="POST" id="formRegistro">
-            {% csrf_token %}
-            <input type="text" name="website_url_honeypot" style="display:none;" tabindex="-1" autocomplete="off">
-
-            {{ form }}
-            <div class="form-check mt-1 mb-3">
-                <input class="form-check-input" type="checkbox" id="chkMostrarSenhaReg">
-                <label class="form-check-label small text-secondary" for="chkMostrarSenhaReg" style="cursor: pointer;">
-                    Mostrar senhas
-                </label>
+<body class="bg-light text-dark">
+    <main class="container py-4" style="max-width: 760px;">
+        <div class="bg-white border rounded-2 p-4 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                <h1 class="h5 fw-bold mb-0">Política de Privacidade (LGPD)</h1>
+                <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary rounded-2">Voltar</a>
             </div>
-            <button type="submit" id="btnSubmitReg" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">
-                Criar conta
-            </button>
-        </form>
-        <div class="text-center mt-4">
-            <a href="{% url 'login' %}" class="text-decoration-none small text-secondary">Já possui conta? <span class="text-primary fw-semibold">Entrar</span></a>
+            <p class="small text-secondary">Em conformidade com a Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018 - LGPD), coletamos apenas os dados estritamente necessários para autenticação e organização contábil do titular. O usuário dispõe de ferramentas integradas no painel para Portabilidade (JSON/CSV) e Eliminação Total da conta (Art. 18 da LGPD).</p>
+            <p class="small text-secondary mb-0">Controlador responsável: Eduardo Henrique Rosa Silva | Localização: Ituiutaba, MG, Brasil.</p>
         </div>
-    </div>
-    
-    <script>
-        document.querySelectorAll('input').forEach(e => {
-            if(e.type !== 'submit' && e.type !== 'checkbox' && e.name !== 'website_url_honeypot') {
-                e.classList.add('form-control', 'bg-light', 'mb-2', 'py-2');
-            }
-        });
-        document.querySelectorAll('label').forEach(e => {
-            if(e.htmlFor !== 'chkMostrarSenhaReg') {
-                e.classList.add('small', 'text-secondary', 'fw-semibold', 'mb-1');
-            }
-        });
-        document.querySelectorAll('.helptext').forEach(e => e.classList.add('d-block', 'small', 'text-secondary', 'mb-3'));
-        document.querySelectorAll('ul.errorlist').forEach(e => {
-            e.classList.add('list-unstyled', 'text-danger', 'small', 'bg-danger', 'bg-opacity-10', 'p-2', 'rounded-3');
-        });
-        document.getElementById('chkMostrarSenhaReg').addEventListener('change', function() {
-            document.querySelectorAll('input[name="password1"], input[name="password2"]').forEach(inp => {
-                inp.type = this.checked ? 'text' : 'password';
-            });
-        });
-        document.getElementById('formRegistro').addEventListener('submit', function() {
-            const btn = document.getElementById('btnSubmitReg');
-            btn.disabled = true;
-            btn.innerHTML = 'Criando conta...';
-        });
-    </script>
+    </main>
 </body>
 </html>
