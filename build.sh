@@ -7,11 +7,18 @@ pip install -r requirements.txt
 echo "Coletando arquivos estáticos..."
 python manage.py collectstatic --no-input --clear
 
-echo "Aplicando migrações no banco de dados..."
-python manage.py migrate
+echo "Acordando banco Neon e aplicando migrações..."
+for i in 1 2 3 4 5; do
+    python manage.py migrate && break
+    echo "Aguardando o compute do Neon iniciar (tentativa $i/5)..."
+    sleep 4
+done
 
 echo "Criando tabela de cache compartilhado para Rate Limiting..."
-python manage.py createcachetable
+for i in 1 2 3; do
+    python manage.py createcachetable && break
+    sleep 3
+done
 
 echo "Verificando configuração de superusuário via variáveis de ambiente..."
 python manage.py shell -c "

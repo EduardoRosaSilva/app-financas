@@ -2,23 +2,24 @@ from django.db import connection
 
 
 class PostgresRLSMiddleware:
-    """Define a variável de sessão 'app.current_tenant' no PostgreSQL para isolamento via RLS."""
+    """Define 'app.current_tenant' no PostgreSQL apenas em requisições autenticadas."""
+    ROTAS_SEM_BANCO = ('/health/', '/robots.txt', '/sitemap.xml', '/sw.js')
+
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        if connection.vendor == 'postgresql':
-            tenant = (
-                request.user.username
-                if getattr(request, 'user', None) and request.user.is_authenticated
-                else ''
-            )
+        if request.path in self.ROTAS_SEM_BANCO:
+            return self.get_response(request)
+
+        autenticado = getattr(request, 'user', None) and request.user.is_authenticated
+        if connection.vendor == 'postgresql' and autenticado:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT set_config('app.current_tenant', %s, false);", [tenant])
+                cursor.execute("SELECT set_config('app.current_tenant', %s, false);", [request.user.username])
 
         response = self.get_response(request)
 
-        if connection.vendor == 'postgresql':
+        if connection.vendor == 'postgresql' and autenticado:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT set_config('app.current_tenant', '', false);")
 

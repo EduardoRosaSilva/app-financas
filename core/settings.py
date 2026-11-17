@@ -100,7 +100,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # ==========================================
-# 3. BANCO DE DADOS E CACHE COMPARTILHADO ENTRE WORKERS
+# 3. BANCO DE DADOS (OTIMIZADO PARA NEON SERVERLESS POSTGRES)
 # ==========================================
 DB_URL = os.environ.get('DATABASE_URL')
 
@@ -108,11 +108,19 @@ if DB_URL and not EM_TESTE:
     DATABASES = {
         'default': dj_database_url.parse(
             DB_URL,
-            conn_max_age=600,
-            conn_health_checks=True,
-            ssl_require=EM_PRODUCAO,
+            conn_max_age=0,
+            ssl_require=True,
         )
     }
+    DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+    DATABASES['default'].setdefault('OPTIONS', {}).update({
+        'connect_timeout': 15,
+        'sslmode': 'require',
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
+    })
 else:
     DATABASES = {
         'default': {
@@ -180,15 +188,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ==========================================
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-SESSION_COOKIE_AGE = 60 * 60 * 8  # Expira após 8 horas
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_AGE = 60 * 60 * 8  # 8 horas
+SESSION_SAVE_EVERY_REQUEST = False  # Evita acordar o Neon em pings do /health/
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Lax'
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # Trava de 5MB no servidor
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # Trava de 5MB para payloads POST
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 6500  # Suporta revisão de faturas grandes sem erro 400
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 6500
 
 if EM_PRODUCAO and not EM_TESTE:
     SECURE_SSL_REDIRECT = True
