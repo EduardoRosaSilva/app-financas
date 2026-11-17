@@ -1,5 +1,6 @@
 import calendar
 import csv
+import hashlib
 import io
 import itertools
 import json
@@ -12,19 +13,28 @@ from collections import defaultdict
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.sites import site as admin_site
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.core import signing
 from django.core.cache import cache
+from django.core.mail import send_mail
 from django.db import transaction
+from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from .forms import LoginUsuarioForm, RegistroUsuarioForm
+from .forms import LoginUsuarioForm, RegistroUsuarioForm, VincularEmailForm
 from .models import Cartao, MetaMensal, Pessoa, Transacao
 
 security_logger = logging.getLogger('finpro.security')
@@ -34,6 +44,65 @@ CATEGORIAS_PERMITIDAS = {
     'Saúde', 'Lazer', 'Compras', 'Assinaturas', 'Outros'
 }
 TIPOS_PERMITIDOS = {'DESPESA', 'PAGAMENTO'}
+EMAIL_CONFIRM_SALT = 'finpro-email-confirmation-v1'
+
+
+# ==========================================
+# UTILITÁRIOS DE VERIFICAÇÃO DE E-MAIL E ENVIO SEGURO
+# ==========================================
+
+def _assinatura_email_verificado(email: str) -> str:
+    limpo = (email or '').strip().lower()
+    if not limpo:
+        return ''
+    digest = hashlib.sha256(limpo.encode('utf-8')).hexdigest()[:32]
+    return f"VERIFIED:{digest}"
+
+
+def is_email_confirmado(user: User) -> bool:
+    if not user or not user.is_authenticated or not user.email:
+        return False
+    return user.last_name == _assinatura_email_verificado(user.email)
+
+
+def marcar_email_como_confirmado(user: User, email: str):
+    email_limpo = email.strip().lower()
+    user.email = email_limpo
+    user.last_name = _assinatura_email_verificado(email_limpo)
+    user.save(update_fields=['email', 'last_name'])
+
+
+def gerar_token_confirmacao_email(user: User, email: str) -> str:
+    payload = {'uid': user.pk, 'u': user.username, 'email': email.strip().lower()}
+    return signing.dumps(payload, salt=EMAIL_CONFIRM_SALT)
+
+
+def enviar_email_seguro(assunto: str, mensagem: str, destinatario: str) -> bool:
+    try:
+        send_mail(
+            subject=assunto,
+            message=mensagem,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[destinatario],
+            fail_silently=False,
+        )
+        return True
+    except Exception as exc:
+        security_logger.warning("Falha ao enviar e-mail para %s: %s", destinatario, type(exc).__name__)
+        return False
+
+
+def disparar_email_confirmacao(request, user: User, email_destino: str) -> bool:
+    token = gerar_token_confirmacao_email(user, email_destino)
+    link = request.build_absolute_uri(reverse('confirmar_email', args=[token]))
+    assunto = "FinPro - Confirme seu endereço de e-mail"
+    corpo = (
+        f"Olá, {user.username}!\n\n"
+        f"Para confirmar seu e-mail no FinPro e habilitar a recuperação de senha, acesse o link abaixo:\n\n"
+        f"{link}\n\n"
+        f"Este link é válido por 24 horas. Se você não solicitou esta confirmação, ignore esta mensagem."
+    )
+    return enviar_email_seguro(assunto, corpo, email_destino)
 
 
 # ==========================================
@@ -42,7 +111,6 @@ TIPOS_PERMITIDOS = {'DESPESA', 'PAGAMENTO'}
 
 @never_cache
 def health_check(request):
-    """Endpoint de baixa latência para verificação de integridade."""
     return JsonResponse({
         'status': 'ok',
         'service': 'finpro-web',
@@ -51,7 +119,6 @@ def health_check(request):
 
 
 def robots_txt_view(request):
-    """Arquivo robots.txt padrão para indexadores de busca (sem expor rota secreta de admin)."""
     base_url = request.build_absolute_uri('/').rstrip('/')
     linhas = [
         "User-agent: *",
@@ -67,7 +134,6 @@ def robots_txt_view(request):
 
 
 def sitemap_xml_view(request):
-    """Mapa do site em XML para motores de busca (SEO)."""
     base_url = request.build_absolute_uri('/').rstrip('/')
     hoje_iso = date.today().isoformat()
     rotas_publicas = [
@@ -110,7 +176,6 @@ def erro_500_personalizado(request):
 # ==========================================
 
 def get_client_ip(request) -> str:
-    """Obtém o último IP adicionado pelo proxy reverso confiável (evita spoofing de X-Forwarded-For)."""
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded:
         ips = [ip.strip() for ip in x_forwarded.split(',') if ip.strip()]
@@ -181,7 +246,7 @@ def validar_tipo_transacao(tipo_raw: str) -> str:
 
 
 # ==========================================
-# REGRAS DE NEGÓCIO CONTÁBEIS E PARSERS
+# REGRAS DE NEGÓCIO CONTÁBEIS, DATAS DE CARTÃO E PARSERS
 # ==========================================
 
 def parse_moeda_decimal(valor_raw) -> Decimal:
@@ -297,6 +362,7 @@ def garantir_titular_conta(username: str) -> Pessoa:
 
 
 def get_mes_fatura(data_compra, dia_fechamento, dia_vencimento=None):
+    """Retorna (mes, ano) da competência da fatura conforme a data da compra e o dia de fechamento."""
     mes = data_compra.month
     ano = data_compra.year
     if data_compra.day >= dia_fechamento:
@@ -305,6 +371,28 @@ def get_mes_fatura(data_compra, dia_fechamento, dia_vencimento=None):
             mes = 1
             ano += 1
     return mes, ano
+
+
+def calcular_datas_ciclo_cartao(mes_competencia: int, ano_competencia: int, dia_fechamento: int, dia_vencimento: int):
+    """
+    Calcula a data exata de fechamento e a data exata de vencimento para uma fatura.
+    Se o dia de vencimento for menor que o dia de fechamento (ex.: fecha dia 25 e vence dia 5),
+    o vencimento efetivo ocorre no mês seguinte ao fechamento.
+    """
+    ult_dia_fech = calendar.monthrange(ano_competencia, mes_competencia)[1]
+    data_fechamento = date(ano_competencia, mes_competencia, min(max(1, dia_fechamento), ult_dia_fech))
+
+    mes_venc = mes_competencia
+    ano_venc = ano_competencia
+    if dia_vencimento < dia_fechamento:
+        mes_venc += 1
+        if mes_venc > 12:
+            mes_venc = 1
+            ano_venc += 1
+
+    ult_dia_venc = calendar.monthrange(ano_venc, mes_venc)[1]
+    data_vencimento = date(ano_venc, mes_venc, min(max(1, dia_vencimento), ult_dia_venc))
+    return data_fechamento, data_vencimento
 
 
 def prever_categoria(descricao_nova, transacoes_historicas):
@@ -365,35 +453,62 @@ def fallback_rules(descricao):
     return 'Outros'
 
 
-def analisar_inteligencia_cartoes(cartoes, transacoes_mes):
+def analisar_inteligencia_cartoes(cartoes, transacoes_mes, mes_sel=None, ano_sel=None):
+    """
+    Analisa o ciclo de cada cartão considerando data da compra, fechamento, vencimento
+    e abatimentos de fatura realizados no período.
+    """
     hoje = date.today()
+    m_ref = mes_sel or hoje.month
+    a_ref = ano_sel or hoje.year
     resumo = []
     melhor_cartao = None
-    maior_prazo = -1
+    maior_prazo_pagamento = -9999
 
     for c in cartoes:
-        total_cartao = sum(float(t.valor) for t in transacoes_mes if t.cartao_id == c.id and t.tipo == 'DESPESA')
+        despesas_cartao = sum(float(t.valor) for t in transacoes_mes if t.cartao_id == c.id and t.tipo == 'DESPESA')
+        pagamentos_cartao = sum(float(t.valor) for t in transacoes_mes if t.cartao_id == c.id and t.tipo == 'PAGAMENTO')
+        saldo_fatura = max(0.0, despesas_cartao - pagamentos_cartao)
+
+        dt_fech_mes, dt_venc_mes = calcular_datas_ciclo_cartao(m_ref, a_ref, c.dia_fechamento, c.dia_vencimento)
+
+        # Simula uma compra feita HOJE neste cartão para descobrir quando ela vence de verdade
+        m_comp_hoje, a_comp_hoje = get_mes_fatura(hoje, c.dia_fechamento, c.dia_vencimento)
+        dt_fech_compra_hoje, dt_venc_compra_hoje = calcular_datas_ciclo_cartao(
+            m_comp_hoje, a_comp_hoje, c.dia_fechamento, c.dia_vencimento
+        )
+        dias_prazo_compra_hoje = (dt_venc_compra_hoje - hoje).days
+        dias_para_fechar = (dt_fech_compra_hoje - hoje).days
         ja_fechou_este_mes = hoje.day >= c.dia_fechamento
 
-        if ja_fechou_este_mes:
-            status_ciclo = "Melhor dia de compra (próxima fatura)"
+        if saldo_fatura <= 0.01 and despesas_cartao > 0:
+            status_ciclo = f"Fatura quitada (vencia {dt_venc_mes.strftime('%d/%m')})"
             cor_badge = "success"
-            dias_para_fechar = (calendar.monthrange(hoje.year, hoje.month)[1] - hoje.day) + c.dia_fechamento
+        elif ja_fechou_este_mes:
+            status_ciclo = f"Melhor dia de compra! Compras hoje vencem só em {dt_venc_compra_hoje.strftime('%d/%m')} ({dias_prazo_compra_hoje} dias)"
+            cor_badge = "success"
         else:
-            dias_para_fechar = c.dia_fechamento - hoje.day
             if dias_para_fechar <= 3:
-                status_ciclo = f"Fecha em {dias_para_fechar} dia(s)"
+                status_ciclo = f"Atenção: fecha em {dias_para_fechar} dia(s) ({dt_fech_compra_hoje.strftime('%d/%m')}) • Vence {dt_venc_mes.strftime('%d/%m')}"
                 cor_badge = "warning"
             else:
-                status_ciclo = f"Fatura aberta (fecha dia {c.dia_fechamento})"
-                cor_badge = "secondary"
+                status_ciclo = f"Aberta: fecha {dt_fech_compra_hoje.strftime('%d/%m')} • Vence {dt_venc_mes.strftime('%d/%m')} ({dias_prazo_compra_hoje}d de prazo)"
+                cor_badge = "primary"
 
         item_cartao = {
             'id': c.id,
             'nome': c.nome,
             'dia_fechamento': c.dia_fechamento,
             'dia_vencimento': c.dia_vencimento,
-            'total_fatura': total_cartao,
+            'total_fatura_bruto': despesas_cartao,
+            'total_pago_cartao': pagamentos_cartao,
+            'total_fatura': saldo_fatura,
+            'data_fechamento_fmt': dt_fech_mes.strftime('%d/%m/%Y'),
+            'data_vencimento_fmt': dt_venc_mes.strftime('%d/%m/%Y'),
+            'vencimento_curto': dt_venc_mes.strftime('%d/%m'),
+            'fatura_compra_hoje': f"{m_comp_hoje:02d}/{a_comp_hoje}",
+            'vencimento_compra_hoje': dt_venc_compra_hoje.strftime('%d/%m/%Y'),
+            'dias_prazo_hoje': dias_prazo_compra_hoje,
             'status_ciclo': status_ciclo,
             'cor_badge': cor_badge,
             'ja_fechou': ja_fechou_este_mes,
@@ -401,8 +516,8 @@ def analisar_inteligencia_cartoes(cartoes, transacoes_mes):
         }
         resumo.append(item_cartao)
 
-        if dias_para_fechar > maior_prazo:
-            maior_prazo = dias_para_fechar
+        if dias_prazo_compra_hoje > maior_prazo_pagamento:
+            maior_prazo_pagamento = dias_prazo_compra_hoje
             melhor_cartao = item_cartao
 
     return resumo, melhor_cartao
@@ -524,13 +639,23 @@ def calcular_indicadores_contabeis(
     }
 
 
+def _pagamento_corresponde_despesa(pagamento_desc: str, despesa_obj: Transacao) -> bool:
+    """Verifica se uma transação de PAGAMENTO está vinculada a uma DESPESA específica (por ID ou descrição)."""
+    if not pagamento_desc:
+        return False
+    if f"[REF:{despesa_obj.id}]" in pagamento_desc:
+        return True
+    if f"(Ref: {despesa_obj.descricao})" in pagamento_desc:
+        return True
+    return False
+
+
 # ==========================================
-# VIEWS DE AUTENTICAÇÃO E PROTEÇÃO DO ADMIN
+# VIEWS DE AUTENTICAÇÃO, CONFIRMAÇÃO DE E-MAIL E SENHA
 # ==========================================
 
 @never_cache
 def admin_login_protegido(request, extra_context=None):
-    """Protege o painel administrativo contra ataques de força bruta."""
     if request.method == 'POST':
         usr_alvo = request.POST.get('username', '')
         bloqueado, chave_ip, chave_usr, tempo_bloq = verificar_bloqueio_ip(
@@ -570,6 +695,13 @@ def registro_view(request):
             cache.delete(chave_ip)
             if chave_usr:
                 cache.delete(chave_usr)
+
+            if usuario.email:
+                enviado = disparar_email_confirmacao(request, usuario, usuario.email)
+                if enviado:
+                    messages.success(request, f"Conta criada! Enviamos um link de confirmação para {usuario.email}.")
+                else:
+                    messages.warning(request, "Conta criada. Não foi possível enviar o e-mail agora; você pode reenviar pelo painel.")
             return redirect('dashboard')
         else:
             registrar_falha_ip(chave_ip, tempo_bloq, chave_usr)
@@ -608,9 +740,9 @@ def login_view(request):
         else:
             registrar_falha_ip(chave_ip, tempo_bloq, chave_usr)
             security_logger.warning(
-                "Falha de autenticacao para usuario=%s IP=%s", usr_tentativa, get_client_ip(request)
+                "Falha de autenticacao para identificador=%s IP=%s", usr_tentativa, get_client_ip(request)
             )
-            messages.error(request, 'Usuário ou senha inválidos.')
+            messages.error(request, 'E-mail/usuário ou senha inválidos.')
     else:
         form = LoginUsuarioForm()
     return render(request, 'gestao/login.html', {'form': form})
@@ -618,9 +750,153 @@ def login_view(request):
 
 @require_POST
 def logout_view(request):
-    """Exige método POST com validação CSRF para impedir logout forçado por sites externos."""
     logout(request)
     return redirect('login')
+
+
+@login_required(login_url='login')
+@require_POST
+def vincular_email_view(request):
+    bloqueado, ch_ip, ch_usr, t_bloq = verificar_bloqueio_ip(
+        request, escopo='vincular_email', identificador_extra=request.user.username, max_tentativas=8, tempo_bloqueio=300
+    )
+    if bloqueado:
+        messages.error(request, 'Muitas solicitações seguidas. Aguarde alguns minutos.')
+        return redirect('dashboard')
+
+    form = VincularEmailForm(request.POST, user=request.user)
+    if form.is_valid():
+        novo_email = form.cleaned_data['email']
+        usuario = request.user
+        usuario.email = novo_email
+        usuario.last_name = ''
+        usuario.save(update_fields=['email', 'last_name'])
+
+        registrar_falha_ip(ch_ip, t_bloq, ch_usr)
+        enviado = disparar_email_confirmacao(request, usuario, novo_email)
+        if enviado:
+            messages.success(request, f"Enviamos um link de confirmação para {novo_email}. Verifique sua caixa de entrada.")
+        else:
+            messages.warning(request, f"E-mail {novo_email} salvo. Verifique as configurações de SMTP para receber o link.")
+    else:
+        for erro in form.errors.get('email', []):
+            messages.error(request, erro)
+    return redirect('dashboard')
+
+
+@login_required(login_url='login')
+@require_POST
+def reenviar_confirmacao_email_view(request):
+    usuario = request.user
+    if not usuario.email:
+        messages.error(request, 'Cadastre um endereço de e-mail primeiro.')
+        return redirect('dashboard')
+
+    bloqueado, ch_ip, ch_usr, t_bloq = verificar_bloqueio_ip(
+        request, escopo='reenviar_email', identificador_extra=usuario.username, max_tentativas=5, tempo_bloqueio=300
+    )
+    if bloqueado:
+        messages.error(request, 'Aguarde alguns minutos antes de solicitar um novo reenvio.')
+        return redirect('dashboard')
+
+    registrar_falha_ip(ch_ip, t_bloq, ch_usr)
+    if disparar_email_confirmacao(request, usuario, usuario.email):
+        messages.success(request, f"Novo link de confirmação enviado para {usuario.email}.")
+    else:
+        messages.error(request, "Não foi possível enviar o e-mail no momento. Tente novamente em instantes.")
+    return redirect('dashboard')
+
+
+@never_cache
+def confirmar_email_view(request, token):
+    try:
+        dados = signing.loads(token, salt=EMAIL_CONFIRM_SALT, max_age=60 * 60 * 24)
+        user_id = dados.get('uid')
+        email = (dados.get('email') or '').strip().lower()
+        usuario = User.objects.filter(pk=user_id).first()
+        if not usuario or not email:
+            raise signing.BadSignature()
+
+        if User.objects.filter(email__iexact=email).exclude(pk=usuario.pk).exists():
+            messages.error(request, 'Este endereço de e-mail já foi vinculado a outra conta.')
+            return redirect('dashboard' if request.user.is_authenticated else 'login')
+
+        marcar_email_como_confirmado(usuario, email)
+        messages.success(request, f"E-mail ({email}) confirmado com sucesso! Agora você pode entrar com ele ou redefinir sua senha.")
+    except signing.SignatureExpired:
+        messages.error(request, 'O link de confirmação expirou. Solicite um novo link no painel.')
+    except signing.BadSignature:
+        messages.error(request, 'Link de confirmação inválido.')
+
+    return redirect('dashboard' if request.user.is_authenticated else 'login')
+
+
+@never_cache
+def recuperar_senha_view(request):
+    if request.method == 'POST':
+        identificador = (request.POST.get('identificador') or '').strip()
+        bloqueado, ch_ip, ch_usr, t_bloq = verificar_bloqueio_ip(
+            request, escopo='recuperar_senha', identificador_extra=identificador, max_tentativas=5, tempo_bloqueio=300
+        )
+        if bloqueado:
+            messages.error(request, 'Muitas solicitações realizadas. Aguarde 5 minutos.')
+            return render(request, 'gestao/recuperar_senha.html', status=429)
+
+        registrar_falha_ip(ch_ip, t_bloq, ch_usr)
+
+        if identificador:
+            usuario = User.objects.filter(
+                Q(email__iexact=identificador) | Q(username__iexact=identificador)
+            ).first()
+            if usuario and usuario.email:
+                uidb64 = urlsafe_base64_encode(force_bytes(usuario.pk))
+                token = default_token_generator.make_token(usuario)
+                link = request.build_absolute_uri(
+                    reverse('redefinir_senha_confirmar', kwargs={'uidb64': uidb64, 'token': token})
+                )
+                assunto = "FinPro - Redefinição de senha"
+                corpo = (
+                    f"Olá, {usuario.username}!\n\n"
+                    f"Recebemos uma solicitação para redefinir a senha da sua conta no FinPro.\n"
+                    f"Acesse o link seguro abaixo para criar uma nova senha:\n\n"
+                    f"{link}\n\n"
+                    f"Se você não solicitou a alteração, ignore este e-mail."
+                )
+                enviar_email_seguro(assunto, corpo, usuario.email)
+
+        messages.success(
+            request,
+            'Se houver uma conta com e-mail cadastrado correspondente aos dados informados, enviamos o link de redefinição.'
+        )
+        return redirect('login')
+
+    return render(request, 'gestao/recuperar_senha.html')
+
+
+@never_cache
+def redefinir_senha_confirmar_view(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        usuario = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        usuario = None
+
+    token_valido = usuario is not None and default_token_generator.check_token(usuario, token)
+    if not token_valido:
+        messages.error(request, 'O link de redefinição de senha é inválido ou já foi utilizado.')
+        return redirect('recuperar_senha')
+
+    if request.method == 'POST':
+        form = SetPasswordForm(usuario, request.POST)
+        if form.is_valid():
+            form.save()
+            security_logger.warning("Senha redefinida com sucesso via token para usuario=%s", usuario.username)
+            messages.success(request, 'Senha atualizada com sucesso! Faça login com sua nova senha.')
+            return redirect('login')
+    else:
+        form = SetPasswordForm(usuario)
+
+    return render(request, 'gestao/redefinir_senha.html', {'form': form, 'usuario_alvo': usuario})
 
 
 # ==========================================
@@ -686,7 +962,7 @@ def dashboard(request):
                 )
                 return redirect(f'/?mes={m_dest}&ano={a_dest}')
 
-        # 1. IMPORTAÇÃO DE FATURA CSV (COM RATE LIMIT E LIMITE DE 1.000 LINHAS)
+        # 1. IMPORTAÇÃO DE FATURA CSV
         elif tipo_formulario == 'upload_fatura':
             bloqueado_csv, ch_csv_ip, ch_csv_usr, t_bloq_csv = verificar_bloqueio_ip(
                 request, escopo='upload_csv', identificador_extra=minha_conta, max_tentativas=15, tempo_bloqueio=300
@@ -873,29 +1149,70 @@ def dashboard(request):
             messages.success(request, f"{len(novas_transacoes)} lançamentos importados para {ultimo_mes:02d}/{ultimo_ano}.")
             return redirect(f'/?mes={ultimo_mes}&ano={ultimo_ano}')
 
-        # 3. NOVA TRANSAÇÃO (COM VALIDAÇÃO ESTRITA DE VALORES POSITIVOS E TIPOS)
+        # 3. NOVA TRANSAÇÃO (SUPORTA DESPESAS E TAMBÉM PAGAMENTOS VINCULADOS OU AVULSOS)
         elif tipo_formulario == 'nova_transacao':
             descricao_digitada = sanitizar_texto_csv(request.POST.get('descricao', ''))
             valor_dec = parse_moeda_decimal(request.POST.get('valor', '0'))
-            if not descricao_digitada or valor_dec <= Decimal('0.00'):
-                messages.error(request, "Informe uma descrição válida e um valor maior que zero.")
+            tipo_escolhido = validar_tipo_transacao(request.POST.get('tipo', 'DESPESA'))
+            divida_vinc_id = request.POST.get('divida_vinculada_id', '').strip()
+
+            if valor_dec <= Decimal('0.00'):
+                messages.error(request, "Informe um valor maior que zero.")
                 return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
             dono_id_escolhido = request.POST.get('dono_id')
-            tipo_escolhido = validar_tipo_transacao(request.POST.get('tipo', 'DESPESA'))
             categoria_escolhida = validar_categoria(request.POST.get('categoria', 'Outros'))
             data_digitada = request.POST.get('data')
             cartao_id_escolhido = request.POST.get('cartao_id')
+
+            dono_obj = get_object_or_404(Pessoa, id=dono_id_escolhido, conta__iexact=minha_conta) if (dono_id_escolhido and str(dono_id_escolhido).isdigit()) else eu
+            cartao_obj = get_object_or_404(Cartao, id=cartao_id_escolhido, conta__iexact=minha_conta) if (cartao_id_escolhido and str(cartao_id_escolhido).isdigit()) else None
+            data_base = parse_data_flexivel(data_digitada) or hoje
+
+            if tipo_escolhido == 'PAGAMENTO':
+                divida_alvo = None
+                if divida_vinc_id and divida_vinc_id.isdigit():
+                    divida_alvo = Transacao.objects.filter(
+                        id=int(divida_vinc_id), conta__iexact=minha_conta, tipo='DESPESA'
+                    ).select_related('cartao', 'dono').first()
+
+                if divida_alvo:
+                    dono_obj = divida_alvo.dono
+                    cartao_obj = cartao_obj or divida_alvo.cartao
+                    data_salvar = divida_alvo.data
+                    base_desc = descricao_digitada or f"Pagamento de {divida_alvo.descricao}"
+                    desc_final = sanitizar_texto_csv(f"{base_desc} (Ref: {divida_alvo.descricao}) [REF:{divida_alvo.id}]")
+                else:
+                    data_salvar = data_base
+                    desc_final = sanitizar_texto_csv(descricao_digitada or f"Pagamento ({dono_obj.nome})")
+
+                Transacao.objects.create(
+                    descricao=desc_final,
+                    valor=valor_dec,
+                    dono=dono_obj,
+                    tipo='PAGAMENTO',
+                    categoria=categoria_escolhida,
+                    data=data_salvar,
+                    cartao=cartao_obj,
+                    conta=minha_conta,
+                    recorrente=False
+                )
+                if cartao_obj:
+                    mes_red, ano_red = get_mes_fatura(data_salvar, cartao_obj.dia_fechamento, cartao_obj.dia_vencimento)
+                else:
+                    mes_red, ano_red = data_salvar.month, data_salvar.year
+                messages.success(request, f"Pagamento de R$ {float(valor_dec):.2f} registrado e abatido com sucesso.")
+                return redirect(f'/?mes={mes_red}&ano={ano_red}')
+
+            if not descricao_digitada:
+                messages.error(request, "Informe uma descrição válida para o lançamento.")
+                return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
             recorrente = request.POST.get('recorrente') == '1'
             parcelas = 1 if recorrente else parse_int_seguro(request.POST.get('parcelas', 1), padrao=1, minimo=1, maximo=120)
 
             donos_extras = request.POST.getlist('dono_id_extra')
             valores_extras_str = request.POST.getlist('valor_extra')
-
-            dono_obj = get_object_or_404(Pessoa, id=dono_id_escolhido, conta__iexact=minha_conta) if (dono_id_escolhido and str(dono_id_escolhido).isdigit()) else eu
-            cartao_obj = get_object_or_404(Cartao, id=cartao_id_escolhido, conta__iexact=minha_conta) if (cartao_id_escolhido and str(cartao_id_escolhido).isdigit()) else None
-            data_base = parse_data_flexivel(data_digitada) or hoje
 
             parcelas_totais_dec = dividir_em_parcelas_exatas(float(valor_dec), parcelas)
             matriz_extras_dec = [dividir_em_parcelas_exatas(max(0.0, parse_moeda(v)), parcelas) for v in valores_extras_str]
@@ -1035,7 +1352,7 @@ def dashboard(request):
 
             messages.success(request, "Lançamento atualizado.")
 
-        # 5. OUTROS GERENCIAMENTOS
+        # 5. OUTROS GERENCIAMENTOS E PAGAMENTO/ABATIMENTO DE DÍVIDAS
         elif tipo_formulario == 'atualizar_meta':
             novo_valor = max(Decimal('0.00'), parse_moeda_decimal(request.POST.get('valor_meta')))
             meta = MetaMensal.objects.filter(conta__iexact=minha_conta).first()
@@ -1088,11 +1405,43 @@ def dashboard(request):
                 messages.success(request, "Cartão adicionado.")
 
         elif tipo_formulario == 'registrar_pagamento':
-            dono_obj = get_object_or_404(Pessoa, id=request.POST.get('dono_id'), conta__iexact=minha_conta)
+            dono_id_pag = request.POST.get('dono_id')
+            dono_obj = get_object_or_404(Pessoa, id=dono_id_pag, conta__iexact=minha_conta) if (dono_id_pag and str(dono_id_pag).isdigit()) else eu
             valor_pag = parse_moeda_decimal(request.POST.get('valor'))
+
             if valor_pag > Decimal('0.00'):
+                divida_id = (request.POST.get('divida_id') or '').strip()
                 referencia = sanitizar_texto_csv(request.POST.get('referencia_gasto', ''))
-                descricao_pagamento = f"Pagamento de {dono_obj.nome}" + (f" (Ref: {referencia})" if referencia else "")
+                descricao_custom = sanitizar_texto_csv(request.POST.get('descricao_pagamento', ''))
+                cartao_id_pag = request.POST.get('cartao_id')
+                cartao_pag_obj = Cartao.objects.filter(id=cartao_id_pag, conta__iexact=minha_conta).first() if (cartao_id_pag and str(cartao_id_pag).isdigit()) else None
+
+                divida_obj = None
+                if divida_id and divida_id.isdigit():
+                    divida_obj = Transacao.objects.filter(
+                        id=int(divida_id), conta__iexact=minha_conta, tipo='DESPESA'
+                    ).select_related('cartao', 'dono').first()
+
+                if divida_obj:
+                    dono_obj = divida_obj.dono
+                    cartao_pag_obj = cartao_pag_obj or divida_obj.cartao
+                    data_pag = divida_obj.data
+                    titulo_base = descricao_custom or f"Pagamento: {divida_obj.descricao}"
+                    descricao_pagamento = sanitizar_texto_csv(
+                        f"{titulo_base} (Ref: {divida_obj.descricao}) [REF:{divida_obj.id}]"
+                    )
+                else:
+                    data_pag = parse_data_flexivel(request.POST.get('data')) or date(
+                        ano_selecionado, mes_selecionado, min(hoje.day, calendar.monthrange(ano_selecionado, mes_selecionado)[1])
+                    )
+                    if referencia:
+                        descricao_pagamento = sanitizar_texto_csv(f"Pagamento de {dono_obj.nome} (Ref: {referencia})")
+                    elif descricao_custom:
+                        descricao_pagamento = descricao_custom
+                    elif dono_obj.is_titular:
+                        descricao_pagamento = "Pagamento / Abatimento avulso"
+                    else:
+                        descricao_pagamento = f"Pagamento de {dono_obj.nome}"
 
                 Transacao.objects.create(
                     descricao=descricao_pagamento,
@@ -1100,11 +1449,14 @@ def dashboard(request):
                     dono=dono_obj,
                     tipo='PAGAMENTO',
                     categoria='Outros',
-                    data=parse_data_flexivel(request.POST.get('data')) or hoje,
+                    data=data_pag,
+                    cartao=cartao_pag_obj,
                     conta=minha_conta,
                     recorrente=False
                 )
-                messages.success(request, "Recebimento registrado.")
+                messages.success(request, f"Pagamento de R$ {float(valor_pag):.2f} registrado e subtraído do saldo devedor.")
+            else:
+                messages.error(request, "Informe um valor de pagamento maior que zero.")
 
         return redirect(f'/?mes={mes_selecionado}&ano={ano_selecionado}')
 
@@ -1173,6 +1525,39 @@ def dashboard(request):
     lista_transacoes_mes = obter_transacoes_competencia(mes_selecionado, ano_selecionado)
     lista_transacoes_mes.sort(key=lambda x: getattr(x, 'data_exibicao', x.data), reverse=True)
 
+    # Mapeia pagamentos realizados no mês para calcular saldos pendentes por dívida e abatimento pessoal
+    pagamentos_do_mes = [t for t in lista_transacoes_mes if t.tipo == 'PAGAMENTO']
+    minhas_dividas_abertas = []
+
+    for t in lista_transacoes_mes:
+        if t.tipo == 'DESPESA':
+            pago_vinculado = sum(
+                float(p.valor) for p in pagamentos_do_mes
+                if p.dono_id == t.dono_id and _pagamento_corresponde_despesa(p.descricao, t)
+            )
+            t.valor_pago = round(min(float(t.valor), pago_vinculado), 2)
+            t.saldo_pendente = round(max(0.0, float(t.valor) - pago_vinculado), 2)
+            t.quitado = t.saldo_pendente <= 0.01
+
+            if t.cartao:
+                _, dt_venc_item = calcular_datas_ciclo_cartao(
+                    mes_selecionado, ano_selecionado, t.cartao.dia_fechamento, t.cartao.dia_vencimento
+                )
+                t.vencimento_fatura_str = dt_venc_item.strftime('%d/%m')
+            else:
+                t.vencimento_fatura_str = ''
+
+            if eu and t.dono_id == eu.id and not t.quitado:
+                minhas_dividas_abertas.append({
+                    'id': t.id,
+                    'descricao': t.descricao,
+                    'valor_original': float(t.valor),
+                    'valor_pago': t.valor_pago,
+                    'saldo_pendente': t.saldo_pendente,
+                    'cartao_id': t.cartao_id or '',
+                    'cartao_nome': t.cartao.nome if t.cartao else 'Pix/Conta',
+                })
+
     nomes_meses = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     labels_evolucao = []
     valores_evolucao = []
@@ -1183,7 +1568,9 @@ def dashboard(request):
             m_hist += 12
             a_hist -= 1
         itens_h = obter_transacoes_competencia(m_hist, a_hist)
-        total_pessoal_h = sum(float(t.valor) for t in itens_h if eu and t.dono_id == eu.id and t.tipo == 'DESPESA')
+        desp_h = sum(float(t.valor) for t in itens_h if eu and t.dono_id == eu.id and t.tipo == 'DESPESA')
+        pag_h = sum(float(t.valor) for t in itens_h if eu and t.dono_id == eu.id and t.tipo == 'PAGAMENTO')
+        total_pessoal_h = max(0.0, desp_h - pag_h)
         labels_evolucao.append(f"{nomes_meses[m_hist]}/{str(a_hist)[2:]}")
         valores_evolucao.append(round(total_pessoal_h, 2))
 
@@ -1192,7 +1579,14 @@ def dashboard(request):
     if filtra_pessoa_id and str(filtra_pessoa_id).isdigit():
         lista_transacoes_mes = [t for t in lista_transacoes_mes if str(t.dono.id) == str(filtra_pessoa_id)]
 
-    meus_gastos = sum(float(t.valor) for t in lista_transacoes_mes if eu and t.dono_id == eu.id and t.tipo == 'DESPESA')
+    meus_gastos_brutos = round(sum(
+        float(t.valor) for t in lista_transacoes_mes if eu and t.dono_id == eu.id and t.tipo == 'DESPESA'
+    ), 2)
+    meus_pagamentos = round(sum(
+        float(t.valor) for t in lista_transacoes_mes if eu and t.dono_id == eu.id and t.tipo == 'PAGAMENTO'
+    ), 2)
+    # Subtrai os pagamentos (vinculados ou avulsos) do valor que o usuário deve no mês
+    meus_gastos = round(max(0.0, meus_gastos_brutos - meus_pagamentos), 2)
 
     familiares = Pessoa.objects.filter(is_titular=False, conta__iexact=minha_conta)
     dividas_detalhadas = []
@@ -1205,9 +1599,12 @@ def dashboard(request):
         if abs(saldo_pessoa) > 0.01:
             despesas_pendentes = []
             for desp in despesas_fam:
-                pago_nesta_despesa = sum(float(p.valor) for p in pagamentos_fam if f"(Ref: {desp.descricao})" in p.descricao)
+                pago_nesta_despesa = sum(
+                    float(p.valor) for p in pagamentos_fam if _pagamento_corresponde_despesa(p.descricao, desp)
+                )
                 if float(desp.valor) - pago_nesta_despesa > 0.01:
                     despesas_pendentes.append({
+                        'id': desp.id,
                         'descricao': desp.descricao,
                         'valor_original': float(desp.valor),
                         'saldo': float(desp.valor) - pago_nesta_despesa
@@ -1251,7 +1648,19 @@ def dashboard(request):
     valor_maior_cat = gastos_pessoais_dict.get(maior_categoria, 0.0)
     percentual_gasto = (meus_gastos / valor_meta * 100) if valor_meta > 0 else 0.0
 
-    resumo_cartoes, melhor_cartao_hoje = analisar_inteligencia_cartoes(todos_cartoes, lista_transacoes_mes)
+    resumo_cartoes, melhor_cartao_hoje = analisar_inteligencia_cartoes(
+        todos_cartoes, lista_transacoes_mes, mes_selecionado, ano_selecionado
+    )
+    cartoes_js_meta = [
+        {
+            'id': c.id,
+            'nome': c.nome,
+            'fechamento': c.dia_fechamento,
+            'vencimento': c.dia_vencimento,
+        }
+        for c in todos_cartoes
+    ]
+
     indicadores = calcular_indicadores_contabeis(
         meus_gastos, gastos_mes_anterior, valor_meta, gastos_pessoais_dict, lista_transacoes_mes, eu, mes_selecionado, ano_selecionado
     )
@@ -1259,10 +1668,15 @@ def dashboard(request):
     contexto = {
         'transacoes': lista_transacoes_mes,
         'pessoas': todas_pessoas,
+        'titular_id': eu.id if eu else None,
         'cartoes': todos_cartoes,
+        'cartoes_js_meta': cartoes_js_meta,
         'resumo_cartoes': resumo_cartoes,
         'melhor_cartao_hoje': melhor_cartao_hoje,
         'meus_gastos': meus_gastos,
+        'meus_gastos_brutos': meus_gastos_brutos,
+        'meus_pagamentos': meus_pagamentos,
+        'minhas_dividas_abertas': minhas_dividas_abertas,
         'valor_meta': valor_meta,
         'saldo_restante': saldo_restante,
         'mes_atual': mes_selecionado,
@@ -1284,7 +1698,9 @@ def dashboard(request):
         'analise_ia': indicadores,
         'indicadores': indicadores,
         'ga_measurement_id': os.environ.get('GA_MEASUREMENT_ID', ''),
-        'usuario': request.user
+        'usuario': request.user,
+        'tem_email': bool(request.user.email),
+        'email_confirmado': is_email_confirmado(request.user),
     }
     return render(request, 'gestao/dashboard.html', contexto)
 
@@ -1393,6 +1809,8 @@ def exportar_dados_lgpd(request):
     dados = {
         'titular_conta': {
             'username': request.user.username,
+            'email': request.user.email,
+            'email_confirmado': is_email_confirmado(request.user),
             'data_criacao': request.user.date_joined.isoformat() if request.user.date_joined else None,
             'ultimo_login': request.user.last_login.isoformat() if request.user.last_login else None,
             'exportado_em': datetime.now().isoformat(),

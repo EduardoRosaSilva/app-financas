@@ -13,7 +13,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 EM_PRODUCAO = os.environ.get('RENDER') is not None
 EM_TESTE = 'test' in sys.argv
 
-# Seguro por padrão (False se a variável DEBUG não for declarada explicitamente)
 DEBUG = not EM_PRODUCAO and os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 # ==========================================
@@ -189,7 +188,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_AGE = 60 * 60 * 8  # 8 horas
-SESSION_SAVE_EVERY_REQUEST = False  # Evita acordar o Neon em pings do /health/
+SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = True
@@ -213,7 +212,24 @@ if EM_PRODUCAO and not EM_TESTE:
     SECURE_HSTS_PRELOAD = True
 
 # ==========================================
-# 5. AUDITORIA E LOGGING DE SEGURANÇA (SEM DADOS SENSÍVEIS)
+# 5. ENVIO DE E-MAILS (CONFIRMAÇÃO E REDEFINIÇÃO DE SENHA)
+# ==========================================
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com').strip()
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587') or 587)
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() in ('true', '1', 'yes')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '').strip()
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '').strip()
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'nao-responda@finpro.app').strip()
+EMAIL_TIMEOUT = 10
+
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD and not EM_TESTE:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# ==========================================
+# 6. AUDITORIA E LOGGING DE SEGURANÇA
 # ==========================================
 LOGGING = {
     'version': 1,

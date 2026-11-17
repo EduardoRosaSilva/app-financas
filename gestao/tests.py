@@ -256,3 +256,105 @@ class FinProSystemTests(TestCase):
 
         res_termos = self.client.get(reverse('termos_uso'))
         self.assertEqual(res_termos.status_code, 200)
+
+def test_11_fluxo_conta_antiga_email_confirmacao_e_redefinicao_senha(self):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+        from .views import gerar_token_confirmacao_email, is_email_confirmado
+
+        # 1. Usuário antigo (cadastrado apenas com username e sem e-mail) tem dados preservados e vê aviso
+        u_antigo = User.objects.create_user(username='cliente_antigo', password='SenhaAntiga!123')
+        p_antigo = Pessoa.objects.create(nome='Cliente Antigo', conta='cliente_antigo', is_titular=True)
+        Transacao.objects.create(
+            descricao='Compra Antiga Preservada', valor=250, data=date.today(),
+            tipo='DESPESA', dono=p_antigo, conta='cliente_antigo'
+        )
+
+        self.client.force_login(u_antigo)
+        res_dash = self.client.get(reverse('dashboard'))
+        self.assertContains(res_dash, 'Compra Antiga Preservada')
+        self.assertContains(res_dash, 'Cadastre seu e-mail para proteger sua conta')
+
+        # 2. Usuário antigo vincula seu e-mail e confirma pelo link
+        self.client.post(reverse('vincular_email'), {'email': 'antigo@finpro.com'})
+        u_antigo.refresh_from_db()
+        self.assertEqual(u_antigo.email, 'antigo@finpro.com')
+        self.assertFalse(is_email_confirmado(u_antigo))
+
+        token_conf = gerar_token_confirmacao_email(u_antigo, 'antigo@finpro.com')
+        self.client.get(reverse('confirmar_email', args=[token_conf]))
+        u_antigo.refresh_from_db()
+        self.assertTrue(is_email_confirmado(u_antigo))
+
+        # 3. Agora o usuário consegue fazer login digitando o E-MAIL e continua vendo seus dados antigos
+        self.client.logout()
+        res_login_email = self.client.post(reverse('login'), {
+            'username': 'ANTIGO@FINPRO.COM',
+            'password': 'SenhaAntiga!123'
+        })
+        self.assertEqual(res_login_email.status_code, 302)
+        res_dash_pos = self.client.get(reverse('dashboard'))
+        self.assertContains(res_dash_pos, 'Compra Antiga Preservada')
+
+        # 4. Fluxo de Redefinição de Senha via link tokenizado
+        self.client.logout()
+        self.client.post(reverse('recuperar_senha'), {'identificador': 'antigo@finpro.com'})
+        uidb64 = urlsafe_base64_encode(force_bytes(u_antigo.pk))
+        token_reset = default_token_generator.make_token(u_antigo)
+
+        res_reset = self.client.post(
+            reverse('redefinir_senha_confirmar', kwargs={'uidb64': uidb64, 'token': token_reset}),
+            {'new_password1': 'NovaSenhaForte@2026', 'new_password2': 'NovaSenhaForte@2026'}
+        )
+        self.assertEqual(res_reset.status_code, 302)
+
+        # Login com e-mail e a nova senha
+        res_login_nova = self.client.post(reverse('login'), {
+            'username': 'antigo@finpro.com',
+            'password': 'NovaSenhaForte@2026'
+        })
+        self.assertEqual(res_login_nova.status_code, 302)
+
+def test_12_abatimento_divida_vinculada_e_avulsa_e_datas_cartao(self):
+        u = User.objects.create_user(username='pagador', password='123')
+        self.client.force_login(u)
+        titular = Pessoa.objects.create(nome='Pagador', conta='pagador', is_titular=True)
+        cartao = Cartao.objects.create(nome='Inter', dia_fechamento=25, dia_vencimento=5, conta='pagador')
+
+        hoje = date(2026, 10, 10)
+        d1 = Transacao.objects.create(
+            descricao='Notebook', valor=Decimal('500.00'), data=hoje,
+            tipo='DESPESA', dono=titular, cartao=cartao, conta='pagador'
+        )
+        Transacao.objects.create(
+            descricao='Internet', valor=Decimal('300.00'), data=hoje,
+            tipo='DESPESA', dono=titular, conta='pagador'
+        )
+
+        # 1. Inicialmente o usuário deve R$ 800,00
+        res1 = self.client.get('/?mes=10&ano=2026')
+        self.assertEqual(float(res1.context['meus_gastos']), 800.00)
+
+        # 2. Paga R$ 200,00 vinculado à dívida do Notebook (R$ 500 -> restam R$ 300; total devido cai para R$ 600)
+        self.client.post('/?mes=10&ano=2026', {
+            'form_type': 'registrar_pagamento',
+            'divida_id': str(d1.id),
+            'valor': '200,00',
+            'dono_id': str(titular.id),
+        })
+        res2 = self.client.get('/?mes=10&ano=2026')
+        self.assertEqual(float(res2.context['meus_gastos']), 600.00)
+        self.assertEqual(float(res2.context['resumo_cartoes'][0]['total_fatura']), 300.00)
+
+        # 3. Paga R$ 150,00 de forma avulsa (sem vínculo) -> total devido cai de R$ 600,00 para R$ 450,00
+        self.client.post('/?mes=10&ano=2026', {
+            'form_type': 'registrar_pagamento',
+            'divida_id': '',
+            'valor': '150,00',
+            'data': '2026-10-15',
+            'dono_id': str(titular.id),
+        })
+        res3 = self.client.get('/?mes=10&ano=2026')
+        self.assertEqual(float(res3.context['meus_gastos']), 450.00)
+        self.assertEqual(float(res3.context['meus_pagamentos']), 350.00)

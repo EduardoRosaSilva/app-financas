@@ -83,7 +83,7 @@
             width: 100%;
             max-width: 920px;
             margin: 0 auto;
-            padding: 0 12px 40px 12px;
+            padding: 0 12px 48px 12px;
             overflow-x: hidden;
         }
 
@@ -121,6 +121,22 @@
             border: 1px solid var(--border-color);
             text-decoration: none;
             padding: 0;
+        }
+
+        /* Botão de Novo Lançamento em alto destaque */
+        .btn-cta-lancamento {
+            background-color: var(--accent);
+            color: #ffffff;
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-weight: 700;
+            box-shadow: 0 3px 10px rgba(29, 78, 216, 0.28);
+            transition: transform 0.1s ease, box-shadow 0.15s ease;
+        }
+        .btn-cta-lancamento:hover, .btn-cta-lancamento:focus {
+            background-color: #1e40af;
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(29, 78, 216, 0.38);
         }
 
         .month-selector-bar {
@@ -277,6 +293,7 @@
             gap: 8px;
         }
         .tx-item:last-child { border-bottom: none; }
+        .tx-quitado { opacity: 0.65; }
 
         .modal-dialog {
             margin: 10px;
@@ -289,27 +306,17 @@
             }
         }
 
-        .whatsapp-float {
-            position: fixed;
-            bottom: 18px;
-            right: 16px;
-            z-index: 1010;
-            background-color: #15803d;
-            color: #ffffff;
-            border: 1px solid #166534;
-            border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 0.78rem;
-            font-weight: 600;
+        /* Link de suporte discreto no rodapé */
+        .link-suporte-discreto {
+            color: var(--text-secondary);
+            font-size: 0.72rem;
             text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            opacity: 0.75;
+            transition: opacity 0.15s ease;
         }
-        .whatsapp-float:hover {
-            color: #ffffff;
-            background-color: #166534;
+        .link-suporte-discreto:hover {
+            opacity: 1;
+            text-decoration: underline;
         }
 
         .alerta-flutuante {
@@ -349,8 +356,8 @@
             </a>
 
             <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                <button type="button" class="btn btn-primary btn-sm px-2 py-1 fw-semibold" style="font-size: 0.76rem;" data-bs-toggle="modal" data-bs-target="#modalTransacao" aria-label="Criar novo lançamento">
-                    + Lançar
+                <button type="button" class="btn btn-cta-lancamento btn-sm px-3 py-1" style="font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#modalTransacao" aria-label="Criar novo lançamento">
+                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Novo Lançamento
                 </button>
                 <button id="btnInstalarApp" class="icon-btn text-primary" style="display: none;" title="Instalar Aplicativo" aria-label="Instalar aplicativo no dispositivo">
                     <i class="bi bi-download" aria-hidden="true"></i>
@@ -376,7 +383,7 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}dark{% endif %} alert-dismissible fade show rounded-2 py-2 px-3 small alerta-flutuante" role="alert">
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'warning' %}warning{% else %}dark{% endif %} alert-dismissible fade show rounded-2 py-2 px-3 small alerta-flutuante" role="alert">
                 {{ message }}
                 <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Fechar aviso"></button>
             </div>
@@ -384,6 +391,38 @@
     {% endif %}
 
     <main id="conteudo-principal" class="app-shell" role="main">
+
+        {% if not tem_email %}
+        <section class="surface-card p-3 mb-3 border-warning" style="border-left: 4px solid #d97706;" aria-label="Aviso de cadastro de e-mail">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
+                <div>
+                    <strong class="d-block small"><i class="bi bi-envelope-exclamation text-warning me-1" aria-hidden="true"></i>Cadastre seu e-mail para proteger sua conta ({{ usuario.username }})</strong>
+                    <span class="text-secondary" style="font-size: 0.76rem;">Seus dados e lançamentos estão salvos. Vincule um e-mail para poder entrar com ele e recuperar sua senha quando precisar.</span>
+                </div>
+                <button type="button" class="btn btn-warning btn-sm fw-semibold px-3 flex-shrink-0" data-bs-toggle="modal" data-bs-target="#modalVincularEmail">
+                    Cadastrar e-mail
+                </button>
+            </div>
+        </section>
+        {% elif not email_confirmado %}
+        <section class="surface-card p-3 mb-3 border-primary" style="border-left: 4px solid #1d4ed8;" aria-label="Aviso de confirmação de e-mail pendente">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
+                <div>
+                    <strong class="d-block small"><i class="bi bi-envelope-check text-primary me-1" aria-hidden="true"></i>Confirmação de e-mail pendente ({{ usuario.email }})</strong>
+                    <span class="text-secondary" style="font-size: 0.76rem;">Acesse o link enviado para o seu e-mail para concluir a verificação da conta.</span>
+                </div>
+                <div class="d-flex gap-2 flex-shrink-0">
+                    <form method="POST" action="{% url 'reenviar_confirmacao_email' %}" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-primary btn-sm fw-medium">Reenviar link</button>
+                    </form>
+                    <button type="button" class="btn btn-light border btn-sm fw-medium" data-bs-toggle="modal" data-bs-target="#modalVincularEmail">
+                        Trocar e-mail
+                    </button>
+                </div>
+            </div>
+        </section>
+        {% endif %}
 
         <nav class="month-selector-bar mb-3" aria-label="Navegação de competência mensal">
             <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" aria-label="Ir para o mês anterior">
@@ -395,14 +434,34 @@
             </a>
         </nav>
 
+        <!-- Barra Principal de Ações Evidentes: Novo Lançamento + Pagar/Abater Dívida -->
+        <div class="row g-2 mb-3">
+            <div class="col-7 col-sm-8">
+                <button type="button" class="btn btn-cta-lancamento w-100 py-2 px-3 d-flex align-items-center justify-content-center gap-2" data-bs-toggle="modal" data-bs-target="#modalTransacao">
+                    <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
+                    <span>+ Adicionar Lançamento</span>
+                </button>
+            </div>
+            <div class="col-5 col-sm-4">
+                <button type="button" class="btn btn-outline-success w-100 py-2 px-2 fw-semibold d-flex align-items-center justify-content-center gap-1 bg-white" data-bs-toggle="modal" data-bs-target="#modalPagarDividaPessoal">
+                    <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                    <span>Pagar / Abater</span>
+                </button>
+            </div>
+        </div>
+
         <section class="surface-card p-3 mb-3" aria-label="Resumo do orçamento mensal">
             <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                 <div style="min-width: 0; flex: 1;">
-                    <span class="text-secondary d-block" style="font-size: 0.78rem;">Despesas pessoais no mês</span>
+                    <span class="text-secondary d-block" style="font-size: 0.78rem;">Saldo que devo no mês (líquido)</span>
                     <div class="fw-bold valor-sensivel text-truncate" style="font-size: clamp(1.35rem, 5vw, 1.7rem); letter-spacing: -0.5px;">
                         R$ {{ meus_gastos|floatformat:2 }}
                     </div>
-                    {% if analise_ia.variacao_mom != 0 %}
+                    {% if meus_pagamentos > 0 %}
+                    <span class="text-success fw-medium d-block valor-sensivel" style="font-size: 0.73rem;">
+                        Bruto: R$ {{ meus_gastos_brutos|floatformat:2 }} • Já pago: R$ {{ meus_pagamentos|floatformat:2 }}
+                    </span>
+                    {% elif analise_ia.variacao_mom != 0 %}
                     <span class="{% if analise_ia.variacao_mom <= 0 %}text-success{% else %}text-danger{% endif %} fw-medium d-block" style="font-size: 0.74rem;">
                         {% if analise_ia.variacao_mom > 0 %}+{% endif %}{{ analise_ia.variacao_mom|floatformat:1 }}% em relação ao mês anterior
                     </span>
@@ -440,14 +499,53 @@
             </div>
         </section>
 
+        <!-- Inteligência de Cartões: Melhor Cartão Hoje + Datas de Fechamento e Vencimento -->
+        {% if resumo_cartoes %}
+        <section class="surface-card p-3 mb-3" aria-label="Inteligência de faturas e datas dos cartões">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="fw-bold small text-uppercase text-secondary mb-0" style="font-size: 0.72rem; letter-spacing: 0.4px;">
+                    <i class="bi bi-credit-card-2-front me-1 text-primary" aria-hidden="true"></i>Ciclo de faturas e vencimentos
+                </h2>
+                {% if melhor_cartao_hoje %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.68rem;">
+                    Melhor hoje: {{ melhor_cartao_hoje.nome }} ({{ melhor_cartao_hoje.dias_prazo_hoje }}d p/ pagar)
+                </span>
+                {% endif %}
+            </div>
+
+            {% for c in resumo_cartoes %}
+            <div class="d-flex justify-content-between align-items-center gap-2 py-2 {% if not forloop.last %}border-bottom{% endif %}">
+                <div style="min-width: 0; flex: 1;">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fw-semibold text-truncate" style="font-size: 0.85rem;">{{ c.nome }}</span>
+                        <span class="badge bg-{{ c.cor_badge }}-subtle text-{{ c.cor_badge }} border" style="font-size: 0.65rem;">
+                            Vence {{ c.vencimento_curto }}
+                        </span>
+                    </div>
+                    <small class="text-secondary d-block text-truncate" style="font-size: 0.71rem;">
+                        {{ c.status_ciclo }}
+                    </small>
+                </div>
+                <div class="text-end flex-shrink-0">
+                    <span class="fw-bold d-block valor-sensivel" style="font-size: 0.85rem;">R$ {{ c.total_fatura|floatformat:2 }}</span>
+                    {% if c.total_pago_cartao > 0 %}
+                    <small class="text-success d-block valor-sensivel" style="font-size: 0.68rem;">Pago: R$ {{ c.total_pago_cartao|floatformat:2 }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <!-- Cadastro Rápido por Linha de Comando -->
         <section class="surface-card p-2 mb-3" aria-label="Cadastro rápido de despesa">
             <form method="POST" class="d-flex align-items-center gap-2 w-100 form-protegido">
                 {% csrf_token %}
                 <input type="hidden" name="form_type" value="lancamento_inteligente">
                 <label for="inputLancamentoRapido" class="visually-hidden">Descrição, valor e cartão</label>
-                <input type="text" id="inputLancamentoRapido" name="comando_ia" class="form-control border-0 bg-transparent shadow-none py-1 px-2" style="flex: 1 1 0%; min-width: 0;" placeholder="Cadastro rápido: ex. Uber 24,90 Nubank ou Mercado 200 2x" required>
+                <input type="text" id="inputLancamentoRapido" name="comando_ia" class="form-control border-0 bg-transparent shadow-none py-1 px-2" style="flex: 1 1 0%; min-width: 0;" placeholder="Lançamento rápido: ex. Uber 24,90 Nubank ou Mercado 200 2x" required>
                 <button type="submit" class="btn btn-primary btn-sm px-3 py-2 fw-semibold flex-shrink-0">
-                    Registrar
+                    Lançar
                 </button>
             </form>
         </section>
@@ -522,27 +620,36 @@
 
             <div id="listaTransacoesContainer">
                 {% for t in transacoes %}
-                <div class="tx-item item-transacao-lista"
+                <div class="tx-item item-transacao-lista {% if t.quitado %}tx-quitado{% endif %}"
                      data-titular="{% if t.dono.is_titular %}1{% else %}0{% endif %}"
                      data-fixo="{% if t.recorrente %}1{% else %}0{% endif %}"
                      data-cartao="{% if t.cartao %}1{% else %}0{% endif %}">
                     <div class="d-flex align-items-center gap-2" style="min-width: 0; flex: 1 1 0%; cursor: pointer; overflow: hidden;" tabindex="0" role="button" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" aria-label="Editar lançamento {{ t.descricao }}">
                         <div class="d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px; border-radius: 6px; background-color: var(--bg-subtle);">
                             {% if t.tipo == 'DESPESA' %}
-                                <i class="bi bi-arrow-up-right text-danger" aria-hidden="true"></i>
+                                {% if t.quitado %}
+                                    <i class="bi bi-check2-all text-success" aria-hidden="true"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-up-right text-danger" aria-hidden="true"></i>
+                                {% endif %}
                             {% else %}
                                 <i class="bi bi-arrow-down-left text-success" aria-hidden="true"></i>
                             {% endif %}
                         </div>
                         <div style="min-width: 0; flex: 1 1 0%; overflow: hidden;">
-                            <div class="fw-semibold text-truncate" style="font-size: 0.85rem;">
-                                {{ t.descricao }}
+                            <div class="fw-semibold text-truncate d-flex align-items-center gap-1" style="font-size: 0.85rem;">
+                                <span class="text-truncate {% if t.quitado %}text-decoration-line-through{% endif %}">{{ t.descricao }}</span>
+                                {% if t.tipo == 'DESPESA' and t.quitado %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.62rem;">Pago</span>
+                                {% elif t.tipo == 'DESPESA' and t.valor_pago > 0 %}
+                                    <span class="badge bg-warning-subtle text-dark border" style="font-size: 0.62rem;">Restam R$ {{ t.saldo_pendente|floatformat:2 }}</span>
+                                {% endif %}
                             </div>
                             <div class="text-secondary text-truncate" style="font-size: 0.7rem;">
-                                {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}
-                                / {{ t.categoria|default:"Outros" }}
-                                / {{ t.dono.nome }}
-                                / {% if t.cartao %}{{ t.cartao.nome }}{% else %}Pix{% endif %}
+                                Compra: {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}
+                                • {{ t.categoria|default:"Outros" }}
+                                • {{ t.dono.nome }}
+                                • {% if t.cartao %}{{ t.cartao.nome }} (Vence {{ t.vencimento_fatura_str }}){% else %}Pix/Conta{% endif %}
                             </div>
                         </div>
                     </div>
@@ -551,14 +658,27 @@
                         <div class="fw-bold {% if t.tipo == 'DESPESA' %}text-dark{% else %}text-success{% endif %} valor-sensivel" style="font-size: 0.85rem;">
                             {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
                         </div>
-                        <form method="POST" action="{% url 'excluir_transacao' t.id %}" class="m-0 p-0 d-inline" onsubmit="event.stopPropagation(); return confirm('Remover este lançamento?');">
-                            {% csrf_token %}
-                            <input type="hidden" name="mes" value="{{ mes_atual }}">
-                            <input type="hidden" name="ano" value="{{ ano_atual }}">
-                            <button type="submit" class="btn btn-link text-secondary text-decoration-none p-0 border-0" style="font-size: 0.68rem;" onclick="event.stopPropagation();">
-                                Excluir
+                        <div class="d-flex align-items-center justify-content-end gap-2">
+                            {% if t.tipo == 'DESPESA' and not t.quitado %}
+                            <button type="button" class="btn btn-link text-success text-decoration-none p-0 border-0 fw-semibold btn-pagar-item-rapido"
+                                    style="font-size: 0.68rem;"
+                                    data-divida-id="{{ t.id }}"
+                                    data-divida-desc="{{ t.descricao }}"
+                                    data-divida-saldo="{{ t.saldo_pendente|stringformat:'f' }}"
+                                    data-divida-dono="{{ t.dono.id }}"
+                                    data-divida-cartao="{{ t.cartao_id|default:'' }}">
+                                Pagar
                             </button>
-                        </form>
+                            {% endif %}
+                            <form method="POST" action="{% url 'excluir_transacao' t.id %}" class="m-0 p-0 d-inline" onsubmit="event.stopPropagation(); return confirm('Remover este lançamento?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="mes" value="{{ mes_atual }}">
+                                <input type="hidden" name="ano" value="{{ ano_atual }}">
+                                <button type="submit" class="btn btn-link text-secondary text-decoration-none p-0 border-0" style="font-size: 0.68rem;" onclick="event.stopPropagation();">
+                                    Excluir
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
                 {% empty %}
@@ -623,28 +743,119 @@
                 <div>
                     <strong>FinPro Sistemas de Gestão Pessoal</strong> | Responsável Técnico: Eduardo Henrique Rosa Silva
                 </div>
-                <div class="d-flex gap-3">
+                <div class="d-flex flex-wrap align-items-center gap-3">
                     <a href="{% url 'politica_privacidade' %}" class="text-secondary text-decoration-underline">Política de Privacidade</a>
-                    <a href="{% url 'termos_uso' %}" class="text-secondary text-decoration-underline">Termos de Uso e Cancelamento</a>
-                    <a href="{% url 'pagina_obrigado' %}" class="text-secondary text-decoration-underline">Institucional</a>
+                    <a href="{% url 'termos_uso' %}" class="text-secondary text-decoration-underline">Termos de Uso</a>
+                    <a href="https://wa.me/5534997756066?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20sistema%20FinPro." target="_blank" rel="noopener noreferrer" class="link-suporte-discreto" title="Suporte técnico">
+                        <i class="bi bi-headset me-1" aria-hidden="true"></i>Suporte
+                    </a>
                 </div>
             </div>
-            <p class="mb-1">
-                Endereço de contato e atendimento LGPD: Ituiutaba, MG, Brasil | Canal de suporte direto disponível via botão de atendimento.
-            </p>
             <p class="mb-0">
-                Aviso Legal: O FinPro é um software de organização contábil e orçamentária pessoal. As projeções matemáticas apresentadas não configuram consultoria financeira, análise de valores mobiliários ou recomendação de investimento (CVM/BACEN). Todos os direitos reservados &copy; 2026.
+                Aviso Legal: O FinPro é um software de organização contábil e orçamentária pessoal. As projeções matemáticas apresentadas não configuram consultoria financeira ou recomendação de investimento (CVM/BACEN). Todos os direitos reservados &copy; 2026.
             </p>
         </footer>
 
     </main>
 
-    <a href="https://wa.me/5534999999999?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20sistema%20FinPro." target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Atendimento e suporte via WhatsApp">
-        <i class="bi bi-whatsapp" aria-hidden="true"></i>
-        <span>Suporte</span>
-    </a>
-
     <!-- MODAIS DO SISTEMA -->
+
+    <!-- Modal Pagar / Abater Dívida (Vinculado a uma dívida ou Avulso) -->
+    <div class="modal fade" id="modalPagarDividaPessoal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-2">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">Registrar pagamento / Abater dívida</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST" class="form-protegido">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="registrar_pagamento">
+
+                        <div class="mb-2">
+                            <label class="form-label text-secondary small mb-1">Vincular a uma dívida existente? (opcional)</label>
+                            <select class="form-select" name="divida_id" id="selectDividaPessoal" onchange="preencherDadosDividaSelecionada(this)">
+                                <option value="" data-valor="" data-cartao="" data-dono="{{ titular_id }}">Não vincular (Abatimento avulso no valor que devo)</option>
+                                {% for d in minhas_dividas_abertas %}
+                                <option value="{{ d.id }}" data-valor="{{ d.saldo_pendente|stringformat:'f' }}" data-cartao="{{ d.cartao_id }}" data-dono="{{ titular_id }}">
+                                    {{ d.descricao }} — Restam R$ {{ d.saldo_pendente|floatformat:2 }} ({{ d.cartao_nome }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Valor pago (R$)</label>
+                                <input type="text" inputmode="decimal" class="form-control" id="inputValorPagarDivida" name="valor" placeholder="0,00" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Data do pagamento</label>
+                                <input type="date" class="form-control" name="data" required>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Titular / Pessoa</label>
+                                <select class="form-select" name="dono_id" id="selectDonoPagarDivida">
+                                    {% for p in pessoas %}
+                                    <option value="{{ p.id }}" {% if p.is_titular %}selected{% endif %}>{{ p.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Abater de qual cartão?</label>
+                                <select class="form-select" name="cartao_id" id="selectCartaoPagarDivida">
+                                    <option value="">Geral / Pix / Conta</option>
+                                    {% for c in cartoes %}
+                                    <option value="{{ c.id }}">{{ c.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small mb-1">Observação / Descrição (opcional)</label>
+                            <input type="text" class="form-control" name="descricao_pagamento" id="inputDescPagarDivida" placeholder="Ex: Adiantei fatura ou paguei parcela">
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 py-2 fw-semibold">
+                            Confirmar pagamento e subtrair do saldo
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalVincularEmail" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-2">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">Vincular e confirmar e-mail</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-secondary mb-3">
+                        Seu nome de usuário (<strong>{{ usuario.username }}</strong>) e todos os seus lançamentos serão mantidos intactos. Após confirmar seu e-mail, você poderá entrar usando tanto o e-mail quanto o usuário, além de redefinir sua senha caso esqueça.
+                    </p>
+                    <form method="POST" action="{% url 'vincular_email' %}" class="form-protegido">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary">Endereço de e-mail</label>
+                            <input type="email" name="email" class="form-control" value="{{ usuario.email|default:'' }}" placeholder="seuemail@exemplo.com" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                            Salvar e enviar link de confirmação
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="modalMeta" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-2">
@@ -701,8 +912,23 @@
                 </div>
                 <div class="modal-body">
                     <div class="p-2 rounded-2 mb-3 small" style="background-color: var(--bg-subtle);">
-                        <div><strong>Conta autenticada:</strong> {{ usuario.username }}</div>
-                        <div class="text-secondary" style="font-size: 0.74rem;">Protegido conforme Lei nº 13.709/2018 (LGPD).</div>
+                        <div><strong>Usuário:</strong> {{ usuario.username }}</div>
+                        <div>
+                            <strong>E-mail:</strong> {{ usuario.email|default:"Não cadastrado" }}
+                            {% if email_confirmado %}
+                                <span class="badge bg-success ms-1">Confirmado</span>
+                            {% elif tem_email %}
+                                <span class="badge bg-warning text-dark ms-1">Pendente</span>
+                            {% endif %}
+                        </div>
+                        <div class="mt-1 d-flex justify-content-between align-items-center">
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalVincularEmail" data-bs-dismiss="modal">
+                                Alterar ou confirmar e-mail
+                            </button>
+                            <a href="https://wa.me/5534997756066?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20sistema%20FinPro." target="_blank" rel="noopener noreferrer" class="text-secondary text-decoration-none" style="font-size: 0.72rem;">
+                                <i class="bi bi-whatsapp"></i> Suporte técnico
+                            </a>
+                        </div>
                     </div>
 
                     <p class="fw-semibold small mb-2">Portabilidade de dados (Art. 18, V)</p>
@@ -827,6 +1053,7 @@
     </div>
     {% endfor %}
 
+    <!-- Modal Novo Lançamento com Inteligência de Fatura/Vencimento e Vínculo de Dívida -->
     <div class="modal fade" id="modalTransacao" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-2">
@@ -840,18 +1067,38 @@
                         <input type="hidden" name="form_type" value="nova_transacao">
                         
                         <div class="row g-2">
-                            <div class="col-12 col-sm-7">
-                                <label class="form-label text-secondary small mb-1">Descrição</label>
-                                <input type="text" class="form-control" name="descricao" placeholder="Ex: Supermercado" required>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Tipo de lançamento</label>
+                                <select class="form-select" name="tipo" id="selectTipoNovoLancamento">
+                                    <option value="DESPESA" selected>Despesa / Compra</option>
+                                    <option value="PAGAMENTO">Pagamento / Abatimento</option>
+                                </select>
                             </div>
-                            <div class="col-12 col-sm-5">
-                                <label class="form-label text-secondary small mb-1">Valor total (R$)</label>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small mb-1">Valor (R$)</label>
                                 <input type="text" inputmode="decimal" class="form-control" id="valorTotalTransacao" name="valor" placeholder="0,00" required>
+                            </div>
+
+                            <div class="col-12" id="boxVincularDividaNoModal" style="display: none;">
+                                <label class="form-label text-secondary small mb-1">Vincular pagamento a alguma dívida criada? (opcional)</label>
+                                <select class="form-select" name="divida_vinculada_id" id="selectDividaModalTransacao">
+                                    <option value="">Não vincular (Abater direto do total que devo)</option>
+                                    {% for d in minhas_dividas_abertas %}
+                                    <option value="{{ d.id }}" data-valor="{{ d.saldo_pendente|stringformat:'f' }}" data-desc="Pagamento: {{ d.descricao }}">
+                                        {{ d.descricao }} (Restam R$ {{ d.saldo_pendente|floatformat:2 }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label text-secondary small mb-1">Descrição</label>
+                                <input type="text" class="form-control" id="inputDescricaoNovaTransacao" name="descricao" placeholder="Ex: Supermercado" required>
                             </div>
                             
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Data</label>
-                                <input type="date" class="form-control" name="data" required>
+                                <label class="form-label text-secondary small mb-1">Data da compra/pagto</label>
+                                <input type="date" class="form-control" name="data" id="inputDataCompraNova" required>
                             </div>
                             <div class="col-6">
                                 <label class="form-label text-secondary small mb-1">Categoria</label>
@@ -877,7 +1124,7 @@
                                 </select>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Pagamento</label>
+                                <label class="form-label text-secondary small mb-1">Forma / Cartão</label>
                                 <select class="form-select" name="cartao_id" id="selectCartaoForma">
                                     <option value="">Pix / Conta</option>
                                     {% for c in cartoes %}
@@ -886,23 +1133,21 @@
                                 </select>
                             </div>
 
-                            <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Tipo</label>
-                                <select class="form-select" name="tipo">
-                                    <option value="DESPESA">Despesa</option>
-                                    <option value="PAGAMENTO">Recebimento</option>
-                                </select>
+                            <!-- Aviso Inteligente em tempo real sobre fechamento e vencimento -->
+                            <div class="col-12" id="boxAvisoCicloCartao" style="display: none;">
+                                <div class="p-2 rounded-2 small bg-primary-subtle text-primary border border-primary-subtle" id="textoAvisoCicloCartao" style="font-size: 0.74rem;"></div>
                             </div>
-                            <div class="col-6">
+
+                            <div class="col-6" id="boxParcelasNovo">
                                 <label class="form-label text-secondary small mb-1">Parcelas</label>
                                 <input type="number" class="form-control" name="parcelas" id="inputParcelas" value="1" min="1" max="120">
                             </div>
 
-                            <div class="col-12 pt-1">
+                            <div class="col-6 d-flex align-items-end pb-1" id="boxRecorrenteNovo">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" name="recorrente" value="1" id="checkRecorrente">
                                     <label class="form-check-label small" for="checkRecorrente">
-                                        Despesa fixa mensal
+                                        Fixo mensal
                                     </label>
                                 </div>
                             </div>
@@ -959,6 +1204,10 @@
                             <span class="fw-bold">{{ analise_ia.nivel_score }}</span>
                         </div>
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
+                            <span class="text-secondary">Total bruto vs. já abatido</span>
+                            <span class="fw-bold">R$ {{ meus_gastos_brutos|floatformat:2 }} / R$ {{ meus_pagamentos|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
                             <span class="text-secondary">Maior categoria</span>
                             <span class="fw-bold">{{ maior_categoria }} (R$ {{ valor_maior_cat|floatformat:2 }})</span>
                         </div>
@@ -996,10 +1245,10 @@
                         </div>
                         <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <input type="number" class="form-control bg-white" name="dia_fechamento" placeholder="Fechamento" min="1" max="31" required>
+                                <input type="number" class="form-control bg-white" name="dia_fechamento" placeholder="Dia fechamento" min="1" max="31" required>
                             </div>
                             <div class="col-6">
-                                <input type="number" class="form-control bg-white" name="dia_vencimento" placeholder="Vencimento" min="1" max="31" required>
+                                <input type="number" class="form-control bg-white" name="dia_vencimento" placeholder="Dia vencimento" min="1" max="31" required>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm w-100 py-2 fw-semibold">Cadastrar cartão</button>
@@ -1012,7 +1261,7 @@
                             <div class="small" style="min-width: 0; flex: 1;">
                                 <span class="fw-semibold d-block text-truncate">{{ c.nome }}</span>
                                 <span class="text-secondary d-block text-truncate valor-sensivel" style="font-size: 0.72rem;">
-                                    Fatura: R$ {{ c.total_fatura|floatformat:2 }} / Fecha dia {{ c.dia_fechamento }}
+                                    Aberto: R$ {{ c.total_fatura|floatformat:2 }} • Fecha dia {{ c.dia_fechamento }} • Vence {{ c.data_vencimento_fmt }}
                                 </span>
                             </div>
                             <form method="POST" action="{% url 'excluir_cartao' c.id %}" class="flex-shrink-0" onsubmit="return confirm('Remover cartão {{ c.nome }}?');">
@@ -1068,9 +1317,9 @@
                             <input type="hidden" name="dono_id" value="{{ divida.id }}">
                             
                             <div class="mb-2">
-                                <label class="form-label text-secondary small">Referência</label>
+                                <label class="form-label text-secondary small">Vincular ao gasto</label>
                                 <select class="form-select" name="referencia_gasto" onchange="atualizarValorPagamento(this, 'valorPagamento{{ divida.id }}')">
-                                    <option value="" data-valor="{{ divida.saldo|stringformat:'s'|default:'0' }}">Valor total (R$ {{ divida.saldo|floatformat:2 }})</option>
+                                    <option value="" data-valor="{{ divida.saldo|stringformat:'s'|default:'0' }}">Abater do saldo geral (R$ {{ divida.saldo|floatformat:2 }})</option>
                                     {% for desp in divida.despesas %}
                                     <option value="{{ desp.descricao }}" data-valor="{{ desp.saldo|stringformat:'s'|default:'0' }}">{{ desp.descricao }} (R$ {{ desp.saldo|floatformat:2 }})</option>
                                     {% endfor %}
@@ -1161,7 +1410,7 @@
                                 <label class="form-label text-secondary small mb-1">Tipo</label>
                                 <select class="form-select" name="tipo">
                                     <option value="DESPESA" {% if t.tipo == 'DESPESA' %}selected{% endif %}>Despesa</option>
-                                    <option value="PAGAMENTO" {% if t.tipo == 'PAGAMENTO' %}selected{% endif %}>Recebimento</option>
+                                    <option value="PAGAMENTO" {% if t.tipo == 'PAGAMENTO' %}selected{% endif %}>Pagamento / Abatimento</option>
                                 </select>
                             </div>
                             <div class="col-6">
@@ -1223,6 +1472,7 @@
     {{ valores_grafico|json_script:"valores-data" }}
     {{ labels_evolucao|json_script:"labels-evolucao-data" }}
     {{ valores_evolucao|json_script:"valores-evolucao-data" }}
+    {{ cartoes_js_meta|json_script:"cartoes-meta-data" }}
 
     <script>
         function carregarAnalyticsConsentido() {
@@ -1239,9 +1489,139 @@
             gtag('config', gaId, { 'anonymize_ip': true });
         }
 
+        function preencherDadosDividaSelecionada(selectEl) {
+            const opt = selectEl.options[selectEl.selectedIndex];
+            const val = opt.getAttribute('data-valor');
+            const cartao = opt.getAttribute('data-cartao');
+            const dono = opt.getAttribute('data-dono');
+            const inputVal = document.getElementById('inputValorPagarDivida');
+            const selCartao = document.getElementById('selectCartaoPagarDivida');
+            const selDono = document.getElementById('selectDonoPagarDivida');
+
+            if (val && inputVal) {
+                inputVal.value = parseFloat(val.replace(',', '.')).toFixed(2).replace('.', ',');
+            }
+            if (selCartao && cartao !== null) {
+                selCartao.value = cartao;
+            }
+            if (selDono && dono) {
+                selDono.value = dono;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll("[data-width]").forEach(function(el) {
                 el.style.width = (el.dataset.width || 0) + "%";
+            });
+
+            var hoje = new Date().toISOString().split('T')[0];
+            document.querySelectorAll('input[type="date"]').forEach(function(input) {
+                if (!input.value) { input.value = hoje; }
+            });
+
+            // Inteligência de datas de compra vs fechamento/vencimento no formulário de lançamento
+            const cartoesMeta = JSON.parse(document.getElementById('cartoes-meta-data').textContent || '[]');
+            const mapCartoes = {};
+            cartoesMeta.forEach(c => { mapCartoes[String(c.id)] = c; });
+
+            const inputDataNova = document.getElementById('inputDataCompraNova');
+            const selectCartaoNova = document.getElementById('selectCartaoForma');
+            const boxAvisoCiclo = document.getElementById('boxAvisoCicloCartao');
+            const textoAvisoCiclo = document.getElementById('textoAvisoCicloCartao');
+
+            function atualizarPrevisaoFaturaCartao() {
+                if (!inputDataNova || !selectCartaoNova || !boxAvisoCiclo) return;
+                const cartaoId = selectCartaoNova.value;
+                const dataStr = inputDataNova.value;
+                if (!cartaoId || !dataStr || !mapCartoes[cartaoId]) {
+                    boxAvisoCiclo.style.display = 'none';
+                    return;
+                }
+                const c = mapCartoes[cartaoId];
+                const partes = dataStr.split('-');
+                const anoC = parseInt(partes[0], 10);
+                const mesC = parseInt(partes[1], 10);
+                const diaC = parseInt(partes[2], 10);
+
+                let mesFat = mesC;
+                let anoFat = anoC;
+                const virouFatura = diaC >= c.fechamento;
+                if (virouFatura) {
+                    mesFat += 1;
+                    if (mesFat > 12) { mesFat = 1; anoFat += 1; }
+                }
+
+                let mesVenc = mesFat;
+                let anoVenc = anoFat;
+                if (c.vencimento < c.fechamento) {
+                    mesVenc += 1;
+                    if (mesVenc > 12) { mesVenc = 1; anoVenc += 1; }
+                }
+                const diaVencStr = String(c.vencimento).padStart(2, '0');
+                const mesFatStr = String(mesFat).padStart(2, '0');
+                const mesVencStr = String(mesVenc).padStart(2, '0');
+
+                boxAvisoCiclo.style.display = 'block';
+                textoAvisoCiclo.innerHTML = `<i class="bi bi-calendar2-check me-1"></i><strong>${c.nome}</strong> (fecha dia ${c.fechamento}): compra em ${String(diaC).padStart(2, '0')}/${String(mesC).padStart(2, '0')} cairá na fatura <strong>${mesFatStr}/${anoFat}</strong> com vencimento em <strong>${diaVencStr}/${mesVencStr}/${anoVenc}</strong>.`;
+            }
+
+            if (inputDataNova && selectCartaoNova) {
+                inputDataNova.addEventListener('change', atualizarPrevisaoFaturaCartao);
+                selectCartaoNova.addEventListener('change', atualizarPrevisaoFaturaCartao);
+            }
+
+            // Alternância entre Despesa e Pagamento/Abatimento dentro do modal de Novo Lançamento
+            const selectTipoNovo = document.getElementById('selectTipoNovoLancamento');
+            const boxVincularDividaNoModal = document.getElementById('boxVincularDividaNoModal');
+            const selectDividaModalTransacao = document.getElementById('selectDividaModalTransacao');
+            const inputDescNova = document.getElementById('inputDescricaoNovaTransacao');
+            const valorTotalInput = document.getElementById('valorTotalTransacao');
+
+            if (selectTipoNovo) {
+                selectTipoNovo.addEventListener('change', function() {
+                    const isPag = this.value === 'PAGAMENTO';
+                    if (boxVincularDividaNoModal) boxVincularDividaNoModal.style.display = isPag ? 'block' : 'none';
+                    if (inputDescNova) {
+                        inputDescNova.placeholder = isPag ? 'Ex: Abatimento de dívida ou pagamento de fatura' : 'Ex: Supermercado';
+                    }
+                });
+            }
+
+            if (selectDividaModalTransacao) {
+                selectDividaModalTransacao.addEventListener('change', function() {
+                    const opt = this.options[this.selectedIndex];
+                    const v = opt.getAttribute('data-valor');
+                    const d = opt.getAttribute('data-desc');
+                    if (v && valorTotalInput) valorTotalInput.value = parseFloat(v.replace(',', '.')).toFixed(2).replace('.', ',');
+                    if (d && inputDescNova) inputDescNova.value = d;
+                });
+            }
+
+            // Botão rápido "Pagar" direto na linha da despesa
+            document.querySelectorAll('.btn-pagar-item-rapido').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const divId = this.getAttribute('data-divida-id');
+                    const saldo = this.getAttribute('data-divida-saldo');
+                    const dono = this.getAttribute('data-divida-dono');
+                    const cartao = this.getAttribute('data-divida-cartao');
+                    const desc = this.getAttribute('data-divida-desc');
+
+                    const selDivida = document.getElementById('selectDividaPessoal');
+                    const inpVal = document.getElementById('inputValorPagarDivida');
+                    const selDono = document.getElementById('selectDonoPagarDivida');
+                    const selCartao = document.getElementById('selectCartaoPagarDivida');
+                    const inpDesc = document.getElementById('inputDescPagarDivida');
+
+                    if (selDivida) selDivida.value = divId;
+                    if (inpVal && saldo) inpVal.value = parseFloat(saldo.replace(',', '.')).toFixed(2).replace('.', ',');
+                    if (selDono && dono) selDono.value = dono;
+                    if (selCartao) selCartao.value = cartao || '';
+                    if (inpDesc && desc) inpDesc.value = 'Pagamento: ' + desc;
+
+                    const modalEl = document.getElementById('modalPagarDividaPessoal');
+                    if (modalEl) new bootstrap.Modal(modalEl).show();
+                });
             });
 
             document.querySelectorAll('.form-protegido').forEach(function(form) {
@@ -1372,17 +1752,11 @@
                 });
             }, 3500);
 
-            var hoje = new Date().toISOString().split('T')[0];
-            document.querySelectorAll('input[type="date"]').forEach(function(input) {
-                if (!input.value) { input.value = hoje; }
-            });
-
             const toggleDivisao = document.getElementById('toggleDivisao');
             const secaoDivisaoAmigos = document.getElementById('secaoDivisaoAmigos');
             const listaCamposDivisao = document.getElementById('listaCamposDivisao');
             const btnAddPessoaExtra = document.getElementById('btnAddPessoaExtra');
             const btnDividirIgualmente = document.getElementById('btnDividirIgualmente');
-            const valorTotalInput = document.getElementById('valorTotalTransacao');
 
             if (toggleDivisao) {
                 toggleDivisao.addEventListener('change', function() {

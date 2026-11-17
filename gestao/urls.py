@@ -10,10 +10,15 @@ urlpatterns = [
     # Monitoramento e disponibilidade
     path('health/', views.health_check, name='health_check'),
 
-    # Autenticação e Confirmação
+    # Autenticação, Confirmação de E-mail e Redefinição de Senha
     path('login/', views.login_view, name='login'),
     path('registro/', views.registro_view, name='registro'),
     path('logout/', views.logout_view, name='logout'),
+    path('conta/vincular-email/', views.vincular_email_view, name='vincular_email'),
+    path('conta/reenviar-confirmacao/', views.reenviar_confirmacao_email_view, name='reenviar_confirmacao_email'),
+    path('confirmar-email/<str:token>/', views.confirmar_email_view, name='confirmar_email'),
+    path('recuperar-senha/', views.recuperar_senha_view, name='recuperar_senha'),
+    path('redefinir-senha/<uidb64>/<token>/', views.redefinir_senha_confirmar_view, name='redefinir_senha_confirmar'),
     path('obrigado/', views.pagina_obrigado_view, name='pagina_obrigado'),
 
     # Páginas Legais, Compliance LGPD e Relatórios
