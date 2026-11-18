@@ -220,19 +220,12 @@ if EM_PRODUCAO and not EM_TESTE:
     SECURE_HSTS_PRELOAD = True
 
 # ==========================================
-# 5. ENVIO DE E-MAILS (CONFIRMAÇÃO E REDEFINIÇÃO DE SENHA)
+# 5. ENVIO DE E-MAILS (API HTTPS DA RESEND)
 # ==========================================
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com').strip()
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587') or 587)
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
-EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() in ('true', '1', 'yes')
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '').strip()
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '').strip()
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'nao-responda@finpro.app').strip()
-EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev').strip()
 
-if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD and not EM_TESTE:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+if os.environ.get('RESEND_API_KEY', '').strip() and not EM_TESTE:
+    EMAIL_BACKEND = 'gestao.backends.ResendEmailBackend'
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 

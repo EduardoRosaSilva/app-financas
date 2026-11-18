@@ -9,6 +9,7 @@ import os
 import re
 import unicodedata
 import urllib.parse
+import resend
 from collections import defaultdict
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -78,17 +79,25 @@ def gerar_token_confirmacao_email(user: User, email: str) -> str:
 
 
 def enviar_email_seguro(assunto: str, mensagem: str, destinatario: str) -> bool:
+    resend_api_key = os.environ.get('RESEND_API_KEY', '').strip()
+    
+    if not resend_api_key:
+        security_logger.error("ERRO CRÍTico: A variável de ambiente RESEND_API_KEY não está configurada no Render!")
+        return False
+
     try:
-        send_mail(
-            subject=assunto,
-            message=mensagem,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[destinatario],
-            fail_silently=False,
-        )
+        resend.api_key = resend_api_key
+        params = {
+            "from": os.environ.get('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev').strip(),
+            "to": [destinatario.strip()],
+            "subject": assunto,
+            "text": mensagem,
+        }
+        resposta = resend.Emails.send(params)
+        security_logger.info("E-mail enviado com sucesso via Resend para %s. Resposta ID: %s", destinatario, resposta)
         return True
     except Exception as exc:
-        security_logger.warning("Falha ao enviar e-mail para %s: %s", destinatario, type(exc).__name__)
+        security_logger.warning("Falha crítica ao enviar e-mail via Resend API para %s: %s", destinatario, str(exc))
         return False
 
 
