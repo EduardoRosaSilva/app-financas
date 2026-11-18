@@ -159,6 +159,15 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# ==========================================
+# ARGON2ID (MÁXIMA SEGURANÇA PARA SENHAS)
+# ==========================================
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.password_validation.MinimumLengthValidator', # (mantém o padrão se necessário)
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+]
+
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
