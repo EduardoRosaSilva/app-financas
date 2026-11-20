@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
@@ -18,28 +18,47 @@
     <link rel="icon" type="image/png" href="{% static 'icone.png' %}">
     <link rel="apple-touch-icon" href="{% static 'icone.png' %}">
     <link rel="manifest" href="{% static 'manifest.json' %}">
-    
+
+    <script>
+        (function () {
+            if (localStorage.getItem('finpro_dark_mode') === 'true') {
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            }
+        })();
+    </script>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            --bg-app: #f8fafc;
+            --bg-app: #f4f6f9;
             --bg-surface: #ffffff;
             --bg-subtle: #f1f5f9;
+            --bg-hover: #e2e8f0;
             --text-primary: #0f172a;
-            --text-secondary: #334155;
-            --border-color: #cbd5e1;
+            --text-secondary: #475569;
+            --border-color: #e2e8f0;
+            --border-strong: #cbd5e1;
             --accent: #1d4ed8;
+            --accent-hover: #1e40af;
+            --success-text: #15803d;
+            --danger-text: #b91c1c;
         }
-        body.dark-mode {
-            --bg-app: #090d16;
+
+        [data-bs-theme="dark"] {
+            --bg-app: #0b1120;
             --bg-surface: #111827;
             --bg-subtle: #1e293b;
+            --bg-hover: #293548;
             --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --border-color: #334155;
-            --accent: #3b82f6;
+            --text-secondary: #94a3b8;
+            --border-color: #1f2937;
+            --border-strong: #334155;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --success-text: #4ade80;
+            --danger-text: #f87171;
         }
 
         *, *::before, *::after {
@@ -58,6 +77,10 @@
             -webkit-font-smoothing: antialiased;
         }
 
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+
         .skip-link {
             position: absolute;
             top: -50px;
@@ -66,14 +89,13 @@
             color: #ffffff;
             padding: 8px 14px;
             z-index: 100000;
-            border-radius: 6px;
+            border-radius: 8px;
             text-decoration: none;
             font-weight: 600;
             font-size: 0.85rem;
         }
-        .skip-link:focus {
-            top: 10px;
-        }
+        .skip-link:focus { top: 10px; }
+
         a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, .chip-filtro:focus-visible {
             outline: 2px solid var(--accent) !important;
             outline-offset: 2px !important;
@@ -81,25 +103,14 @@
 
         .app-shell {
             width: 100%;
-            max-width: 920px;
+            max-width: 880px;
             margin: 0 auto;
-            padding: 0 12px 48px 12px;
-            overflow-x: hidden;
+            padding: 0 14px 56px 14px;
         }
 
-        .surface-card {
-            width: 100%;
-            max-width: 100%;
-            background-color: var(--bg-surface);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-            overflow: hidden;
-        }
-
+        /* Header limpo no padrão de apps financeiros (Lei de Jakob) */
         .top-bar {
             width: 100%;
-            max-width: 100vw;
             background-color: var(--bg-surface);
             border-bottom: 1px solid var(--border-color);
             position: sticky;
@@ -108,53 +119,195 @@
             padding-top: env(safe-area-inset-top, 0px);
         }
 
+        .top-bar-inner {
+            width: 100%;
+            max-width: 880px;
+            margin: 0 auto;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .brand-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1.08rem;
+            letter-spacing: -0.02em;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
         .icon-btn {
-            width: 34px;
-            height: 34px;
-            flex: 0 0 34px;
-            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            flex: 0 0 36px;
+            border-radius: 8px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background-color: var(--bg-subtle);
-            color: var(--text-primary);
+            background-color: transparent;
+            color: var(--text-secondary);
             border: 1px solid var(--border-color);
             text-decoration: none;
             padding: 0;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        .icon-btn:hover {
+            background-color: var(--bg-subtle);
+            color: var(--text-primary);
+        }
+        .icon-btn-danger {
+            color: var(--danger-text);
+        }
+        .icon-btn-danger:hover {
+            background-color: rgba(220, 38, 38, 0.1);
+            color: var(--danger-text);
         }
 
-        /* Botão de Novo Lançamento em alto destaque */
-        .btn-cta-lancamento {
-            background-color: var(--accent);
-            color: #ffffff;
-            border: 1px solid var(--accent);
-            border-radius: 6px;
-            font-weight: 700;
-            box-shadow: 0 3px 10px rgba(29, 78, 216, 0.28);
-            transition: transform 0.1s ease, box-shadow 0.15s ease;
-        }
-        .btn-cta-lancamento:hover, .btn-cta-lancamento:focus {
-            background-color: #1e40af;
-            color: #ffffff;
-            box-shadow: 0 4px 14px rgba(29, 78, 216, 0.38);
+        .surface-card {
+            width: 100%;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+            overflow: hidden;
         }
 
         .month-selector-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background-color: var(--bg-subtle);
+            background-color: var(--bg-surface);
             border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 6px 12px;
+            border-radius: 10px;
+            padding: 6px 8px;
             font-size: 0.85rem;
             font-weight: 600;
         }
         .month-selector-bar a {
-            color: var(--text-primary);
+            color: var(--text-secondary);
             text-decoration: none;
-            padding: 2px 8px;
-            border-radius: 6px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8rem;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        .month-selector-bar a:hover {
+            background-color: var(--bg-subtle);
+            color: var(--text-primary);
+        }
+
+        /* Botões primários limpos, sem brilho exagerado e em linha única */
+        .primary-actions-grid {
+            display: grid;
+            grid-template-columns: 1.25fr 1fr;
+            gap: 10px;
+            width: 100%;
+        }
+        .btn-fin-primary {
+            background-color: var(--accent);
+            color: #ffffff;
+            border: 1px solid var(--accent);
+            border-radius: 10px !important;
+            font-weight: 600;
+            font-size: 0.88rem;
+            min-height: 44px;
+            padding: 8px 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+            transition: background-color 0.15s ease;
+        }
+        .btn-fin-primary:hover, .btn-fin-primary:focus {
+            background-color: var(--accent-hover);
+            border-color: var(--accent-hover);
+            color: #ffffff;
+        }
+
+        .btn-fin-secondary {
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border-strong);
+            border-radius: 10px !important;
+            font-weight: 600;
+            font-size: 0.88rem;
+            min-height: 44px;
+            padding: 8px 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .btn-fin-secondary:hover, .btn-fin-secondary:focus {
+            background-color: var(--bg-subtle);
+            color: var(--text-primary);
+        }
+        .btn-fin-secondary i {
+            color: var(--success-text);
+        }
+
+        .btn-fin-ghost {
+            background-color: var(--bg-subtle);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px !important;
+            font-size: 0.74rem;
+            font-weight: 500;
+            padding: 5px 10px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .btn-fin-ghost:hover {
+            background-color: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .kpi-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            width: 100%;
+        }
+        .kpi-mini-box {
+            min-width: 0;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 9px 6px;
+            text-align: center;
+        }
+        .kpi-mini-box span {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+        .kpi-mini-box strong {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .quick-actions-grid {
@@ -168,83 +321,77 @@
             width: 100%;
             background-color: var(--bg-surface);
             border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 10px 4px;
+            border-radius: 10px;
+            padding: 11px 4px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 5px;
             color: var(--text-primary);
-            font-size: 0.72rem;
+            font-size: 0.73rem;
             font-weight: 600;
             text-align: center;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .action-tile:hover {
+            background-color: var(--bg-subtle);
+            border-color: var(--border-strong);
         }
         .action-tile i {
             font-size: 1.1rem;
             color: var(--accent);
         }
 
+        .quick-entry-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 6px 6px 12px;
+        }
+
         .form-control, .form-select, .btn {
-            border-radius: 6px !important;
+            border-radius: 8px;
         }
         .form-control, .form-select {
             min-width: 0;
             max-width: 100%;
             font-size: 16px !important;
             background-color: var(--bg-subtle);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border-strong);
             color: var(--text-primary);
+        }
+        .form-control::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.85;
+            font-size: 0.88rem;
         }
         .form-control:focus, .form-select:focus {
             background-color: var(--bg-surface);
             color: var(--text-primary);
             border-color: var(--accent);
-            box-shadow: none;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
         }
 
-        .kpi-mini-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 6px;
-            width: 100%;
+        .text-secondary-fin {
+            color: var(--text-secondary) !important;
         }
-        .kpi-mini-box {
-            min-width: 0;
-            background-color: var(--bg-subtle);
-            border-radius: 6px;
-            padding: 8px 6px;
-            text-align: center;
-            overflow: hidden;
+        .text-success-fin {
+            color: var(--success-text) !important;
         }
-        .kpi-mini-box span {
-            display: block;
-            font-size: 0.68rem;
-            color: var(--text-secondary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .kpi-mini-box strong {
-            display: block;
-            font-size: 0.8rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .text-danger-fin {
+            color: var(--danger-text) !important;
         }
 
-        body.dark-mode .modal-content {
+        .modal-content {
             background-color: var(--bg-surface);
             color: var(--text-primary);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border-strong);
+            border-radius: 12px;
         }
-        body.dark-mode .text-dark { color: var(--text-primary) !important; }
-        body.dark-mode .text-muted, body.dark-mode .text-secondary { color: var(--text-secondary) !important; }
-        body.dark-mode .bg-light { background-color: var(--bg-subtle) !important; color: var(--text-primary) !important; }
-        body.dark-mode .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
 
         body.privacy-blur .valor-sensivel {
             filter: blur(7px);
@@ -255,7 +402,6 @@
             display: flex;
             gap: 6px;
             width: 100%;
-            max-width: 100%;
             overflow-x: auto;
             padding-bottom: 4px;
             -ms-overflow-style: none;
@@ -267,14 +413,15 @@
             flex: 0 0 auto;
             cursor: pointer;
             white-space: nowrap;
-            font-size: 0.75rem;
+            font-size: 0.76rem;
             font-weight: 500;
             padding: 6px 12px;
-            border-radius: 6px;
+            border-radius: 8px;
             background-color: var(--bg-subtle);
             color: var(--text-secondary);
             border: 1px solid var(--border-color);
             user-select: none;
+            transition: background-color 0.15s ease, color 0.15s ease;
         }
         .chip-filtro.active {
             background-color: var(--text-primary);
@@ -287,13 +434,16 @@
             align-items: center;
             justify-content: space-between;
             width: 100%;
-            max-width: 100%;
             padding: 12px 2px;
             border-bottom: 1px solid var(--border-color);
-            gap: 8px;
+            gap: 10px;
         }
         .tx-item:last-child { border-bottom: none; }
         .tx-quitado { opacity: 0.65; }
+
+        .tx-valor-despesa {
+            color: var(--text-primary);
+        }
 
         .modal-dialog {
             margin: 10px;
@@ -306,13 +456,26 @@
             }
         }
 
-        /* Link de suporte discreto no rodapé */
+        @media (max-width: 380px) {
+            .primary-actions-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            .btn-fin-primary, .btn-fin-secondary {
+                font-size: 0.8rem;
+                padding: 8px 8px;
+            }
+            .action-tile {
+                font-size: 0.69rem;
+                padding: 10px 2px;
+            }
+        }
+
         .link-suporte-discreto {
             color: var(--text-secondary);
             font-size: 0.72rem;
             text-decoration: none;
-            opacity: 0.75;
-            transition: opacity 0.15s ease;
+            opacity: 0.8;
         }
         .link-suporte-discreto:hover {
             opacity: 1;
@@ -326,8 +489,8 @@
             transform: translateX(-50%);
             z-index: 9999;
             width: calc(100vw - 24px);
-            max-width: 380px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            max-width: 400px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
         }
 
         #lgpd-banner {
@@ -335,7 +498,6 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            max-width: 100vw;
             z-index: 99999;
             background-color: #0f172a;
             color: #f8fafc;
@@ -348,32 +510,33 @@
 <body>
     <a href="#conteudo-principal" class="skip-link">Pular para o conteúdo principal</a>
 
-    <header class="top-bar py-2 mb-3" role="banner">
-        <div class="app-shell py-1 d-flex justify-content-between align-items-center" style="padding-bottom: 0;">
-            <a href="{% url 'dashboard' %}" class="fw-bold fs-5 d-flex align-items-center gap-2 text-truncate text-decoration-none" style="color: var(--text-primary);">
-                <img src="{% static 'icone.png' %}" alt="Logotipo FinPro" width="24" height="24" loading="eager" decoding="async" style="border-radius: 4px;">
+    <!-- HEADER LIMPO: marca íntegra no mobile e atalho desktop discreto -->
+    <header class="top-bar mb-3" role="banner">
+        <div class="top-bar-inner">
+            <a href="{% url 'dashboard' %}" class="brand-link">
+                <img src="{% static 'icone.png' %}" alt="Logotipo FinPro" width="26" height="26" loading="eager" decoding="async" style="border-radius: 6px;">
                 <span>FinPro</span>
             </a>
 
-            <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                <button type="button" class="btn btn-cta-lancamento btn-sm px-3 py-1" style="font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#modalTransacao" aria-label="Criar novo lançamento">
-                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Novo Lançamento
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                <button type="button" class="btn-fin-primary d-none d-md-inline-flex" style="min-height: 36px; font-size: 0.82rem; padding: 6px 14px;" data-bs-toggle="modal" data-bs-target="#modalTransacao" aria-label="Criar novo lançamento">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>Novo lançamento
                 </button>
-                <button id="btnInstalarApp" class="icon-btn text-primary" style="display: none;" title="Instalar Aplicativo" aria-label="Instalar aplicativo no dispositivo">
+                <button id="btnInstalarApp" class="icon-btn" style="display: none; color: var(--accent);" title="Instalar Aplicativo" aria-label="Instalar aplicativo no dispositivo">
                     <i class="bi bi-download" aria-hidden="true"></i>
                 </button>
                 <button id="btnPrivacyMode" class="icon-btn" title="Ocultar ou exibir valores monetários" aria-label="Ocultar ou exibir valores monetários">
                     <i class="bi bi-eye" id="iconPrivacy" aria-hidden="true"></i>
                 </button>
                 <button id="btnDarkMode" class="icon-btn" title="Alternar tema claro ou escuro" aria-label="Alternar tema claro ou escuro">
-                    <i class="bi bi-moon" aria-hidden="true"></i>
+                    <i class="bi bi-moon" id="iconDarkMode" aria-hidden="true"></i>
                 </button>
                 <button class="icon-btn" data-bs-toggle="modal" data-bs-target="#modalLGPD" title="Privacidade e Gestão de Dados LGPD" aria-label="Abrir configurações de privacidade e LGPD">
                     <i class="bi bi-sliders" aria-hidden="true"></i>
                 </button>
                 <form method="POST" action="{% url 'logout' %}" class="d-inline m-0 p-0">
                     {% csrf_token %}
-                    <button type="submit" class="icon-btn text-danger" title="Encerrar sessão" aria-label="Sair da conta">
+                    <button type="submit" class="icon-btn icon-btn-danger" title="Encerrar sessão" aria-label="Sair da conta">
                         <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
                     </button>
                 </form>
@@ -383,7 +546,7 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'warning' %}warning{% else %}dark{% endif %} alert-dismissible fade show rounded-2 py-2 px-3 small alerta-flutuante" role="alert">
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'warning' %}warning{% else %}dark{% endif %} alert-dismissible fade show rounded-3 py-2 px-3 small alerta-flutuante" role="alert">
                 {{ message }}
                 <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Fechar aviso"></button>
             </div>
@@ -393,11 +556,11 @@
     <main id="conteudo-principal" class="app-shell" role="main">
 
         {% if not tem_email %}
-        <section class="surface-card p-3 mb-3 border-warning" style="border-left: 4px solid #d97706;" aria-label="Aviso de cadastro de e-mail">
+        <section class="surface-card p-3 mb-3" style="border-left: 4px solid #d97706;" aria-label="Aviso de cadastro de e-mail">
             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
                 <div>
                     <strong class="d-block small"><i class="bi bi-envelope-exclamation text-warning me-1" aria-hidden="true"></i>Cadastre seu e-mail para proteger sua conta ({{ usuario.username }})</strong>
-                    <span class="text-secondary" style="font-size: 0.76rem;">Seus dados e lançamentos estão salvos. Vincule um e-mail para poder entrar com ele e recuperar sua senha quando precisar.</span>
+                    <span class="text-secondary-fin" style="font-size: 0.76rem;">Seus dados e lançamentos estão salvos. Vincule um e-mail para poder entrar com ele e recuperar sua senha quando precisar.</span>
                 </div>
                 <button type="button" class="btn btn-warning btn-sm fw-semibold px-3 flex-shrink-0" data-bs-toggle="modal" data-bs-target="#modalVincularEmail">
                     Cadastrar e-mail
@@ -405,18 +568,18 @@
             </div>
         </section>
         {% elif not email_confirmado %}
-        <section class="surface-card p-3 mb-3 border-primary" style="border-left: 4px solid #1d4ed8;" aria-label="Aviso de confirmação de e-mail pendente">
+        <section class="surface-card p-3 mb-3" style="border-left: 4px solid var(--accent);" aria-label="Aviso de confirmação de e-mail pendente">
             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
                 <div>
                     <strong class="d-block small"><i class="bi bi-envelope-check text-primary me-1" aria-hidden="true"></i>Confirmação de e-mail pendente ({{ usuario.email }})</strong>
-                    <span class="text-secondary" style="font-size: 0.76rem;">Acesse o link enviado para o seu e-mail para concluir a verificação da conta.</span>
+                    <span class="text-secondary-fin" style="font-size: 0.76rem;">Acesse o link enviado para o seu e-mail para concluir a verificação da conta.</span>
                 </div>
                 <div class="d-flex gap-2 flex-shrink-0">
                     <form method="POST" action="{% url 'reenviar_confirmacao_email' %}" class="m-0">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-primary btn-sm fw-medium">Reenviar link</button>
                     </form>
-                    <button type="button" class="btn btn-light border btn-sm fw-medium" data-bs-toggle="modal" data-bs-target="#modalVincularEmail">
+                    <button type="button" class="btn-fin-ghost" data-bs-toggle="modal" data-bs-target="#modalVincularEmail">
                         Trocar e-mail
                     </button>
                 </div>
@@ -424,57 +587,43 @@
         </section>
         {% endif %}
 
+        <!-- 1. SELETOR DE COMPETÊNCIA -->
         <nav class="month-selector-bar mb-3" aria-label="Navegação de competência mensal">
             <a href="?mes={{ mes_anterior }}&ano={{ ano_anterior }}" aria-label="Ir para o mês anterior">
-                <i class="bi bi-chevron-left me-1" aria-hidden="true"></i>Anterior
+                <i class="bi bi-chevron-left" aria-hidden="true"></i><span>Anterior</span>
             </a>
-            <span>Competência: {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</span>
+            <span class="tabular-nums">{{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</span>
             <a href="?mes={{ mes_proximo }}&ano={{ ano_proximo }}" aria-label="Ir para o próximo mês">
-                Próximo<i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
+                <span>Próximo</span><i class="bi bi-chevron-right" aria-hidden="true"></i>
             </a>
         </nav>
 
-        <!-- Barra Principal de Ações Evidentes: Novo Lançamento + Pagar/Abater Dívida -->
-        <div class="row g-2 mb-3">
-            <div class="col-7 col-sm-8">
-                <button type="button" class="btn btn-cta-lancamento w-100 py-2 px-3 d-flex align-items-center justify-content-center gap-2" data-bs-toggle="modal" data-bs-target="#modalTransacao">
-                    <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
-                    <span>+ Adicionar Lançamento</span>
-                </button>
-            </div>
-            <div class="col-5 col-sm-4">
-                <button type="button" class="btn btn-outline-success w-100 py-2 px-2 fw-semibold d-flex align-items-center justify-content-center gap-1 bg-white" data-bs-toggle="modal" data-bs-target="#modalPagarDividaPessoal">
-                    <i class="bi bi-check2-circle" aria-hidden="true"></i>
-                    <span>Pagar / Abater</span>
-                </button>
-            </div>
-        </div>
-
+        <!-- 2. RESUMO FINANCEIRO PRINCIPAL (Lei de Jakob: saldo primeiro) -->
         <section class="surface-card p-3 mb-3" aria-label="Resumo do orçamento mensal">
-            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
                 <div style="min-width: 0; flex: 1;">
-                    <span class="text-secondary d-block" style="font-size: 0.78rem;">Saldo que devo no mês (líquido)</span>
-                    <div class="fw-bold valor-sensivel text-truncate" style="font-size: clamp(1.35rem, 5vw, 1.7rem); letter-spacing: -0.5px;">
+                    <span class="text-secondary-fin d-block" style="font-size: 0.76rem;">Saldo a pagar no mês</span>
+                    <div class="fw-bold valor-sensivel tabular-nums text-truncate" style="font-size: clamp(1.4rem, 5.2vw, 1.75rem); letter-spacing: -0.03em; line-height: 1.2;">
                         R$ {{ meus_gastos|floatformat:2 }}
                     </div>
                     {% if meus_pagamentos > 0 %}
-                    <span class="text-success fw-medium d-block valor-sensivel" style="font-size: 0.73rem;">
-                        Bruto: R$ {{ meus_gastos_brutos|floatformat:2 }} • Já pago: R$ {{ meus_pagamentos|floatformat:2 }}
+                    <span class="text-success-fin fw-medium d-block valor-sensivel tabular-nums mt-1" style="font-size: 0.72rem;">
+                        Bruto: R$ {{ meus_gastos_brutos|floatformat:2 }} • Pago: R$ {{ meus_pagamentos|floatformat:2 }}
                     </span>
                     {% elif analise_ia.variacao_mom != 0 %}
-                    <span class="{% if analise_ia.variacao_mom <= 0 %}text-success{% else %}text-danger{% endif %} fw-medium d-block" style="font-size: 0.74rem;">
-                        {% if analise_ia.variacao_mom > 0 %}+{% endif %}{{ analise_ia.variacao_mom|floatformat:1 }}% em relação ao mês anterior
+                    <span class="{% if analise_ia.variacao_mom <= 0 %}text-success-fin{% else %}text-danger-fin{% endif %} fw-medium d-block mt-1" style="font-size: 0.72rem;">
+                        {% if analise_ia.variacao_mom > 0 %}+{% endif %}{{ analise_ia.variacao_mom|floatformat:1 }}% vs. mês anterior
                     </span>
                     {% endif %}
                 </div>
 
                 <div class="text-end" style="min-width: 0; flex: 1;">
-                    <span class="text-secondary d-block" style="font-size: 0.78rem;">Saldo da meta mensal</span>
-                    <div class="fw-bold {% if saldo_restante >= 0 %}text-success{% else %}text-danger{% endif %} valor-sensivel text-truncate" style="font-size: clamp(1.15rem, 4.5vw, 1.45rem);">
+                    <span class="text-secondary-fin d-block" style="font-size: 0.76rem;">Saldo da meta</span>
+                    <div class="fw-bold {% if saldo_restante >= 0 %}text-success-fin{% else %}text-danger-fin{% endif %} valor-sensivel tabular-nums text-truncate" style="font-size: clamp(1.15rem, 4.4vw, 1.45rem); line-height: 1.25;">
                         R$ {{ saldo_restante|floatformat:2 }}
                     </div>
-                    <button type="button" class="btn btn-link btn-sm text-decoration-none p-0" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalMeta">
-                        Meta: <span class="valor-sensivel">R$ {{ valor_meta|floatformat:2 }}</span> <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                    <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 mt-1" style="font-size: 0.74rem;" data-bs-toggle="modal" data-bs-target="#modalMeta">
+                        Meta: <span class="valor-sensivel tabular-nums">R$ {{ valor_meta|floatformat:2 }}</span> <i class="bi bi-pencil-square" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -483,7 +632,7 @@
                 <div class="progress-bar {% if percentual_gasto > 95 %}bg-danger{% elif percentual_gasto > 75 %}bg-warning{% else %}bg-primary{% endif %}" data-width="{{ percentual_barra }}"></div>
             </div>
 
-            <div class="kpi-mini-grid mt-2 valor-sensivel">
+            <div class="kpi-mini-grid mt-2 valor-sensivel tabular-nums">
                 <div class="kpi-mini-box">
                     <span>Gastos fixos</span>
                     <strong>R$ {{ analise_ia.gastos_fixos|floatformat:2 }}</strong>
@@ -499,61 +648,23 @@
             </div>
         </section>
 
-        <!-- Inteligência de Cartões: Melhor Cartão Hoje + Datas de Fechamento e Vencimento -->
-        {% if resumo_cartoes %}
-        <section class="surface-card p-3 mb-3" aria-label="Inteligência de faturas e datas dos cartões">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h2 class="fw-bold small text-uppercase text-secondary mb-0" style="font-size: 0.72rem; letter-spacing: 0.4px;">
-                    <i class="bi bi-credit-card-2-front me-1 text-primary" aria-hidden="true"></i>Ciclo de faturas e vencimentos
-                </h2>
-                {% if melhor_cartao_hoje %}
-                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.68rem;">
-                    Melhor hoje: {{ melhor_cartao_hoje.nome }} ({{ melhor_cartao_hoje.dias_prazo_hoje }}d p/ pagar)
-                </span>
-                {% endif %}
-            </div>
-
-            {% for c in resumo_cartoes %}
-            <div class="d-flex justify-content-between align-items-center gap-2 py-2 {% if not forloop.last %}border-bottom{% endif %}">
-                <div style="min-width: 0; flex: 1;">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="fw-semibold text-truncate" style="font-size: 0.85rem;">{{ c.nome }}</span>
-                        <span class="badge bg-{{ c.cor_badge }}-subtle text-{{ c.cor_badge }} border" style="font-size: 0.65rem;">
-                            Vence {{ c.vencimento_curto }}
-                        </span>
-                    </div>
-                    <small class="text-secondary d-block text-truncate" style="font-size: 0.71rem;">
-                        {{ c.status_ciclo }}
-                    </small>
-                </div>
-                <div class="text-end flex-shrink-0">
-                    <span class="fw-bold d-block valor-sensivel" style="font-size: 0.85rem;">R$ {{ c.total_fatura|floatformat:2 }}</span>
-                    {% if c.total_pago_cartao > 0 %}
-                    <small class="text-success d-block valor-sensivel" style="font-size: 0.68rem;">Pago: R$ {{ c.total_pago_cartao|floatformat:2 }}</small>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </section>
-        {% endif %}
-
-        <!-- Cadastro Rápido por Linha de Comando -->
-        <section class="surface-card p-2 mb-3" aria-label="Cadastro rápido de despesa">
-            <form method="POST" class="d-flex align-items-center gap-2 w-100 form-protegido">
-                {% csrf_token %}
-                <input type="hidden" name="form_type" value="lancamento_inteligente">
-                <label for="inputLancamentoRapido" class="visually-hidden">Descrição, valor e cartão</label>
-                <input type="text" id="inputLancamentoRapido" name="comando_ia" class="form-control border-0 bg-transparent shadow-none py-1 px-2" style="flex: 1 1 0%; min-width: 0;" placeholder="Lançamento rápido: ex. Uber 24,90 Nubank ou Mercado 200 2x" required>
-                <button type="submit" class="btn btn-primary btn-sm px-3 py-2 fw-semibold flex-shrink-0">
-                    Lançar
-                </button>
-            </form>
+        <!-- 3. AÇÕES PRIMÁRIAS EM LINHA ÚNICA (sem redundância com header) -->
+        <section class="primary-actions-grid mb-3" aria-label="Ações principais">
+            <button type="button" class="btn-fin-primary" data-bs-toggle="modal" data-bs-target="#modalTransacao">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                <span>Novo lançamento</span>
+            </button>
+            <button type="button" class="btn-fin-secondary" data-bs-toggle="modal" data-bs-target="#modalPagarDividaPessoal">
+                <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                <span>Pagar / Abater</span>
+            </button>
         </section>
 
+        <!-- 4. ATALHOS DE GESTÃO -->
         <section class="quick-actions-grid mb-3" aria-label="Ferramentas de gestão">
             <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalFatura">
                 <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
-                <span>Importar CSV</span>
+                <span>Importar</span>
             </button>
             <button type="button" class="action-tile" data-bs-toggle="modal" data-bs-target="#modalCartao">
                 <i class="bi bi-credit-card" aria-hidden="true"></i>
@@ -569,14 +680,66 @@
             </button>
         </section>
 
+        <!-- 5. LANÇAMENTO RÁPIDO POR TEXTO -->
+        <section class="surface-card mb-3" aria-label="Cadastro rápido de despesa">
+            <form method="POST" class="quick-entry-bar form-protegido">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="lancamento_inteligente">
+                <label for="inputLancamentoRapido" class="visually-hidden">Descrição, valor e cartão</label>
+                <input type="text" id="inputLancamentoRapido" name="comando_ia" class="form-control border-0 bg-transparent shadow-none py-1 px-0" style="flex: 1 1 0%; min-width: 0;" placeholder="Lançamento rápido: Uber 24,90 Nubank" required>
+                <button type="submit" class="btn-fin-primary" style="min-height: 36px; font-size: 0.82rem; padding: 6px 14px;">
+                    Lançar
+                </button>
+            </form>
+        </section>
+
+        <!-- 6. CICLO DE FATURAS E VENCIMENTOS -->
+        {% if resumo_cartoes %}
+        <section class="surface-card p-3 mb-3" aria-label="Inteligência de faturas e datas dos cartões">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="fw-bold text-uppercase text-secondary-fin mb-0" style="font-size: 0.72rem; letter-spacing: 0.04em;">
+                    <i class="bi bi-credit-card-2-front me-1 text-primary" aria-hidden="true"></i>Faturas e vencimentos
+                </h2>
+                {% if melhor_cartao_hoje %}
+                <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle" style="font-size: 0.69rem; font-weight: 600;">
+                    Melhor hoje: {{ melhor_cartao_hoje.nome }} ({{ melhor_cartao_hoje.dias_prazo_hoje }}d)
+                </span>
+                {% endif %}
+            </div>
+
+            {% for c in resumo_cartoes %}
+            <div class="d-flex justify-content-between align-items-center gap-2 py-2 {% if not forloop.last %}border-bottom{% endif %}">
+                <div style="min-width: 0; flex: 1;">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="fw-semibold text-truncate" style="font-size: 0.86rem;">{{ c.nome }}</span>
+                        <span class="badge bg-{{ c.cor_badge }}-subtle text-{{ c.cor_badge }}-emphasis border border-{{ c.cor_badge }}-subtle" style="font-size: 0.66rem;">
+                            Vence {{ c.vencimento_curto }}
+                        </span>
+                    </div>
+                    <small class="text-secondary-fin d-block text-truncate mt-1" style="font-size: 0.72rem;">
+                        {{ c.status_ciclo }}
+                    </small>
+                </div>
+                <div class="text-end flex-shrink-0 tabular-nums">
+                    <span class="fw-bold d-block valor-sensivel" style="font-size: 0.88rem;">R$ {{ c.total_fatura|floatformat:2 }}</span>
+                    {% if c.total_pago_cartao > 0 %}
+                    <small class="text-success-fin d-block valor-sensivel" style="font-size: 0.68rem;">Pago: R$ {{ c.total_pago_cartao|floatformat:2 }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <!-- 7. VALORES A RECEBER DE TERCEIROS -->
         {% if dividas_detalhadas %}
         <section class="surface-card p-3 mb-3" aria-label="Valores a receber de terceiros">
-            <h2 class="fw-bold small text-uppercase text-secondary mb-2" style="font-size: 0.72rem; letter-spacing: 0.4px;">Valores a receber de terceiros</h2>
+            <h2 class="fw-bold text-uppercase text-secondary-fin mb-2" style="font-size: 0.72rem; letter-spacing: 0.04em;">Valores a receber de terceiros</h2>
             {% for divida in dividas_detalhadas %}
             <div class="d-flex justify-content-between align-items-center gap-2 py-2 {% if not forloop.last %}border-bottom{% endif %}">
                 <div style="min-width: 0; flex: 1;">
                     <span class="fw-semibold d-block text-truncate" style="font-size: 0.88rem;">{{ divida.nome }}</span>
-                    <span class="small fw-bold text-danger valor-sensivel">R$ {{ divida.saldo|floatformat:2 }}</span>
+                    <span class="small fw-bold text-danger-fin valor-sensivel tabular-nums">R$ {{ divida.saldo|floatformat:2 }}</span>
                 </div>
                 <div class="d-flex gap-1 flex-shrink-0">
                     <a href="{{ divida.whatsapp_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success px-2 py-1 fw-medium" style="font-size: 0.75rem;">
@@ -591,14 +754,15 @@
         </section>
         {% endif %}
 
+        <!-- 8. EXTRATO DE LANÇAMENTOS -->
         <section class="surface-card p-3 mb-3" aria-label="Lista de lançamentos do período">
             <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
                 <h2 class="fw-bold mb-0 text-truncate" style="font-size: 0.92rem;">Lançamentos ({{ transacoes|length }})</h2>
                 <div class="d-flex gap-1 flex-shrink-0">
-                    <button type="button" class="btn btn-sm btn-light border px-2 py-1" style="font-size: 0.73rem;" data-bs-toggle="modal" data-bs-target="#modalResumoMes">
+                    <button type="button" class="btn-fin-ghost" data-bs-toggle="modal" data-bs-target="#modalResumoMes">
                         Indicadores
                     </button>
-                    <a href="{% url 'exportar_relatorio_csv' %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="btn btn-sm btn-light border px-2 py-1" style="font-size: 0.73rem;">
+                    <a href="{% url 'exportar_relatorio_csv' %}?mes={{ mes_atual }}&ano={{ ano_atual }}" class="btn-fin-ghost">
                         Exportar CSV
                     </a>
                 </div>
@@ -606,7 +770,7 @@
 
             <div class="mb-2">
                 <label for="inputBuscaTransacao" class="visually-hidden">Filtrar lançamentos por texto</label>
-                <input type="text" id="inputBuscaTransacao" class="form-control form-control-sm py-1 px-3 w-100" placeholder="Filtrar por descrição, responsável ou cartão...">
+                <input type="text" id="inputBuscaTransacao" class="form-control form-control-sm py-2 px-3 w-100" placeholder="Buscar por descrição, pessoa ou cartão...">
             </div>
 
             <div class="chips-scroll mb-2" role="tablist" aria-label="Filtros rápidos de lançamentos">
@@ -625,28 +789,28 @@
                      data-fixo="{% if t.recorrente %}1{% else %}0{% endif %}"
                      data-cartao="{% if t.cartao %}1{% else %}0{% endif %}">
                     <div class="d-flex align-items-center gap-2" style="min-width: 0; flex: 1 1 0%; cursor: pointer; overflow: hidden;" tabindex="0" role="button" data-bs-toggle="modal" data-bs-target="#modalEditar{{ t.id }}" aria-label="Editar lançamento {{ t.descricao }}">
-                        <div class="d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px; border-radius: 6px; background-color: var(--bg-subtle);">
+                        <div class="d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px; border-radius: 8px; background-color: var(--bg-subtle);">
                             {% if t.tipo == 'DESPESA' %}
                                 {% if t.quitado %}
-                                    <i class="bi bi-check2-all text-success" aria-hidden="true"></i>
+                                    <i class="bi bi-check2-all text-success-fin" aria-hidden="true"></i>
                                 {% else %}
-                                    <i class="bi bi-arrow-up-right text-danger" aria-hidden="true"></i>
+                                    <i class="bi bi-arrow-up-right text-danger-fin" aria-hidden="true"></i>
                                 {% endif %}
                             {% else %}
-                                <i class="bi bi-arrow-down-left text-success" aria-hidden="true"></i>
+                                <i class="bi bi-arrow-down-left text-success-fin" aria-hidden="true"></i>
                             {% endif %}
                         </div>
                         <div style="min-width: 0; flex: 1 1 0%; overflow: hidden;">
                             <div class="fw-semibold text-truncate d-flex align-items-center gap-1" style="font-size: 0.85rem;">
                                 <span class="text-truncate {% if t.quitado %}text-decoration-line-through{% endif %}">{{ t.descricao }}</span>
                                 {% if t.tipo == 'DESPESA' and t.quitado %}
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.62rem;">Pago</span>
+                                    <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle" style="font-size: 0.62rem;">Pago</span>
                                 {% elif t.tipo == 'DESPESA' and t.valor_pago > 0 %}
-                                    <span class="badge bg-warning-subtle text-dark border" style="font-size: 0.62rem;">Restam R$ {{ t.saldo_pendente|floatformat:2 }}</span>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size: 0.62rem;">Restam R$ {{ t.saldo_pendente|floatformat:2 }}</span>
                                 {% endif %}
                             </div>
-                            <div class="text-secondary text-truncate" style="font-size: 0.7rem;">
-                                Compra: {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}
+                            <div class="text-secondary-fin text-truncate" style="font-size: 0.71rem;">
+                                {% if t.data_exibicao %}{{ t.data_exibicao|date:"d/m" }}{% else %}{{ t.data|date:"d/m" }}{% endif %}
                                 • {{ t.categoria|default:"Outros" }}
                                 • {{ t.dono.nome }}
                                 • {% if t.cartao %}{{ t.cartao.nome }} (Vence {{ t.vencimento_fatura_str }}){% else %}Pix/Conta{% endif %}
@@ -654,14 +818,14 @@
                         </div>
                     </div>
 
-                    <div class="text-end flex-shrink-0" style="white-space: nowrap;">
-                        <div class="fw-bold {% if t.tipo == 'DESPESA' %}text-dark{% else %}text-success{% endif %} valor-sensivel" style="font-size: 0.85rem;">
+                    <div class="text-end flex-shrink-0 tabular-nums" style="white-space: nowrap;">
+                        <div class="fw-bold {% if t.tipo == 'DESPESA' %}tx-valor-despesa{% else %}text-success-fin{% endif %} valor-sensivel" style="font-size: 0.86rem;">
                             {% if t.tipo == 'DESPESA' %}-{% else %}+{% endif %} R$ {{ t.valor|floatformat:2 }}
                         </div>
-                        <div class="d-flex align-items-center justify-content-end gap-2">
+                        <div class="d-flex align-items-center justify-content-end gap-2 mt-1">
                             {% if t.tipo == 'DESPESA' and not t.quitado %}
-                            <button type="button" class="btn btn-link text-success text-decoration-none p-0 border-0 fw-semibold btn-pagar-item-rapido"
-                                    style="font-size: 0.68rem;"
+                            <button type="button" class="btn btn-link text-success-fin text-decoration-none p-0 border-0 fw-semibold btn-pagar-item-rapido"
+                                    style="font-size: 0.7rem;"
                                     data-divida-id="{{ t.id }}"
                                     data-divida-desc="{{ t.descricao }}"
                                     data-divida-saldo="{{ t.saldo_pendente|stringformat:'f' }}"
@@ -674,7 +838,7 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="mes" value="{{ mes_atual }}">
                                 <input type="hidden" name="ano" value="{{ ano_atual }}">
-                                <button type="submit" class="btn btn-link text-secondary text-decoration-none p-0 border-0" style="font-size: 0.68rem;" onclick="event.stopPropagation();">
+                                <button type="submit" class="btn btn-link text-secondary-fin text-decoration-none p-0 border-0" style="font-size: 0.7rem;" onclick="event.stopPropagation();">
                                     Excluir
                                 </button>
                             </form>
@@ -683,69 +847,71 @@
                 </div>
                 {% empty %}
                 <div class="text-center py-4">
-                    <p class="text-secondary small mb-0">Nenhum lançamento registrado nesta competência.</p>
+                    <p class="text-secondary-fin small mb-0">Nenhum lançamento registrado nesta competência.</p>
                 </div>
                 {% endfor %}
             </div>
         </section>
 
+        <!-- 9. GRÁFICOS -->
         <section class="surface-card p-3 mb-3" aria-label="Gráfico de distribuição de despesas">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2 class="fw-bold mb-0" style="font-size: 0.9rem;">Análise por categoria</h2>
                 <div class="btn-group btn-group-sm" role="group" aria-label="Alternar visualização de gráfico">
-                    <button type="button" class="btn btn-outline-secondary active py-0 px-2" style="font-size: 0.72rem;" id="btnVerCategorias">Categorias</button>
-                    <button type="button" class="btn btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" id="btnVerEvolucao">Histórico 6M</button>
+                    <button type="button" class="btn btn-outline-secondary active py-1 px-2" style="font-size: 0.72rem;" id="btnVerCategorias">Categorias</button>
+                    <button type="button" class="btn btn-outline-secondary py-1 px-2" style="font-size: 0.72rem;" id="btnVerEvolucao">Histórico 6M</button>
                 </div>
             </div>
-            <div id="containerGraficoCategorias" style="position: relative; height: 240px; width: 100%; max-width: 100%;">
+            <div id="containerGraficoCategorias" style="position: relative; height: 240px; width: 100%;">
                 <canvas id="graficoGastos"></canvas>
             </div>
-            <div id="containerGraficoEvolucao" style="position: relative; height: 240px; width: 100%; max-width: 100%; display: none;">
+            <div id="containerGraficoEvolucao" style="position: relative; height: 240px; width: 100%; display: none;">
                 <canvas id="graficoEvolucao"></canvas>
             </div>
         </section>
 
+        <!-- 10. PROPORÇÃO 50-30-20 -->
         <section class="surface-card p-3 mb-4" aria-label="Proporção orçamentária 50-30-20">
             <h2 class="fw-bold mb-2" style="font-size: 0.9rem;">Proporção orçamentária (50-30-20)</h2>
             <div class="mb-2">
                 <div class="d-flex justify-content-between small mb-1">
-                    <span class="text-secondary">Essenciais ({{ analise_ia.perc_essenciais|floatformat:0 }}%)</span>
-                    <span class="fw-semibold valor-sensivel">R$ {{ analise_ia.gastos_essenciais|floatformat:2 }}</span>
+                    <span class="text-secondary-fin">Essenciais ({{ analise_ia.perc_essenciais|floatformat:0 }}%)</span>
+                    <span class="fw-semibold valor-sensivel tabular-nums">R$ {{ analise_ia.gastos_essenciais|floatformat:2 }}</span>
                 </div>
-                <div class="progress" style="height: 5px;">
+                <div class="progress" style="height: 5px; background-color: var(--bg-subtle);">
                     <div class="progress-bar bg-primary" data-width="{{ analise_ia.perc_essenciais|floatformat:0 }}"></div>
                 </div>
             </div>
 
             <div class="mb-2">
                 <div class="d-flex justify-content-between small mb-1">
-                    <span class="text-secondary">Estilo de vida ({{ analise_ia.perc_estilo_vida|floatformat:0 }}%)</span>
-                    <span class="fw-semibold valor-sensivel">R$ {{ analise_ia.gastos_estilo_vida|floatformat:2 }}</span>
+                    <span class="text-secondary-fin">Estilo de vida ({{ analise_ia.perc_estilo_vida|floatformat:0 }}%)</span>
+                    <span class="fw-semibold valor-sensivel tabular-nums">R$ {{ analise_ia.gastos_estilo_vida|floatformat:2 }}</span>
                 </div>
-                <div class="progress" style="height: 5px;">
+                <div class="progress" style="height: 5px; background-color: var(--bg-subtle);">
                     <div class="progress-bar bg-warning" data-width="{{ analise_ia.perc_estilo_vida|floatformat:0 }}"></div>
                 </div>
             </div>
 
             <div>
                 <div class="d-flex justify-content-between small mb-1">
-                    <span class="text-secondary">Margem livre</span>
-                    <span class="fw-semibold text-success">{{ analise_ia.perc_economia|floatformat:0 }}%</span>
+                    <span class="text-secondary-fin">Margem livre</span>
+                    <span class="fw-semibold text-success-fin tabular-nums">{{ analise_ia.perc_economia|floatformat:0 }}%</span>
                 </div>
-                <div class="progress" style="height: 5px;">
+                <div class="progress" style="height: 5px; background-color: var(--bg-subtle);">
                     <div class="progress-bar bg-success" data-width="{{ analise_ia.perc_economia|floatformat:0 }}"></div>
                 </div>
             </div>
         </section>
 
-        <footer class="border-top pt-3 mt-4 text-secondary" style="font-size: 0.74rem;" role="contentinfo">
+        <footer class="border-top pt-3 mt-4 text-secondary-fin" style="font-size: 0.74rem;" role="contentinfo">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                 <div>
                     <strong>FinPro Sistemas de Gestão Pessoal</strong> | Responsável Técnico: Eduardo Henrique Rosa Silva
                 </div>
                 <div class="d-flex flex-wrap align-items-center gap-3">
-                    <a href="{% url 'politica_privacidade' %}" class="text-secondary text-decoration-underline">Política de Privacidade</a>
-                    <a href="{% url 'termos_uso' %}" class="text-secondary text-decoration-underline">Termos de Uso</a>
+                    <a href="{% url 'politica_privacidade' %}" class="text-secondary-fin text-decoration-underline">Política de Privacidade</a>
+                    <a href="{% url 'termos_uso' %}" class="text-secondary-fin text-decoration-underline">Termos de Uso</a>
                     <a href="https://wa.me/5534997756066?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20sistema%20FinPro." target="_blank" rel="noopener noreferrer" class="link-suporte-discreto" title="Suporte técnico">
                         <i class="bi bi-headset me-1" aria-hidden="true"></i>Suporte
                     </a>
@@ -760,10 +926,9 @@
 
     <!-- MODAIS DO SISTEMA -->
 
-    <!-- Modal Pagar / Abater Dívida (Vinculado a uma dívida ou Avulso) -->
     <div class="modal fade" id="modalPagarDividaPessoal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Registrar pagamento / Abater dívida</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -774,7 +939,7 @@
                         <input type="hidden" name="form_type" value="registrar_pagamento">
 
                         <div class="mb-2">
-                            <label class="form-label text-secondary small mb-1">Vincular a uma dívida existente? (opcional)</label>
+                            <label class="form-label text-secondary-fin small mb-1">Vincular a uma dívida existente? (opcional)</label>
                             <select class="form-select" name="divida_id" id="selectDividaPessoal" onchange="preencherDadosDividaSelecionada(this)">
                                 <option value="" data-valor="" data-cartao="" data-dono="{{ titular_id }}">Não vincular (Abatimento avulso no valor que devo)</option>
                                 {% for d in minhas_dividas_abertas %}
@@ -787,18 +952,18 @@
 
                         <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Valor pago (R$)</label>
+                                <label class="form-label text-secondary-fin small mb-1">Valor pago (R$)</label>
                                 <input type="text" inputmode="decimal" class="form-control" id="inputValorPagarDivida" name="valor" placeholder="0,00" required>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Data do pagamento</label>
+                                <label class="form-label text-secondary-fin small mb-1">Data do pagamento</label>
                                 <input type="date" class="form-control" name="data" required>
                             </div>
                         </div>
 
                         <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Titular / Pessoa</label>
+                                <label class="form-label text-secondary-fin small mb-1">Titular / Pessoa</label>
                                 <select class="form-select" name="dono_id" id="selectDonoPagarDivida">
                                     {% for p in pessoas %}
                                     <option value="{{ p.id }}" {% if p.is_titular %}selected{% endif %}>{{ p.nome }}</option>
@@ -806,7 +971,7 @@
                                 </select>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Abater de qual cartão?</label>
+                                <label class="form-label text-secondary-fin small mb-1">Abater de qual cartão?</label>
                                 <select class="form-select" name="cartao_id" id="selectCartaoPagarDivida">
                                     <option value="">Geral / Pix / Conta</option>
                                     {% for c in cartoes %}
@@ -817,7 +982,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label text-secondary small mb-1">Observação / Descrição (opcional)</label>
+                            <label class="form-label text-secondary-fin small mb-1">Observação / Descrição (opcional)</label>
                             <input type="text" class="form-control" name="descricao_pagamento" id="inputDescPagarDivida" placeholder="Ex: Adiantei fatura ou paguei parcela">
                         </div>
 
@@ -832,19 +997,19 @@
 
     <div class="modal fade" id="modalVincularEmail" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Vincular e confirmar e-mail</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="small text-secondary mb-3">
+                    <p class="small text-secondary-fin mb-3">
                         Seu nome de usuário (<strong>{{ usuario.username }}</strong>) e todos os seus lançamentos serão mantidos intactos. Após confirmar seu e-mail, você poderá entrar usando tanto o e-mail quanto o usuário, além de redefinir sua senha caso esqueça.
                     </p>
                     <form method="POST" action="{% url 'vincular_email' %}" class="form-protegido">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <label class="form-label small text-secondary">Endereço de e-mail</label>
+                            <label class="form-label small text-secondary-fin">Endereço de e-mail</label>
                             <input type="email" name="email" class="form-control" value="{{ usuario.email|default:'' }}" placeholder="seuemail@exemplo.com" required>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
@@ -858,7 +1023,7 @@
 
     <div class="modal fade" id="modalMeta" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Meta de gastos mensal</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -868,7 +1033,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="atualizar_meta">
                         <div class="mb-3">
-                            <label class="form-label small text-secondary">Valor limite (R$)</label>
+                            <label class="form-label small text-secondary-fin">Valor limite (R$)</label>
                             <input type="number" step="0.01" class="form-control" name="valor_meta" value="{{ valor_meta|stringformat:'f' }}" required>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Salvar meta</button>
@@ -880,7 +1045,7 @@
 
     <div class="modal fade" id="modalSimuladorCompra" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Simulador de impacto no orçamento</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -888,11 +1053,11 @@
                 <div class="modal-body">
                     <div class="row g-2 mb-3">
                         <div class="col-7">
-                            <label class="form-label small text-secondary">Valor da compra (R$)</label>
+                            <label class="form-label small text-secondary-fin">Valor da compra (R$)</label>
                             <input type="number" step="0.01" id="simValorTotal" class="form-control" placeholder="0,00">
                         </div>
                         <div class="col-5">
-                            <label class="form-label small text-secondary">Parcelas</label>
+                            <label class="form-label small text-secondary-fin">Parcelas</label>
                             <input type="number" id="simParcelas" class="form-control" value="1" min="1" max="48">
                         </div>
                     </div>
@@ -905,7 +1070,7 @@
 
     <div class="modal fade" id="modalLGPD" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Dados, Privacidade e LGPD</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -925,7 +1090,7 @@
                             <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalVincularEmail" data-bs-dismiss="modal">
                                 Alterar ou confirmar e-mail
                             </button>
-                            <a href="https://wa.me/5534997756066?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20sistema%20FinPro." target="_blank" rel="noopener noreferrer" class="text-secondary text-decoration-none" style="font-size: 0.72rem;">
+                            <a href="https://wa.me/5534997756066?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20sistema%20FinPro." target="_blank" rel="noopener noreferrer" class="text-secondary-fin text-decoration-none" style="font-size: 0.72rem;">
                                 <i class="bi bi-whatsapp"></i> Suporte técnico
                             </a>
                         </div>
@@ -964,8 +1129,8 @@
                     </div>
 
                     <hr>
-                    <p class="fw-semibold text-danger small mb-1">Eliminação definitiva da conta (Art. 18, VI)</p>
-                    <p class="text-secondary mb-2" style="font-size: 0.75rem;">Confirme sua senha atual para excluir permanentemente sua conta e todos os dados:</p>
+                    <p class="fw-semibold text-danger-fin small mb-1">Eliminação definitiva da conta (Art. 18, VI)</p>
+                    <p class="text-secondary-fin mb-2" style="font-size: 0.75rem;">Confirme sua senha atual para excluir permanentemente sua conta e todos os dados:</p>
                     <form method="POST" action="{% url 'excluir_conta_lgpd' %}" onsubmit="return confirm('Confirmar exclusão permanente da conta?')">
                         {% csrf_token %}
                         <div class="d-flex gap-2">
@@ -980,7 +1145,7 @@
 
     <div class="modal fade" id="modalGerenciarPessoas" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Pessoas vinculadas</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -990,10 +1155,10 @@
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="nova_pessoa">
                         <div class="mb-2">
-                            <input type="text" class="form-control bg-white" name="nome" placeholder="Nome da pessoa" required>
+                            <input type="text" class="form-control" name="nome" placeholder="Nome da pessoa" required>
                         </div>
                         <div class="mb-2">
-                            <input type="text" class="form-control bg-white" name="telefone" placeholder="WhatsApp com DDD (opcional)">
+                            <input type="text" class="form-control" name="telefone" placeholder="WhatsApp com DDD (opcional)">
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm w-100 py-2 fw-semibold">Adicionar pessoa</button>
                     </form>
@@ -1003,7 +1168,7 @@
                         <div class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center gap-2">
                             <div style="min-width: 0; flex: 1;">
                                 <span class="fw-semibold small text-truncate d-block">{{ p.nome }} {% if p.is_titular %}<span class="badge bg-primary ms-1" style="font-size: 0.6rem;">Titular</span>{% endif %}</span>
-                                <small class="text-secondary d-block text-truncate" style="font-size: 0.72rem;">{{ p.telefone|default:"Sem telefone" }}</small>
+                                <small class="text-secondary-fin d-block text-truncate" style="font-size: 0.72rem;">{{ p.telefone|default:"Sem telefone" }}</small>
                             </div>
                             <div class="d-flex gap-1 flex-shrink-0">
                                 <button class="icon-btn" data-bs-toggle="modal" data-bs-target="#modalEditarPessoa{{ p.id }}" data-bs-dismiss="modal" aria-label="Editar {{ p.nome }}"><i class="bi bi-pencil"></i></button>
@@ -1012,7 +1177,7 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="form_type" value="excluir_pessoa">
                                     <input type="hidden" name="pessoa_id" value="{{ p.id }}">
-                                    <button type="submit" class="icon-btn text-danger" aria-label="Excluir {{ p.nome }}"><i class="bi bi-trash3"></i></button>
+                                    <button type="submit" class="icon-btn icon-btn-danger" aria-label="Excluir {{ p.nome }}"><i class="bi bi-trash3"></i></button>
                                 </form>
                                 {% endif %}
                             </div>
@@ -1027,7 +1192,7 @@
     {% for p in pessoas %}
     <div class="modal fade" id="modalEditarPessoa{{ p.id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Editar {{ p.nome }}</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -1038,11 +1203,11 @@
                         <input type="hidden" name="form_type" value="editar_pessoa">
                         <input type="hidden" name="pessoa_id" value="{{ p.id }}">
                         <div class="mb-2">
-                            <label class="form-label small text-secondary">Nome</label>
+                            <label class="form-label small text-secondary-fin">Nome</label>
                             <input type="text" class="form-control" name="nome" value="{{ p.nome }}" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small text-secondary">Telefone</label>
+                            <label class="form-label small text-secondary-fin">Telefone</label>
                             <input type="text" class="form-control" name="telefone" value="{{ p.telefone|default:'' }}">
                         </div>
                         <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Salvar</button>
@@ -1053,10 +1218,9 @@
     </div>
     {% endfor %}
 
-    <!-- Modal Novo Lançamento com Inteligência de Fatura/Vencimento e Vínculo de Dívida -->
     <div class="modal fade" id="modalTransacao" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Novo lançamento</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -1065,22 +1229,22 @@
                     <form method="POST" class="form-protegido">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="nova_transacao">
-                        
+
                         <div class="row g-2">
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Tipo de lançamento</label>
+                                <label class="form-label text-secondary-fin small mb-1">Tipo de lançamento</label>
                                 <select class="form-select" name="tipo" id="selectTipoNovoLancamento">
                                     <option value="DESPESA" selected>Despesa / Compra</option>
                                     <option value="PAGAMENTO">Pagamento / Abatimento</option>
                                 </select>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Valor (R$)</label>
+                                <label class="form-label text-secondary-fin small mb-1">Valor (R$)</label>
                                 <input type="text" inputmode="decimal" class="form-control" id="valorTotalTransacao" name="valor" placeholder="0,00" required>
                             </div>
 
                             <div class="col-12" id="boxVincularDividaNoModal" style="display: none;">
-                                <label class="form-label text-secondary small mb-1">Vincular pagamento a alguma dívida criada? (opcional)</label>
+                                <label class="form-label text-secondary-fin small mb-1">Vincular pagamento a alguma dívida criada? (opcional)</label>
                                 <select class="form-select" name="divida_vinculada_id" id="selectDividaModalTransacao">
                                     <option value="">Não vincular (Abater direto do total que devo)</option>
                                     {% for d in minhas_dividas_abertas %}
@@ -1092,16 +1256,16 @@
                             </div>
 
                             <div class="col-12">
-                                <label class="form-label text-secondary small mb-1">Descrição</label>
+                                <label class="form-label text-secondary-fin small mb-1">Descrição</label>
                                 <input type="text" class="form-control" id="inputDescricaoNovaTransacao" name="descricao" placeholder="Ex: Supermercado" required>
                             </div>
-                            
+
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Data da compra/pagto</label>
+                                <label class="form-label text-secondary-fin small mb-1">Data da compra/pagto</label>
                                 <input type="date" class="form-control" name="data" id="inputDataCompraNova" required>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Categoria</label>
+                                <label class="form-label text-secondary-fin small mb-1">Categoria</label>
                                 <select class="form-select" name="categoria">
                                     <option value="Alimentação">Alimentação</option>
                                     <option value="Mercado">Mercado</option>
@@ -1116,7 +1280,7 @@
                             </div>
 
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Responsável</label>
+                                <label class="form-label text-secondary-fin small mb-1">Responsável</label>
                                 <select class="form-select" name="dono_id" required>
                                     {% for p in pessoas %}
                                     <option value="{{ p.id }}">{{ p.nome }}</option>
@@ -1124,7 +1288,7 @@
                                 </select>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Forma / Cartão</label>
+                                <label class="form-label text-secondary-fin small mb-1">Forma / Cartão</label>
                                 <select class="form-select" name="cartao_id" id="selectCartaoForma">
                                     <option value="">Pix / Conta</option>
                                     {% for c in cartoes %}
@@ -1133,13 +1297,12 @@
                                 </select>
                             </div>
 
-                            <!-- Aviso Inteligente em tempo real sobre fechamento e vencimento -->
                             <div class="col-12" id="boxAvisoCicloCartao" style="display: none;">
-                                <div class="p-2 rounded-2 small bg-primary-subtle text-primary border border-primary-subtle" id="textoAvisoCicloCartao" style="font-size: 0.74rem;"></div>
+                                <div class="p-2 rounded-2 small bg-primary-subtle text-primary-emphasis border border-primary-subtle" id="textoAvisoCicloCartao" style="font-size: 0.74rem;"></div>
                             </div>
 
                             <div class="col-6" id="boxParcelasNovo">
-                                <label class="form-label text-secondary small mb-1">Parcelas</label>
+                                <label class="form-label text-secondary-fin small mb-1">Parcelas</label>
                                 <input type="number" class="form-control" name="parcelas" id="inputParcelas" value="1" min="1" max="120">
                             </div>
 
@@ -1160,7 +1323,7 @@
                                 Dividir lançamento com outra pessoa
                             </label>
                         </div>
-                        <div id="secaoDivisaoAmigos" style="display: none;" class="p-2 rounded-2 mb-2" style="background-color: var(--bg-subtle);">
+                        <div id="secaoDivisaoAmigos" style="display: none; background-color: var(--bg-subtle);" class="p-2 rounded-2 mb-2">
                             <div id="listaCamposDivisao">
                                 <div class="d-flex gap-2 align-items-center mb-2 linha-divisao">
                                     <select class="form-select form-select-sm" name="dono_id_extra" style="flex: 1 1 0%; min-width: 0;">
@@ -1192,35 +1355,35 @@
 
     <div class="modal fade" id="modalResumoMes" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Indicadores contábeis de {{ mes_atual|stringformat:"02d" }}/{{ ano_atual }}</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="p-3 rounded-2" style="background-color: var(--bg-subtle);">
+                    <div class="p-3 rounded-2 tabular-nums" style="background-color: var(--bg-subtle);">
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
-                            <span class="text-secondary">Situação orçamentária</span>
+                            <span class="text-secondary-fin">Situação orçamentária</span>
                             <span class="fw-bold">{{ analise_ia.nivel_score }}</span>
                         </div>
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
-                            <span class="text-secondary">Total bruto vs. já abatido</span>
+                            <span class="text-secondary-fin">Total bruto vs. já abatido</span>
                             <span class="fw-bold">R$ {{ meus_gastos_brutos|floatformat:2 }} / R$ {{ meus_pagamentos|floatformat:2 }}</span>
                         </div>
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
-                            <span class="text-secondary">Maior categoria</span>
+                            <span class="text-secondary-fin">Maior categoria</span>
                             <span class="fw-bold">{{ maior_categoria }} (R$ {{ valor_maior_cat|floatformat:2 }})</span>
                         </div>
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
-                            <span class="text-secondary">Ticket médio ({{ analise_ia.qtd_transacoes_pessoais }} compras)</span>
+                            <span class="text-secondary-fin">Ticket médio ({{ analise_ia.qtd_transacoes_pessoais }} compras)</span>
                             <span class="fw-bold">R$ {{ analise_ia.ticket_medio|floatformat:2 }}</span>
                         </div>
                         <div class="d-flex justify-content-between border-bottom pb-2 mb-2 small">
-                            <span class="text-secondary">Custo fixo anualizado</span>
+                            <span class="text-secondary-fin">Custo fixo anualizado</span>
                             <span class="fw-bold">R$ {{ analise_ia.custo_fixo_anual|floatformat:2 }}/ano</span>
                         </div>
                         <div class="d-flex justify-content-between small">
-                            <span class="text-secondary">Utilização da meta</span>
+                            <span class="text-secondary-fin">Utilização da meta</span>
                             <span class="fw-bold">{{ percentual_gasto|floatformat:1 }}%</span>
                         </div>
                     </div>
@@ -1231,7 +1394,7 @@
 
     <div class="modal fade" id="modalCartao" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Cartões de crédito</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -1241,14 +1404,14 @@
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="novo_cartao">
                         <div class="mb-2">
-                            <input type="text" class="form-control bg-white" name="nome" placeholder="Nome do cartão (ex: Nubank)" required>
+                            <input type="text" class="form-control" name="nome" placeholder="Nome do cartão (ex: Nubank)" required>
                         </div>
                         <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <input type="number" class="form-control bg-white" name="dia_fechamento" placeholder="Dia fechamento" min="1" max="31" required>
+                                <input type="number" class="form-control" name="dia_fechamento" placeholder="Dia fechamento" min="1" max="31" required>
                             </div>
                             <div class="col-6">
-                                <input type="number" class="form-control bg-white" name="dia_vencimento" placeholder="Dia vencimento" min="1" max="31" required>
+                                <input type="number" class="form-control" name="dia_vencimento" placeholder="Dia vencimento" min="1" max="31" required>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm w-100 py-2 fw-semibold">Cadastrar cartão</button>
@@ -1260,13 +1423,13 @@
                         <div class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center gap-2">
                             <div class="small" style="min-width: 0; flex: 1;">
                                 <span class="fw-semibold d-block text-truncate">{{ c.nome }}</span>
-                                <span class="text-secondary d-block text-truncate valor-sensivel" style="font-size: 0.72rem;">
+                                <span class="text-secondary-fin d-block text-truncate valor-sensivel tabular-nums" style="font-size: 0.72rem;">
                                     Aberto: R$ {{ c.total_fatura|floatformat:2 }} • Fecha dia {{ c.dia_fechamento }} • Vence {{ c.data_vencimento_fmt }}
                                 </span>
                             </div>
                             <form method="POST" action="{% url 'excluir_cartao' c.id %}" class="flex-shrink-0" onsubmit="return confirm('Remover cartão {{ c.nome }}?');">
                                 {% csrf_token %}
-                                <button type="submit" class="icon-btn text-danger" aria-label="Excluir cartão {{ c.nome }}"><i class="bi bi-trash3"></i></button>
+                                <button type="submit" class="icon-btn icon-btn-danger" aria-label="Excluir cartão {{ c.nome }}"><i class="bi bi-trash3"></i></button>
                             </form>
                         </div>
                         {% endfor %}
@@ -1279,7 +1442,7 @@
 
     <div class="modal fade" id="modalFatura" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Importar fatura em CSV</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -1288,7 +1451,7 @@
                     <form method="POST" enctype="multipart/form-data" class="form-protegido">
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="upload_fatura">
-                        <p class="text-secondary small mb-3">
+                        <p class="text-secondary-fin small mb-3">
                             Selecione o arquivo CSV exportado pelo seu banco. Você poderá revisar os lançamentos na próxima tela.
                         </p>
                         <div class="mb-3">
@@ -1305,7 +1468,7 @@
         {% for divida in dividas_detalhadas %}
         <div class="modal fade" id="modalReceber{{ divida.id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content rounded-2">
+                <div class="modal-content">
                     <div class="modal-header border-0 pb-0">
                         <h6 class="modal-title fw-bold">Recebimento de {{ divida.nome }}</h6>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -1315,9 +1478,9 @@
                             {% csrf_token %}
                             <input type="hidden" name="form_type" value="registrar_pagamento">
                             <input type="hidden" name="dono_id" value="{{ divida.id }}">
-                            
+
                             <div class="mb-2">
-                                <label class="form-label text-secondary small">Vincular ao gasto</label>
+                                <label class="form-label text-secondary-fin small">Vincular ao gasto</label>
                                 <select class="form-select" name="referencia_gasto" onchange="atualizarValorPagamento(this, 'valorPagamento{{ divida.id }}')">
                                     <option value="" data-valor="{{ divida.saldo|stringformat:'s'|default:'0' }}">Abater do saldo geral (R$ {{ divida.saldo|floatformat:2 }})</option>
                                     {% for desp in divida.despesas %}
@@ -1325,17 +1488,17 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            
+
                             <div class="mb-2">
-                                <label class="form-label text-secondary small">Valor recebido (R$)</label>
+                                <label class="form-label text-secondary-fin small">Valor recebido (R$)</label>
                                 <input type="text" inputmode="decimal" class="form-control" id="valorPagamento{{ divida.id }}" name="valor" value="{{ divida.saldo|floatformat:2 }}" required>
                             </div>
-                            
+
                             <div class="mb-3">
-                                <label class="form-label text-secondary small">Data</label>
+                                <label class="form-label text-secondary-fin small">Data</label>
                                 <input type="date" class="form-control input-data-hoje" name="data" required>
                             </div>
-                            
+
                             <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Confirmar</button>
                         </form>
                     </div>
@@ -1348,7 +1511,7 @@
     {% for t in transacoes %}
     <div class="modal fade" id="modalEditar{{ t.id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2">
+            <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-bold">Editar lançamento</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -1358,23 +1521,23 @@
                         {% csrf_token %}
                         <input type="hidden" name="form_type" value="editar_transacao">
                         <input type="hidden" name="transacao_id" value="{{ t.id }}">
-                        
+
                         <div class="row g-2">
                             <div class="col-12 col-sm-7">
-                                <label class="form-label text-secondary small mb-1">Descrição</label>
+                                <label class="form-label text-secondary-fin small mb-1">Descrição</label>
                                 <input type="text" class="form-control" name="descricao" value="{{ t.descricao }}" required>
                             </div>
                             <div class="col-12 col-sm-5">
-                                <label class="form-label text-secondary small mb-1">Valor (R$)</label>
+                                <label class="form-label text-secondary-fin small mb-1">Valor (R$)</label>
                                 <input type="text" inputmode="decimal" class="form-control" name="valor" value="{{ t.valor|floatformat:2 }}" required>
                             </div>
-                            
+
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Data</label>
+                                <label class="form-label text-secondary-fin small mb-1">Data</label>
                                 <input type="date" class="form-control" name="data" value="{{ t.data|date:'Y-m-d' }}" required>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Categoria</label>
+                                <label class="form-label text-secondary-fin small mb-1">Categoria</label>
                                 <select class="form-select" name="categoria">
                                     <option value="Alimentação" {% if t.categoria == 'Alimentação' %}selected{% endif %}>Alimentação</option>
                                     <option value="Mercado" {% if t.categoria == 'Mercado' %}selected{% endif %}>Mercado</option>
@@ -1389,7 +1552,7 @@
                             </div>
 
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Responsável</label>
+                                <label class="form-label text-secondary-fin small mb-1">Responsável</label>
                                 <select class="form-select" name="dono_id" required>
                                     {% for p in pessoas %}
                                     <option value="{{ p.id }}" {% if t.dono.id == p.id %}selected{% endif %}>{{ p.nome }}</option>
@@ -1397,7 +1560,7 @@
                                 </select>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Pagamento</label>
+                                <label class="form-label text-secondary-fin small mb-1">Pagamento</label>
                                 <select class="form-select" name="cartao_id">
                                     <option value="">Pix / Conta</option>
                                     {% for c in cartoes %}
@@ -1407,14 +1570,14 @@
                             </div>
 
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Tipo</label>
+                                <label class="form-label text-secondary-fin small mb-1">Tipo</label>
                                 <select class="form-select" name="tipo">
                                     <option value="DESPESA" {% if t.tipo == 'DESPESA' %}selected{% endif %}>Despesa</option>
                                     <option value="PAGAMENTO" {% if t.tipo == 'PAGAMENTO' %}selected{% endif %}>Pagamento / Abatimento</option>
                                 </select>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary small mb-1">Parcelas</label>
+                                <label class="form-label text-secondary-fin small mb-1">Parcelas</label>
                                 <input type="number" class="form-control" name="parcelas" id="inputParcelasEdit{{ t.id }}" value="1" min="1" max="120">
                             </div>
 
@@ -1467,7 +1630,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     {{ labels_grafico|json_script:"labels-data" }}
     {{ valores_grafico|json_script:"valores-data" }}
     {{ labels_evolucao|json_script:"labels-evolucao-data" }}
@@ -1519,7 +1682,7 @@
                 if (!input.value) { input.value = hoje; }
             });
 
-            // Inteligência de datas de compra vs fechamento/vencimento no formulário de lançamento
+            // Inteligência de datas de compra vs fechamento/vencimento (DOM seguro contra XSS)
             const cartoesMeta = JSON.parse(document.getElementById('cartoes-meta-data').textContent || '[]');
             const mapCartoes = {};
             cartoesMeta.forEach(c => { mapCartoes[String(c.id)] = c; });
@@ -1530,7 +1693,7 @@
             const textoAvisoCiclo = document.getElementById('textoAvisoCicloCartao');
 
             function atualizarPrevisaoFaturaCartao() {
-                if (!inputDataNova || !selectCartaoNova || !boxAvisoCiclo) return;
+                if (!inputDataNova || !selectCartaoNova || !boxAvisoCiclo || !textoAvisoCiclo) return;
                 const cartaoId = selectCartaoNova.value;
                 const dataStr = inputDataNova.value;
                 if (!cartaoId || !dataStr || !mapCartoes[cartaoId]) {
@@ -1545,8 +1708,7 @@
 
                 let mesFat = mesC;
                 let anoFat = anoC;
-                const virouFatura = diaC >= c.fechamento;
-                if (virouFatura) {
+                if (diaC >= c.fechamento) {
                     mesFat += 1;
                     if (mesFat > 12) { mesFat = 1; anoFat += 1; }
                 }
@@ -1557,12 +1719,14 @@
                     mesVenc += 1;
                     if (mesVenc > 12) { mesVenc = 1; anoVenc += 1; }
                 }
+
                 const diaVencStr = String(c.vencimento).padStart(2, '0');
                 const mesFatStr = String(mesFat).padStart(2, '0');
                 const mesVencStr = String(mesVenc).padStart(2, '0');
 
                 boxAvisoCiclo.style.display = 'block';
-                textoAvisoCiclo.innerHTML = `<i class="bi bi-calendar2-check me-1"></i><strong>${c.nome}</strong> (fecha dia ${c.fechamento}): compra em ${String(diaC).padStart(2, '0')}/${String(mesC).padStart(2, '0')} cairá na fatura <strong>${mesFatStr}/${anoFat}</strong> com vencimento em <strong>${diaVencStr}/${mesVencStr}/${anoVenc}</strong>.`;
+                textoAvisoCiclo.textContent =
+                    `${c.nome} (fecha dia ${c.fechamento}): compra em ${String(diaC).padStart(2, '0')}/${String(mesC).padStart(2, '0')} entra na fatura ${mesFatStr}/${anoFat}, vencimento ${diaVencStr}/${mesVencStr}/${anoVenc}.`;
             }
 
             if (inputDataNova && selectCartaoNova) {
@@ -1570,7 +1734,7 @@
                 selectCartaoNova.addEventListener('change', atualizarPrevisaoFaturaCartao);
             }
 
-            // Alternância entre Despesa e Pagamento/Abatimento dentro do modal de Novo Lançamento
+            // Alternância entre Despesa e Pagamento no modal Novo Lançamento
             const selectTipoNovo = document.getElementById('selectTipoNovoLancamento');
             const boxVincularDividaNoModal = document.getElementById('boxVincularDividaNoModal');
             const selectDividaModalTransacao = document.getElementById('selectDividaModalTransacao');
@@ -1597,7 +1761,7 @@
                 });
             }
 
-            // Botão rápido "Pagar" direto na linha da despesa
+            // Botão rápido "Pagar" na linha do lançamento
             document.querySelectorAll('.btn-pagar-item-rapido').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -1629,11 +1793,12 @@
                     const btn = form.querySelector('button[type="submit"]');
                     if (btn && !btn.disabled) {
                         btn.disabled = true;
-                        btn.innerHTML = 'Carregando...';
+                        btn.textContent = 'Salvando...';
                     }
                 });
             });
 
+            // Modo privacidade (ocultar valores)
             const btnPrivacy = document.getElementById('btnPrivacyMode');
             const iconPrivacy = document.getElementById('iconPrivacy');
             function aplicarEstadoPrivacidade(ativo) {
@@ -1651,17 +1816,54 @@
                 });
             }
 
-            const btnDark = document.getElementById('btnDarkMode');
-            if (localStorage.getItem('finpro_dark_mode') === 'true') {
-                document.body.classList.add('dark-mode');
+            // Gráficos Chart.js adaptativos ao tema
+            let chartCategorias = null;
+            let chartEvolucao = null;
+
+            function obterCoresGrafico() {
+                const dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                return {
+                    texto: dark ? '#cbd5e1' : '#334155',
+                    grade: dark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(15, 23, 42, 0.08)',
+                    barra: dark ? '#3b82f6' : '#1d4ed8'
+                };
             }
+
+            function atualizarTemaGraficos() {
+                const cores = obterCoresGrafico();
+                if (chartCategorias) {
+                    chartCategorias.options.plugins.legend.labels.color = cores.texto;
+                    chartCategorias.update();
+                }
+                if (chartEvolucao) {
+                    chartEvolucao.data.datasets[0].backgroundColor = cores.barra;
+                    chartEvolucao.options.scales.x.ticks.color = cores.texto;
+                    chartEvolucao.options.scales.y.ticks.color = cores.texto;
+                    chartEvolucao.options.scales.y.grid.color = cores.grade;
+                    chartEvolucao.update();
+                }
+            }
+
+            // Modo escuro sincronizado com data-bs-theme do Bootstrap 5.3
+            const btnDark = document.getElementById('btnDarkMode');
+            const iconDark = document.getElementById('iconDarkMode');
+            function aplicarTemaEscuro(ativo) {
+                document.documentElement.setAttribute('data-bs-theme', ativo ? 'dark' : 'light');
+                if (iconDark) {
+                    iconDark.className = ativo ? 'bi bi-sun' : 'bi bi-moon';
+                }
+                atualizarTemaGraficos();
+            }
+            aplicarTemaEscuro(localStorage.getItem('finpro_dark_mode') === 'true');
             if (btnDark) {
                 btnDark.addEventListener('click', function() {
-                    document.body.classList.toggle('dark-mode');
-                    localStorage.setItem('finpro_dark_mode', document.body.classList.contains('dark-mode'));
+                    const novoEstado = document.documentElement.getAttribute('data-bs-theme') !== 'dark';
+                    localStorage.setItem('finpro_dark_mode', novoEstado);
+                    aplicarTemaEscuro(novoEstado);
                 });
             }
 
+            // Busca e filtros rápidos
             const inputBusca = document.getElementById('inputBuscaTransacao');
             let filtroChipAtivo = 'todos';
 
@@ -1692,6 +1894,7 @@
                 });
             });
 
+            // Simulador de impacto no orçamento (DOM seguro)
             const btnSimular = document.getElementById('btnAnalisarCompra');
             if (btnSimular) {
                 btnSimular.addEventListener('click', function() {
@@ -1701,33 +1904,33 @@
                     const saldoRestanteAtual = parseFloat("{{ saldo_restante|stringformat:'f' }}".replace(',', '.')) || 0;
                     const valorMeta = parseFloat("{{ valor_meta|stringformat:'f' }}".replace(',', '.')) || 0;
 
+                    boxRes.style.display = 'block';
                     if (valTotal <= 0) {
-                        boxRes.style.display = 'block';
                         boxRes.className = 'p-3 rounded-2 small alert alert-secondary mb-0';
-                        boxRes.innerHTML = 'Informe um valor válido.';
+                        boxRes.textContent = 'Informe um valor válido.';
                         return;
                     }
 
                     const valorParcela = valTotal / parc;
                     const novoSaldo = saldoRestanteAtual - valorParcela;
-                    boxRes.style.display = 'block';
 
                     if (valorMeta <= 0) {
                         boxRes.className = 'p-3 rounded-2 small alert alert-secondary mb-0';
-                        boxRes.innerHTML = `Parcela de <strong>R$ ${valorParcela.toFixed(2)}/mês</strong>. Defina uma meta mensal para calcular a margem.`;
+                        boxRes.textContent = `Parcela de R$ ${valorParcela.toFixed(2)}/mês. Defina uma meta mensal para calcular a margem.`;
                     } else if (novoSaldo >= valorMeta * 0.15) {
                         boxRes.className = 'p-3 rounded-2 small alert alert-success mb-0';
-                        boxRes.innerHTML = `<strong>Viável:</strong> A parcela de R$ ${valorParcela.toFixed(2)} mantém R$ ${novoSaldo.toFixed(2)} livres na meta.`;
+                        boxRes.textContent = `Viável: a parcela de R$ ${valorParcela.toFixed(2)} mantém R$ ${novoSaldo.toFixed(2)} livres na meta.`;
                     } else if (novoSaldo >= 0) {
                         boxRes.className = 'p-3 rounded-2 small alert alert-warning mb-0';
-                        boxRes.innerHTML = `<strong>Atenção:</strong> A parcela de R$ ${valorParcela.toFixed(2)} deixará R$ ${novoSaldo.toFixed(2)} disponíveis na meta.`;
+                        boxRes.textContent = `Atenção: a parcela de R$ ${valorParcela.toFixed(2)} deixará R$ ${novoSaldo.toFixed(2)} disponíveis na meta.`;
                     } else {
                         boxRes.className = 'p-3 rounded-2 small alert alert-danger mb-0';
-                        boxRes.innerHTML = `<strong>Acima da meta:</strong> A parcela de R$ ${valorParcela.toFixed(2)} excede o limite em R$ ${Math.abs(novoSaldo).toFixed(2)}.`;
+                        boxRes.textContent = `Acima da meta: a parcela de R$ ${valorParcela.toFixed(2)} excede o limite em R$ ${Math.abs(novoSaldo).toFixed(2)}.`;
                     }
                 });
             }
 
+            // Consentimento LGPD
             const statusConsentimento = localStorage.getItem("lgpd_consentido");
             if (!statusConsentimento) {
                 document.getElementById("lgpd-banner").style.display = "block";
@@ -1752,6 +1955,7 @@
                 });
             }, 3500);
 
+            // Divisão de despesa com terceiros
             const toggleDivisao = document.getElementById('toggleDivisao');
             const secaoDivisaoAmigos = document.getElementById('secaoDivisaoAmigos');
             const listaCamposDivisao = document.getElementById('listaCamposDivisao');
@@ -1800,18 +2004,20 @@
                 });
             }
 
+            // Renderização dos gráficos
+            const coresIniciais = obterCoresGrafico();
             const ctxCat = document.getElementById('graficoGastos');
             const labelsCat = JSON.parse(document.getElementById('labels-data').textContent);
             const dadosCat = JSON.parse(document.getElementById('valores-data').textContent);
-            
+
             if (ctxCat && labelsCat.length > 0) {
-                new Chart(ctxCat, {
+                chartCategorias = new Chart(ctxCat, {
                     type: 'doughnut',
                     data: {
                         labels: labelsCat,
                         datasets: [{
                             data: dadosCat,
-                            backgroundColor: ['#1d4ed8', '#0f172a', '#475569', '#0284c7', '#64748b', '#0d9488', '#d97706', '#dc2626'],
+                            backgroundColor: ['#2563eb', '#0d9488', '#475569', '#0284c7', '#64748b', '#d97706', '#dc2626', '#7c3aed'],
                             borderWidth: 0
                         }]
                     },
@@ -1821,36 +2027,59 @@
                         plugins: {
                             legend: {
                                 position: 'bottom',
-                                labels: { usePointStyle: true, boxWidth: 8, padding: 10, font: { family: "'Inter', sans-serif", size: 11 } }
+                                labels: {
+                                    color: coresIniciais.texto,
+                                    usePointStyle: true,
+                                    boxWidth: 8,
+                                    padding: 12,
+                                    font: { family: "'Inter', sans-serif", size: 11 }
+                                }
                             }
                         },
                         cutout: '68%'
                     }
                 });
             } else if (ctxCat) {
-                ctxCat.outerHTML = '<div class="d-flex align-items-center justify-content-center h-100 rounded-2" style="background-color: var(--bg-subtle);"><p class="text-secondary small mb-0">Sem lançamentos pessoais neste período.</p></div>';
+                const avisoVazio = document.createElement('div');
+                avisoVazio.className = 'd-flex align-items-center justify-content-center h-100 rounded-2';
+                avisoVazio.style.backgroundColor = 'var(--bg-subtle)';
+                const pVazio = document.createElement('p');
+                pVazio.className = 'text-secondary-fin small mb-0';
+                pVazio.textContent = 'Sem lançamentos pessoais neste período.';
+                avisoVazio.appendChild(pVazio);
+                ctxCat.replaceWith(avisoVazio);
             }
 
             const ctxEvo = document.getElementById('graficoEvolucao');
             const labelsEvo = JSON.parse(document.getElementById('labels-evolucao-data').textContent);
             const dadosEvo = JSON.parse(document.getElementById('valores-evolucao-data').textContent);
             if (ctxEvo && labelsEvo.length > 0) {
-                new Chart(ctxEvo, {
+                chartEvolucao = new Chart(ctxEvo, {
                     type: 'bar',
                     data: {
                         labels: labelsEvo,
                         datasets: [{
                             label: 'Gastos (R$)',
                             data: dadosEvo,
-                            backgroundColor: '#1d4ed8',
-                            borderRadius: 4
+                            backgroundColor: coresIniciais.barra,
+                            borderRadius: 6
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: coresIniciais.texto }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: coresIniciais.grade },
+                                ticks: { color: coresIniciais.texto }
+                            }
+                        }
                     }
                 });
             }
