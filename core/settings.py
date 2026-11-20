@@ -38,65 +38,26 @@ if EM_PRODUCAO and not EM_TESTE:
         h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',')
         if h.strip() and h.strip() != '*'
     ]
-    if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in hosts_env:
-        hosts_env.append(RENDER_EXTERNAL_HOSTNAME)
-    ALLOWED_HOSTS = hosts_env or ['finpro-app.onrender.com']
+    for host_padrao in ('finpro.app.br', 'www.finpro.app.br', RENDER_EXTERNAL_HOSTNAME):
+        if host_padrao and host_padrao not in hosts_env:
+            hosts_env.append(host_padrao)
+    ALLOWED_HOSTS = hosts_env
 
     origins_env = [
         o.strip() for o in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
         if o.strip() and '*' not in o
     ]
-    if RENDER_EXTERNAL_HOSTNAME:
-        render_origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
-        if render_origin not in origins_env:
-            origins_env.append(render_origin)
-    CSRF_TRUSTED_ORIGINS = origins_env or ['https://finpro-app.onrender.com']
+    for origin_padrao in (
+        'https://finpro.app.br',
+        'https://www.finpro.app.br',
+        f"https://{RENDER_EXTERNAL_HOSTNAME}" if RENDER_EXTERNAL_HOSTNAME else '',
+    ):
+        if origin_padrao and origin_padrao not in origins_env:
+            origins_env.append(origin_padrao)
+    CSRF_TRUSTED_ORIGINS = origins_env
 else:
     ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
     CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
-
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'whitenoise.runserver_nostatic',
-    'django.contrib.staticfiles',
-    'gestao',
-]
-
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'gestao.middleware.PostgresRLSMiddleware',
-]
-
-ROOT_URLCONF = 'core.urls'
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
-
-WSGI_APPLICATION = 'core.wsgi.application'
 
 # ==========================================
 # 3. BANCO DE DADOS (OTIMIZADO PARA NEON SERVERLESS POSTGRES)
@@ -222,7 +183,9 @@ if EM_PRODUCAO and not EM_TESTE:
 # ==========================================
 # 5. ENVIO DE E-MAILS (API HTTPS DA RESEND)
 # ==========================================
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev').strip()
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL', 'FinPro <nao-responda@finpro.app.br>'
+).strip()
 
 if os.environ.get('RESEND_API_KEY', '').strip() and not EM_TESTE:
     EMAIL_BACKEND = 'gestao.backends.ResendEmailBackend'

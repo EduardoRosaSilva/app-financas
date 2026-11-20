@@ -80,24 +80,35 @@ def gerar_token_confirmacao_email(user: User, email: str) -> str:
 
 def enviar_email_seguro(assunto: str, mensagem: str, destinatario: str) -> bool:
     resend_api_key = os.environ.get('RESEND_API_KEY', '').strip()
-    
-    if not resend_api_key:
-        security_logger.error("ERRO CRÍTico: A variável de ambiente RESEND_API_KEY não está configurada no Render!")
-        return False
+    remetente = settings.DEFAULT_FROM_EMAIL
+
+    if resend_api_key and not getattr(settings, 'EM_TESTE', False):
+        try:
+            resend.api_key = resend_api_key
+            params = {
+                "from": remetente,
+                "to": [destinatario.strip()],
+                "subject": assunto,
+                "text": mensagem,
+            }
+            resposta = resend.Emails.send(params)
+            security_logger.info("E-mail enviado via Resend para %s (ID: %s)", destinatario, resposta)
+            return True
+        except Exception as exc:
+            security_logger.warning("Falha ao enviar e-mail via Resend API para %s: %s", destinatario, str(exc))
+            return False
 
     try:
-        resend.api_key = resend_api_key
-        params = {
-            "from": os.environ.get('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev').strip(),
-            "to": [destinatario.strip()],
-            "subject": assunto,
-            "text": mensagem,
-        }
-        resposta = resend.Emails.send(params)
-        security_logger.info("E-mail enviado com sucesso via Resend para %s. Resposta ID: %s", destinatario, resposta)
+        send_mail(
+            subject=assunto,
+            message=mensagem,
+            from_email=remetente,
+            recipient_list=[destinatario.strip()],
+            fail_silently=False,
+        )
         return True
     except Exception as exc:
-        security_logger.warning("Falha crítica ao enviar e-mail via Resend API para %s: %s", destinatario, str(exc))
+        security_logger.warning("Falha ao enviar e-mail (fallback) para %s: %s", destinatario, type(exc).__name__)
         return False
 
 
@@ -708,9 +719,17 @@ def registro_view(request):
             if usuario.email:
                 enviado = disparar_email_confirmacao(request, usuario, usuario.email)
                 if enviado:
-                    messages.success(request, f"Conta criada! Enviamos um link de confirmação para {usuario.email}.")
+                    messages.success(
+                        request,
+                        f"Conta criada! Enviamos um link de confirmação para {usuario.email}."
+                    )
                 else:
-                    messages.warning(request, "Conta criada. Não foi possível enviar o e-mail agora; você pode reenviar pelo painel.")
+                    messages.warning(
+                        request,
+                        "Conta criada. Não foi possível enviar o e-mail agora; você pode reenviar pelo painel."
+                    )
+            else:
+                messages.success(request, f"Conta criada com sucesso! Bem-vindo ao FinPro, {usuario.username}.")
             return redirect('dashboard')
         else:
             registrar_falha_ip(chave_ip, tempo_bloq, chave_usr)
