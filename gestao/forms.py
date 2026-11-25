@@ -7,8 +7,8 @@ from django.db.models import Q
 class RegistroUsuarioForm(UserCreationForm):
     email = forms.EmailField(
         label="E-mail",
-        required=False,
-        help_text="Informe um e-mail válido para confirmação da conta e recuperação de senha."
+        required=True,
+        help_text="Obrigatório: enviaremos um link de confirmação para liberar o seu primeiro acesso."
     )
 
     class Meta(UserCreationForm.Meta):
@@ -32,7 +32,9 @@ class RegistroUsuarioForm(UserCreationForm):
 
     def clean_email(self):
         email = (self.cleaned_data.get('email') or '').strip().lower()
-        if email and User.objects.filter(email__iexact=email).exists():
+        if not email:
+            raise forms.ValidationError("Informe um endereço de e-mail válido.")
+        if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("Este endereço de e-mail já está vinculado a outra conta.")
         return email
 

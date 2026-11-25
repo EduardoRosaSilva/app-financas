@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -14,18 +15,27 @@ class FinProSystemTests(TestCase):
         self.client = Client()
 
     def test_1_registro_cria_titular_e_permite_relogin_case_insensitive(self):
+        from .views import gerar_token_confirmacao_email
+
         res = self.client.post(reverse('registro'), {
             'username': '  EduardoRosa ',
+            'email': 'eduardo@finpro.app.br',
             'password1': 'FinPro@2026Seguro',
             'password2': 'FinPro@2026Seguro',
         })
         self.assertEqual(res.status_code, 302)
-        self.assertTrue(User.objects.filter(username='eduardorosa').exists())
+        self.assertEqual(res.url, reverse('login'))
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+        user = User.objects.filter(username='eduardorosa').first()
+        self.assertIsNotNone(user)
 
         titular = Pessoa.objects.filter(conta='eduardorosa', is_titular=True).first()
         self.assertIsNotNone(titular)
 
-        self.client.logout()
+        token = gerar_token_confirmacao_email(user, user.email)
+        self.client.get(reverse('confirmar_email', args=[token]))
+
         novo_client = Client()
         res_login = novo_client.post(reverse('login'), {
             'username': 'EDUARDOROSA ',
@@ -35,11 +45,23 @@ class FinProSystemTests(TestCase):
         self.assertEqual(res_login.url, reverse('dashboard'))
 
     def test_2_persistencia_de_dados_apos_logout_e_novo_login(self):
+        from .views import gerar_token_confirmacao_email
+
         self.client.post(reverse('registro'), {
             'username': 'teste_persistencia',
+            'email': 'persistencia@finpro.app.br',
             'password1': 'SenhaForte@2026',
             'password2': 'SenhaForte@2026',
         })
+        user = User.objects.get(username='teste_persistencia')
+        token = gerar_token_confirmacao_email(user, user.email)
+        self.client.get(reverse('confirmar_email', args=[token]))
+
+        self.client.post(reverse('login'), {
+            'username': 'teste_persistencia',
+            'password': 'SenhaForte@2026',
+        })
+
         titular = Pessoa.objects.get(conta='teste_persistencia', is_titular=True)
         hoje = date.today()
 
@@ -232,7 +254,6 @@ class FinProSystemTests(TestCase):
         self.client.force_login(u)
         titular = Pessoa.objects.create(nome='Validador', conta='validador', is_titular=True)
 
-        # Tenta criar despesa com valor negativo e parcelas inválidas
         self.client.post(reverse('dashboard'), {
             'form_type': 'nova_transacao',
             'descricao': 'Fraude Negativa',
@@ -243,7 +264,6 @@ class FinProSystemTests(TestCase):
         })
         self.assertEqual(Transacao.objects.filter(conta='validador').count(), 0)
 
-        # Valida páginas de SEO e conformidade jurídica
         res_robots = self.client.get(reverse('robots_txt'))
         self.assertEqual(res_robots.status_code, 200)
         self.assertNotIn('cofre-gestao-admin', res_robots.content.decode('utf-8'))
@@ -257,13 +277,12 @@ class FinProSystemTests(TestCase):
         res_termos = self.client.get(reverse('termos_uso'))
         self.assertEqual(res_termos.status_code, 200)
 
-def test_11_fluxo_conta_antiga_email_confirmacao_e_redefinicao_senha(self):
+    def test_11_fluxo_conta_antiga_email_confirmacao_e_redefinicao_senha(self):
         from django.contrib.auth.tokens import default_token_generator
         from django.utils.encoding import force_bytes
         from django.utils.http import urlsafe_base64_encode
         from .views import gerar_token_confirmacao_email, is_email_confirmado
 
-        # 1. Usuário antigo (cadastrado apenas com username e sem e-mail) tem dados preservados e vê aviso
         u_antigo = User.objects.create_user(username='cliente_antigo', password='SenhaAntiga!123')
         p_antigo = Pessoa.objects.create(nome='Cliente Antigo', conta='cliente_antigo', is_titular=True)
         Transacao.objects.create(
@@ -276,7 +295,6 @@ def test_11_fluxo_conta_antiga_email_confirmacao_e_redefinicao_senha(self):
         self.assertContains(res_dash, 'Compra Antiga Preservada')
         self.assertContains(res_dash, 'Cadastre seu e-mail para proteger sua conta')
 
-        # 2. Usuário antigo vincula seu e-mail e confirma pelo link
         self.client.post(reverse('vincular_email'), {'email': 'antigo@finpro.com'})
         u_antigo.refresh_from_db()
         self.assertEqual(u_antigo.email, 'antigo@finpro.com')
@@ -287,7 +305,6 @@ def test_11_fluxo_conta_antiga_email_confirmacao_e_redefinicao_senha(self):
         u_antigo.refresh_from_db()
         self.assertTrue(is_email_confirmado(u_antigo))
 
-        # 3. Agora o usuário consegue fazer login digitando o E-MAIL e continua vendo seus dados antigos
         self.client.logout()
         res_login_email = self.client.post(reverse('login'), {
             'username': 'ANTIGO@FINPRO.COM',
@@ -297,9 +314,9 @@ def test_11_fluxo_conta_antiga_email_confirmacao_e_redefinicao_senha(self):
         res_dash_pos = self.client.get(reverse('dashboard'))
         self.assertContains(res_dash_pos, 'Compra Antiga Preservada')
 
-        # 4. Fluxo de Redefinição de Senha via link tokenizado
         self.client.logout()
         self.client.post(reverse('recuperar_senha'), {'identificador': 'antigo@finpro.com'})
+        u_antigo.refresh_from_db()
         uidb64 = urlsafe_base64_encode(force_bytes(u_antigo.pk))
         token_reset = default_token_generator.make_token(u_antigo)
 
@@ -308,15 +325,16 @@ def test_11_fluxo_conta_antiga_email_confirmacao_e_redefinicao_senha(self):
             {'new_password1': 'NovaSenhaForte@2026', 'new_password2': 'NovaSenhaForte@2026'}
         )
         self.assertEqual(res_reset.status_code, 302)
+        self.assertEqual(res_reset.url, reverse('login'))
 
-        # Login com e-mail e a nova senha
         res_login_nova = self.client.post(reverse('login'), {
             'username': 'antigo@finpro.com',
             'password': 'NovaSenhaForte@2026'
         })
         self.assertEqual(res_login_nova.status_code, 302)
+        self.assertEqual(res_login_nova.url, reverse('dashboard'))
 
-def test_12_abatimento_divida_vinculada_e_avulsa_e_datas_cartao(self):
+    def test_12_abatimento_divida_vinculada_e_avulsa_e_datas_cartao(self):
         u = User.objects.create_user(username='pagador', password='123')
         self.client.force_login(u)
         titular = Pessoa.objects.create(nome='Pagador', conta='pagador', is_titular=True)
@@ -332,11 +350,9 @@ def test_12_abatimento_divida_vinculada_e_avulsa_e_datas_cartao(self):
             tipo='DESPESA', dono=titular, conta='pagador'
         )
 
-        # 1. Inicialmente o usuário deve R$ 800,00
         res1 = self.client.get('/?mes=10&ano=2026')
         self.assertEqual(float(res1.context['meus_gastos']), 800.00)
 
-        # 2. Paga R$ 200,00 vinculado à dívida do Notebook (R$ 500 -> restam R$ 300; total devido cai para R$ 600)
         self.client.post('/?mes=10&ano=2026', {
             'form_type': 'registrar_pagamento',
             'divida_id': str(d1.id),
@@ -347,7 +363,6 @@ def test_12_abatimento_divida_vinculada_e_avulsa_e_datas_cartao(self):
         self.assertEqual(float(res2.context['meus_gastos']), 600.00)
         self.assertEqual(float(res2.context['resumo_cartoes'][0]['total_fatura']), 300.00)
 
-        # 3. Paga R$ 150,00 de forma avulsa (sem vínculo) -> total devido cai de R$ 600,00 para R$ 450,00
         self.client.post('/?mes=10&ano=2026', {
             'form_type': 'registrar_pagamento',
             'divida_id': '',
@@ -358,3 +373,59 @@ def test_12_abatimento_divida_vinculada_e_avulsa_e_datas_cartao(self):
         res3 = self.client.get('/?mes=10&ano=2026')
         self.assertEqual(float(res3.context['meus_gastos']), 450.00)
         self.assertEqual(float(res3.context['meus_pagamentos']), 350.00)
+
+    def test_13_bloqueia_login_sem_email_verificado_e_permite_reenvio(self):
+        from .views import gerar_token_confirmacao_email, is_email_confirmado
+
+        # 1. Registro sem e-mail deve ser recusado
+        res_sem_email = self.client.post(reverse('registro'), {
+            'username': 'sem_email',
+            'password1': 'SenhaForte@2026',
+            'password2': 'SenhaForte@2026',
+        })
+        self.assertEqual(res_sem_email.status_code, 200)
+        self.assertFalse(User.objects.filter(username='sem_email').exists())
+
+        # 2. Registro com e-mail envia link e não autentica automaticamente
+        mail.outbox.clear()
+        res_reg = self.client.post(reverse('registro'), {
+            'username': 'pendente_user',
+            'email': 'pendente@finpro.app.br',
+            'password1': 'SenhaForte@2026',
+            'password2': 'SenhaForte@2026',
+        })
+        self.assertEqual(res_reg.status_code, 302)
+        self.assertEqual(res_reg.url, reverse('login'))
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertEqual(len(mail.outbox), 1)
+
+        user = User.objects.get(username='pendente_user')
+        self.assertFalse(is_email_confirmado(user))
+
+        # 3. Tentativa de login antes da confirmação é bloqueada
+        novo_client = Client()
+        res_bloq = novo_client.post(reverse('login'), {
+            'username': 'pendente@finpro.app.br',
+            'password': 'SenhaForte@2026',
+        })
+        self.assertEqual(res_bloq.status_code, 302)
+        self.assertEqual(res_bloq.url, reverse('login'))
+        self.assertNotIn('_auth_user_id', novo_client.session)
+
+        # 4. Reenvio público dispara um novo e-mail
+        res_reenvio = novo_client.post(reverse('reenviar_confirmacao_publica'))
+        self.assertEqual(res_reenvio.status_code, 302)
+        self.assertEqual(len(mail.outbox), 2)
+
+        # 5. Após confirmar pelo link, o login é liberado normalmente
+        token = gerar_token_confirmacao_email(user, user.email)
+        novo_client.get(reverse('confirmar_email', args=[token]))
+        user.refresh_from_db()
+        self.assertTrue(is_email_confirmado(user))
+
+        res_ok = novo_client.post(reverse('login'), {
+            'username': 'pendente@finpro.app.br',
+            'password': 'SenhaForte@2026',
+        })
+        self.assertEqual(res_ok.status_code, 302)
+        self.assertEqual(res_ok.url, reverse('dashboard'))

@@ -14,6 +14,7 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('registro/', views.registro_view, name='registro'),
     path('logout/', views.logout_view, name='logout'),
+    path('reenviar-confirmacao/', views.reenviar_confirmacao_publica_view, name='reenviar_confirmacao_publica'),
     path('conta/vincular-email/', views.vincular_email_view, name='vincular_email'),
     path('conta/reenviar-confirmacao/', views.reenviar_confirmacao_email_view, name='reenviar_confirmacao_email'),
     path('confirmar-email/<str:token>/', views.confirmar_email_view, name='confirmar_email'),

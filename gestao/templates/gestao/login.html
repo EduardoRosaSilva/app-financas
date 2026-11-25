@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
@@ -12,28 +12,125 @@
     <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'icone.png' %}">
     <link rel="icon" type="image/png" href="{% static 'icone.png' %}">
 
+    <script>
+        (function () {
+            if (localStorage.getItem('finpro_dark_mode') === 'true') {
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            }
+        })();
+    </script>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
+        :root {
+            --bg-app: #f4f6f9;
+            --bg-surface: #ffffff;
+            --bg-subtle: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --border-color: #e2e8f0;
+            --border-strong: #cbd5e1;
+            --accent: #1d4ed8;
+            --accent-hover: #1e40af;
+        }
+        [data-bs-theme="dark"] {
+            --bg-app: #0b1120;
+            --bg-surface: #111827;
+            --bg-subtle: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #1f2937;
+            --border-strong: #334155;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+        }
         *, *::before, *::after { box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; overflow-x: hidden; }
-        .form-control, .btn { font-size: 16px !important; border-radius: 6px !important; }
-        a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid #1d4ed8 !important; outline-offset: 2px !important; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-app);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        .auth-card {
+            width: 100%;
+            max-width: 400px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+        .form-control {
+            font-size: 16px !important;
+            border-radius: 8px !important;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-strong);
+            color: var(--text-primary);
+            min-height: 44px;
+        }
+        .form-control:focus {
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+        }
+        .btn-fin-primary {
+            background-color: var(--accent);
+            border: 1px solid var(--accent);
+            color: #ffffff;
+            border-radius: 10px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            min-height: 44px;
+        }
+        .btn-fin-primary:hover, .btn-fin-primary:focus {
+            background-color: var(--accent-hover);
+            border-color: var(--accent-hover);
+            color: #ffffff;
+        }
+        .resend-box {
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-strong);
+            border-radius: 10px;
+        }
+        .text-secondary-fin { color: var(--text-secondary) !important; }
+        a:focus-visible, button:focus-visible, input:focus-visible {
+            outline: 2px solid var(--accent) !important;
+            outline-offset: 2px !important;
+        }
     </style>
 </head>
 <body class="d-flex flex-column align-items-center justify-content-center min-vh-100 p-3">
-    <main class="bg-white border rounded-2 p-4 shadow-sm" style="width: 100%; max-width: 390px;">
+    <main class="auth-card p-4">
         <div class="text-center mb-4">
-            <img src="{% static 'icone.png' %}" alt="Logotipo FinPro" width="40" height="40" class="mb-2" style="border-radius: 6px;">
+            <img src="{% static 'icone.png' %}" alt="Logotipo FinPro" width="42" height="42" class="mb-2" style="border-radius: 8px;">
             <h1 class="h4 fw-bold mb-1">FinPro</h1>
-            <p class="text-secondary small mb-0">Entre com seu e-mail ou nome de usuário</p>
+            <p class="text-secondary-fin small mb-0">Entre com seu e-mail ou nome de usuário</p>
         </div>
-        
+
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'warning' %}warning{% else %}success{% endif %} rounded-2 small py-2" role="alert">{{ message }}</div>
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'warning' %}warning{% else %}success{% endif %} rounded-3 small py-2" role="alert">{{ message }}</div>
             {% endfor %}
+        {% endif %}
+
+        {% if email_pendente_confirmacao %}
+        <div class="resend-box p-3 mb-3 small">
+            <div class="fw-semibold mb-1">
+                <i class="bi bi-envelope-exclamation text-warning me-1" aria-hidden="true"></i>Confirmação pendente
+            </div>
+            <p class="text-secondary-fin mb-2" style="font-size: 0.78rem;">
+                Não recebeu o link em <strong>{{ email_pendente_confirmacao }}</strong>? Verifique sua pasta de spam ou solicite um novo envio.
+            </p>
+            <form method="POST" action="{% url 'reenviar_confirmacao_publica' %}" id="formReenviarConfirmacao" class="m-0">
+                {% csrf_token %}
+                <button type="submit" id="btnReenviarConfirmacao" class="btn btn-outline-primary btn-sm w-100 fw-semibold">
+                    Reenviar e-mail de confirmação
+                </button>
+            </form>
+        </div>
         {% endif %}
 
         <form method="POST" id="formLogin" novalidate>
@@ -42,7 +139,7 @@
             <div class="d-flex justify-content-between align-items-center mt-1 mb-3">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="chkMostrarSenha">
-                    <label class="form-check-label small text-secondary" for="chkMostrarSenha" style="cursor: pointer;">
+                    <label class="form-check-label small text-secondary-fin" for="chkMostrarSenha" style="cursor: pointer;">
                         Mostrar senha
                     </label>
                 </div>
@@ -50,29 +147,30 @@
                     Esqueceu a senha?
                 </a>
             </div>
-            <button type="submit" id="btnSubmitLogin" class="btn btn-primary w-100 py-2 fw-semibold">
+            <button type="submit" id="btnSubmitLogin" class="btn btn-fin-primary w-100">
                 Acessar painel
             </button>
         </form>
+
         <div class="text-center mt-4">
-            <a href="{% url 'registro' %}" class="text-decoration-none small text-secondary">Não possui conta? <span class="text-primary fw-semibold">Criar conta</span></a>
+            <a href="{% url 'registro' %}" class="text-decoration-none small text-secondary-fin">Não possui conta? <span class="text-primary fw-semibold">Criar conta</span></a>
         </div>
     </main>
 
-    <footer class="mt-4 text-center small text-secondary" style="font-size: 0.75rem;">
-        <a href="{% url 'politica_privacidade' %}" class="text-secondary me-3">Política de Privacidade</a>
-        <a href="{% url 'termos_uso' %}" class="text-secondary">Termos de Uso</a>
+    <footer class="mt-4 text-center small text-secondary-fin" style="font-size: 0.75rem;">
+        <a href="{% url 'politica_privacidade' %}" class="text-secondary-fin me-3">Política de Privacidade</a>
+        <a href="{% url 'termos_uso' %}" class="text-secondary-fin">Termos de Uso</a>
     </footer>
-    
+
     <script>
-        document.querySelectorAll('input').forEach(e => {
-            if(e.type !== 'submit' && e.type !== 'checkbox') {
-                e.classList.add('form-control', 'bg-light', 'mb-3', 'py-2');
+        document.querySelectorAll('#formLogin input').forEach(e => {
+            if (e.type !== 'submit' && e.type !== 'checkbox' && e.type !== 'hidden') {
+                e.classList.add('form-control', 'mb-3', 'py-2');
             }
         });
-        document.querySelectorAll('label').forEach(e => {
-            if(e.htmlFor !== 'chkMostrarSenha') {
-                e.classList.add('small', 'text-secondary', 'fw-semibold', 'mb-1');
+        document.querySelectorAll('#formLogin label').forEach(e => {
+            if (e.htmlFor !== 'chkMostrarSenha') {
+                e.classList.add('small', 'text-secondary-fin', 'fw-semibold', 'mb-1');
             }
         });
         document.getElementById('chkMostrarSenha').addEventListener('change', function() {
@@ -83,8 +181,16 @@
         document.getElementById('formLogin').addEventListener('submit', function() {
             const btn = document.getElementById('btnSubmitLogin');
             btn.disabled = true;
-            btn.innerHTML = 'Carregando...';
+            btn.textContent = 'Entrando...';
         });
+        const formReenviar = document.getElementById('formReenviarConfirmacao');
+        if (formReenviar) {
+            formReenviar.addEventListener('submit', function() {
+                const btn = document.getElementById('btnReenviarConfirmacao');
+                btn.disabled = true;
+                btn.textContent = 'Reenviando...';
+            });
+        }
     </script>
 </body>
 </html>

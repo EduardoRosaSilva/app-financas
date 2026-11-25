@@ -674,6 +674,17 @@ def _pagamento_corresponde_despesa(pagamento_desc: str, despesa_obj: Transacao) 
 # VIEWS DE AUTENTICAÇÃO, CONFIRMAÇÃO DE E-MAIL E SENHA
 # ==========================================
 
+def _obter_email_pendente_sessao(request) -> str:
+    uid = request.session.get('reenvio_pendente_uid')
+    if not uid:
+        return ''
+    usuario = User.objects.filter(pk=uid).first()
+    if usuario and usuario.email and not is_email_confirmado(usuario):
+        return usuario.email
+    request.session.pop('reenvio_pendente_uid', None)
+    return ''
+
+
 @never_cache
 def admin_login_protegido(request, extra_context=None):
     if request.method == 'POST':
@@ -711,26 +722,23 @@ def registro_view(request):
         if form.is_valid():
             usuario = form.save()
             garantir_titular_conta(usuario.username)
-            login(request, usuario)
             cache.delete(chave_ip)
             if chave_usr:
                 cache.delete(chave_usr)
 
-            if usuario.email:
-                enviado = disparar_email_confirmacao(request, usuario, usuario.email)
-                if enviado:
-                    messages.success(
-                        request,
-                        f"Conta criada! Enviamos um link de confirmação para {usuario.email}."
-                    )
-                else:
-                    messages.warning(
-                        request,
-                        "Conta criada. Não foi possível enviar o e-mail agora; você pode reenviar pelo painel."
-                    )
+            request.session['reenvio_pendente_uid'] = usuario.pk
+            enviado = disparar_email_confirmacao(request, usuario, usuario.email)
+            if enviado:
+                messages.success(
+                    request,
+                    f"Conta criada! Enviamos um link de confirmação para {usuario.email}. Verifique sua caixa de entrada (ou spam) para liberar o login."
+                )
             else:
-                messages.success(request, f"Conta criada com sucesso! Bem-vindo ao FinPro, {usuario.username}.")
-            return redirect('dashboard')
+                messages.warning(
+                    request,
+                    f"Conta criada, mas não foi possível enviar o e-mail para {usuario.email} agora. Use o botão abaixo para reenviar."
+                )
+            return redirect('login')
         else:
             registrar_falha_ip(chave_ip, tempo_bloq, chave_usr)
             messages.error(request, 'Verifique os campos destacados no formulário abaixo.')
@@ -754,13 +762,41 @@ def login_view(request):
                 "Bloqueio de forca bruta no login para IP=%s usuario=%s", get_client_ip(request), usr_tentativa
             )
             messages.error(request, 'Muitas tentativas de acesso. Aguarde 5 minutos antes de tentar novamente.')
-            return render(request, 'gestao/login.html', {'form': LoginUsuarioForm()}, status=429)
+            return render(
+                request,
+                'gestao/login.html',
+                {
+                    'form': LoginUsuarioForm(),
+                    'email_pendente_confirmacao': _obter_email_pendente_sessao(request),
+                },
+                status=429,
+            )
 
         form = LoginUsuarioForm(request, data=request.POST)
         if form.is_valid():
             usuario = form.get_user()
+
+            if not is_email_confirmado(usuario):
+                security_logger.warning(
+                    "Login bloqueado (e-mail nao verificado) para usuario=%s IP=%s",
+                    usuario.username, get_client_ip(request)
+                )
+                if usuario.email:
+                    request.session['reenvio_pendente_uid'] = usuario.pk
+                    messages.warning(
+                        request,
+                        f"Seu e-mail ({usuario.email}) ainda não foi verificado. Acesse o link enviado para sua caixa de entrada ou solicite um novo envio abaixo."
+                    )
+                else:
+                    messages.error(
+                        request,
+                        "Sua conta ainda não possui um e-mail verificado vinculado. Entre em contato com o suporte para liberar o acesso."
+                    )
+                return redirect('login')
+
             garantir_titular_conta(usuario.username)
             login(request, usuario)
+            request.session.pop('reenvio_pendente_uid', None)
             cache.delete(chave_ip)
             if chave_usr:
                 cache.delete(chave_usr)
@@ -773,12 +809,50 @@ def login_view(request):
             messages.error(request, 'E-mail/usuário ou senha inválidos.')
     else:
         form = LoginUsuarioForm()
-    return render(request, 'gestao/login.html', {'form': form})
+
+    return render(request, 'gestao/login.html', {
+        'form': form,
+        'email_pendente_confirmacao': _obter_email_pendente_sessao(request),
+    })
 
 
 @require_POST
 def logout_view(request):
     logout(request)
+    return redirect('login')
+
+
+@never_cache
+@require_POST
+def reenviar_confirmacao_publica_view(request):
+    uid = request.session.get('reenvio_pendente_uid')
+    if not uid:
+        messages.error(request, 'Informe suas credenciais de login primeiro para solicitar um novo link de confirmação.')
+        return redirect('login')
+
+    usuario = User.objects.filter(pk=uid).first()
+    if not usuario or not usuario.email:
+        request.session.pop('reenvio_pendente_uid', None)
+        messages.error(request, 'Nenhum e-mail pendente de confirmação encontrado nesta sessão.')
+        return redirect('login')
+
+    if is_email_confirmado(usuario):
+        request.session.pop('reenvio_pendente_uid', None)
+        messages.success(request, 'Seu e-mail já está confirmado! Faça login normalmente.')
+        return redirect('login')
+
+    bloqueado, ch_ip, ch_usr, t_bloq = verificar_bloqueio_ip(
+        request, escopo='reenviar_email_pub', identificador_extra=usuario.username, max_tentativas=5, tempo_bloqueio=300
+    )
+    if bloqueado:
+        messages.error(request, 'Aguarde 5 minutos antes de solicitar um novo reenvio.')
+        return redirect('login')
+
+    registrar_falha_ip(ch_ip, t_bloq, ch_usr)
+    if disparar_email_confirmacao(request, usuario, usuario.email):
+        messages.success(request, f"Novo link de confirmação enviado para {usuario.email}. Verifique sua caixa de entrada e spam.")
+    else:
+        messages.error(request, "Não foi possível enviar o e-mail no momento. Tente novamente em instantes.")
     return redirect('login')
 
 
@@ -805,7 +879,7 @@ def vincular_email_view(request):
         if enviado:
             messages.success(request, f"Enviamos um link de confirmação para {novo_email}. Verifique sua caixa de entrada.")
         else:
-            messages.warning(request, f"E-mail {novo_email} salvo. Verifique as configurações de SMTP para receber o link.")
+            messages.warning(request, f"E-mail {novo_email} salvo. Não foi possível enviar o link agora; tente reenviar pelo painel.")
     else:
         for erro in form.errors.get('email', []):
             messages.error(request, erro)
@@ -850,9 +924,10 @@ def confirmar_email_view(request, token):
             return redirect('dashboard' if request.user.is_authenticated else 'login')
 
         marcar_email_como_confirmado(usuario, email)
-        messages.success(request, f"E-mail ({email}) confirmado com sucesso! Agora você pode entrar com ele ou redefinir sua senha.")
+        request.session.pop('reenvio_pendente_uid', None)
+        messages.success(request, f"E-mail ({email}) confirmado com sucesso! Agora você já pode entrar no FinPro.")
     except signing.SignatureExpired:
-        messages.error(request, 'O link de confirmação expirou. Solicite um novo link no painel.')
+        messages.error(request, 'O link de confirmação expirou. Tente entrar na sua conta para solicitar um novo link.')
     except signing.BadSignature:
         messages.error(request, 'Link de confirmação inválido.')
 
@@ -918,6 +993,9 @@ def redefinir_senha_confirmar_view(request, uidb64, token):
         form = SetPasswordForm(usuario, request.POST)
         if form.is_valid():
             form.save()
+            if usuario.email and not is_email_confirmado(usuario):
+                marcar_email_como_confirmado(usuario, usuario.email)
+            request.session.pop('reenvio_pendente_uid', None)
             security_logger.warning("Senha redefinida com sucesso via token para usuario=%s", usuario.username)
             messages.success(request, 'Senha atualizada com sucesso! Faça login com sua nova senha.')
             return redirect('login')
