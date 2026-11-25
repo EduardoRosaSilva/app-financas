@@ -479,7 +479,7 @@ class FinProSystemTests(TestCase):
 
         mail.outbox.clear()
         res_get = self.client.get(reverse('redefinir_senha_confirmar', kwargs={'uidb64': uidb64, 'token': token_reset}))
-        self.assertEqual(res_get['Referrer-Policy'], 'no-referrer')
+        self.assertEqual(res_get['Referrer-Policy'], 'same-origin')
 
         res_post = self.client.post(
             reverse('redefinir_senha_confirmar', kwargs={'uidb64': uidb64, 'token': token_reset}),

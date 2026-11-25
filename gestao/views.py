@@ -1065,7 +1065,7 @@ def redefinir_senha_confirmar_view(request, uidb64, token):
         form = SetPasswordForm(usuario)
 
     response = render(request, 'gestao/redefinir_senha.html', {'form': form, 'usuario_alvo': usuario})
-    response['Referrer-Policy'] = 'no-referrer'
+    response['Referrer-Policy'] = 'same-origin'
     return response
 
 
