@@ -164,6 +164,13 @@
             checks.forEach(c => c.checked = algumDesmarcado);
             recalcularTotalSelecionado();
         });
+
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted) {
+                document.body.style.visibility = 'hidden';
+                window.location.reload();
+            }
+        });
     </script>
 </body>
 </html>

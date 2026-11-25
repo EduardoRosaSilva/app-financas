@@ -11,6 +11,8 @@ import unicodedata
 import urllib.parse
 import resend
 import uuid
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.contrib.sessions.models import Session
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
@@ -980,42 +982,45 @@ def recuperar_senha_view(request):
             security_logger.warning("Honeypot acionado em recuperar_senha pelo IP=%s", get_client_ip(request))
             return redirect('login')
 
-        identificador = (request.POST.get('identificador') or '').strip()
+        email_informado = (request.POST.get('email') or '').strip().lower()
         bloqueado, ch_ip, ch_usr, t_bloq = verificar_bloqueio_ip(
-            request, escopo='recuperar_senha', identificador_extra=identificador, max_tentativas=5, tempo_bloqueio=300
+            request, escopo='recuperar_senha', identificador_extra=email_informado, max_tentativas=5, tempo_bloqueio=300
         )
         if bloqueado:
             security_logger.warning(
-                "Bloqueio de rate limit em recuperar_senha IP=%s identificador=%s",
-                get_client_ip(request), identificador
+                "Bloqueio de rate limit em recuperar_senha IP=%s email=%s",
+                get_client_ip(request), email_informado
             )
             messages.error(request, 'Muitas solicitações realizadas. Aguarde 5 minutos.')
             return render(request, 'gestao/recuperar_senha.html', status=429)
 
         registrar_falha_ip(ch_ip, t_bloq, ch_usr)
 
-        if identificador:
-            usuario = User.objects.filter(
-                Q(email__iexact=identificador) | Q(username__iexact=identificador)
-            ).first()
-            if usuario and usuario.email:
-                uidb64 = urlsafe_base64_encode(force_bytes(usuario.pk))
-                token = default_token_generator.make_token(usuario)
-                link = request.build_absolute_uri(
-                    reverse('redefinir_senha_confirmar', kwargs={'uidb64': uidb64, 'token': token})
-                )
-                assunto, corpo_texto, corpo_html = construir_email_redefinicao_senha(
-                    username=usuario.username,
-                    link_redefinicao=link,
-                    ip_origem=get_client_ip(request),
-                    data_hora_str=_formatar_data_hora_seguranca(),
-                    logo_url=_obter_logo_email_url(request),
-                )
-                enviar_email_seguro(assunto, corpo_texto, usuario.email, mensagem_html=corpo_html)
+        try:
+            validate_email(email_informado)
+        except ValidationError:
+            messages.error(request, 'Informe um endereço de e-mail válido.')
+            return render(request, 'gestao/recuperar_senha.html')
+
+        usuario = User.objects.filter(email__iexact=email_informado).first()
+        if usuario and usuario.email:
+            uidb64 = urlsafe_base64_encode(force_bytes(usuario.pk))
+            token = default_token_generator.make_token(usuario)
+            link = request.build_absolute_uri(
+                reverse('redefinir_senha_confirmar', kwargs={'uidb64': uidb64, 'token': token})
+            )
+            assunto, corpo_texto, corpo_html = construir_email_redefinicao_senha(
+                username=usuario.username,
+                link_redefinicao=link,
+                ip_origem=get_client_ip(request),
+                data_hora_str=_formatar_data_hora_seguranca(),
+                logo_url=_obter_logo_email_url(request),
+            )
+            enviar_email_seguro(assunto, corpo_texto, usuario.email, mensagem_html=corpo_html)
 
         messages.success(
             request,
-            'Se houver uma conta com e-mail cadastrado correspondente aos dados informados, enviamos um link seguro válido por 30 minutos.'
+            'Se houver uma conta vinculada a este e-mail, enviamos um link seguro de redefinição válido por 30 minutos.'
         )
         return redirect('login')
 

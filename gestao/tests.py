@@ -315,7 +315,7 @@ class FinProSystemTests(TestCase):
         self.assertContains(res_dash_pos, 'Compra Antiga Preservada')
 
         self.client.logout()
-        self.client.post(reverse('recuperar_senha'), {'identificador': 'antigo@finpro.com'})
+        self.client.post(reverse('recuperar_senha'), {'email': 'antigo@finpro.com'})
         u_antigo.refresh_from_db()
         uidb64 = urlsafe_base64_encode(force_bytes(u_antigo.pk))
         token_reset = default_token_generator.make_token(u_antigo)
@@ -430,7 +430,6 @@ class FinProSystemTests(TestCase):
         self.assertEqual(res_ok.status_code, 302)
         self.assertEqual(res_ok.url, reverse('dashboard'))
 
-
     def test_14_emails_profissionais_distintos_e_redefinicao_encerra_sessoes(self):
         from django.contrib.auth.tokens import default_token_generator
         from django.utils.encoding import force_bytes
@@ -463,9 +462,14 @@ class FinProSystemTests(TestCase):
         })
         self.assertEqual(dispositivo_a.get(reverse('dashboard')).status_code, 200)
 
-        # 3. Solicitação de redefinição envia e-mail distinto (HTML + link /redefinir-senha/)
+        # 3. Tentar recuperar usando apenas username não dispara e-mail
         mail.outbox.clear()
-        self.client.post(reverse('recuperar_senha'), {'identificador': 'executivo@finpro.app.br'})
+        res_user_bloq = self.client.post(reverse('recuperar_senha'), {'email': 'executivo'})
+        self.assertEqual(res_user_bloq.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+
+        # Solicitação com o e-mail vinculado envia e-mail distinto (HTML + link /redefinir-senha/)
+        self.client.post(reverse('recuperar_senha'), {'email': 'executivo@finpro.app.br'})
         self.assertEqual(len(mail.outbox), 1)
         email_reset = mail.outbox[0]
         self.assertIn('redefinição de senha', email_reset.subject.lower())
@@ -495,3 +499,24 @@ class FinProSystemTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('senha foi alterada', mail.outbox[0].subject.lower())
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
+
+    def test_15_logout_invalida_sessao_e_bloqueia_cache_do_navegador(self):
+        user = User.objects.create_user(username='usuario_cache', password='SenhaForte@2026')
+        self.client.force_login(user)
+
+        res_dash = self.client.get(reverse('dashboard'))
+        self.assertEqual(res_dash.status_code, 200)
+        cache_control = res_dash.get('Cache-Control', '').lower()
+        self.assertIn('no-store', cache_control)
+        self.assertIn('no-cache', cache_control)
+        self.assertIn('private', cache_control)
+        self.assertEqual(res_dash.get('Pragma'), 'no-cache')
+        self.assertEqual(res_dash.get('Expires'), '0')
+
+        res_logout = self.client.post(reverse('logout'))
+        self.assertEqual(res_logout.status_code, 302)
+        self.assertEqual(res_logout.url, reverse('login'))
+
+        res_pos_logout = self.client.get(reverse('dashboard'))
+        self.assertEqual(res_pos_logout.status_code, 302)
+        self.assertTrue(res_pos_logout.url.startswith(reverse('login')))
