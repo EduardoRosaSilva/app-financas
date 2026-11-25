@@ -1,4 +1,5 @@
 import os
+import uuid
 import resend
 from django.core.mail.backends.base import BaseEmailBackend
 
@@ -14,12 +15,24 @@ class ResendEmailBackend(BaseEmailBackend):
 
         for message in email_messages:
             try:
+                html_body = None
+                for content, mimetype in getattr(message, 'alternatives', []):
+                    if mimetype == 'text/html':
+                        html_body = content
+                        break
+
                 params = {
-                    "from": message.from_email or os.environ.get('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev'),
+                    "from": message.from_email or os.environ.get(
+                        'DEFAULT_FROM_EMAIL', 'FinPro <nao-responda@finpro.app.br>'
+                    ),
                     "to": list(message.recipients()),
                     "subject": message.subject,
                     "text": message.body,
+                    "headers": {"X-Entity-Ref-ID": str(uuid.uuid4())},
                 }
+                if html_body:
+                    params["html"] = html_body
+
                 resend.Emails.send(params)
                 enviados += 1
             except Exception as e:

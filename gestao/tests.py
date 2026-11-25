@@ -429,3 +429,69 @@ class FinProSystemTests(TestCase):
         })
         self.assertEqual(res_ok.status_code, 302)
         self.assertEqual(res_ok.url, reverse('dashboard'))
+
+
+    def test_14_emails_profissionais_distintos_e_redefinicao_encerra_sessoes(self):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+        from .views import marcar_email_como_confirmado
+
+        # 1. Cadastro envia e-mail HTML de confirmação
+        mail.outbox.clear()
+        self.client.post(reverse('registro'), {
+            'username': 'executivo',
+            'email': 'executivo@finpro.app.br',
+            'password1': 'SenhaInicial@2026',
+            'password2': 'SenhaInicial@2026',
+        })
+        self.assertEqual(len(mail.outbox), 1)
+        email_conf = mail.outbox[0]
+        self.assertIn('Confirme seu e-mail', email_conf.subject)
+        self.assertIn('/confirmar-email/', email_conf.body)
+        self.assertEqual(len(email_conf.alternatives), 1)
+        self.assertEqual(email_conf.alternatives[0][1], 'text/html')
+
+        user = User.objects.get(username='executivo')
+        marcar_email_como_confirmado(user, user.email)
+
+        # 2. Dispositivo A mantém sessão autenticada ativa
+        dispositivo_a = Client()
+        dispositivo_a.post(reverse('login'), {
+            'username': 'executivo@finpro.app.br',
+            'password': 'SenhaInicial@2026',
+        })
+        self.assertEqual(dispositivo_a.get(reverse('dashboard')).status_code, 200)
+
+        # 3. Solicitação de redefinição envia e-mail distinto (HTML + link /redefinir-senha/)
+        mail.outbox.clear()
+        self.client.post(reverse('recuperar_senha'), {'identificador': 'executivo@finpro.app.br'})
+        self.assertEqual(len(mail.outbox), 1)
+        email_reset = mail.outbox[0]
+        self.assertIn('redefinição de senha', email_reset.subject.lower())
+        self.assertIn('/redefinir-senha/', email_reset.body)
+        self.assertEqual(len(email_reset.alternatives), 1)
+
+        # 4. Concluir redefinição encerra sessão do Dispositivo A e envia alerta de segurança
+        user.refresh_from_db()
+        uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+        token_reset = default_token_generator.make_token(user)
+
+        mail.outbox.clear()
+        res_get = self.client.get(reverse('redefinir_senha_confirmar', kwargs={'uidb64': uidb64, 'token': token_reset}))
+        self.assertEqual(res_get['Referrer-Policy'], 'no-referrer')
+
+        res_post = self.client.post(
+            reverse('redefinir_senha_confirmar', kwargs={'uidb64': uidb64, 'token': token_reset}),
+            {'new_password1': 'NovaSenhaUltra@2026', 'new_password2': 'NovaSenhaUltra@2026'}
+        )
+        self.assertEqual(res_post.status_code, 302)
+        self.assertEqual(res_post.url, reverse('login'))
+
+        # Sessão do Dispositivo A foi derrubada (redireciona para /login/)
+        self.assertEqual(dispositivo_a.get(reverse('dashboard')).status_code, 302)
+
+        # E-mail de alerta de senha alterada foi disparado
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('senha foi alterada', mail.outbox[0].subject.lower())
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)

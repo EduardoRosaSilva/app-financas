@@ -10,6 +10,10 @@ import re
 import unicodedata
 import urllib.parse
 import resend
+import uuid
+from django.contrib.sessions.models import Session
+from django.core.mail import EmailMultiAlternatives
+from django.utils import timezone
 from collections import defaultdict
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -37,6 +41,11 @@ from django.views.decorators.http import require_POST
 
 from .forms import LoginUsuarioForm, RegistroUsuarioForm, VincularEmailForm
 from .models import Cartao, MetaMensal, Pessoa, Transacao
+from .emails import (
+    construir_email_alerta_senha_alterada,
+    construir_email_confirmacao,
+    construir_email_redefinicao_senha,
+)
 
 security_logger = logging.getLogger('finpro.security')
 
@@ -77,52 +86,82 @@ def gerar_token_confirmacao_email(user: User, email: str) -> str:
     payload = {'uid': user.pk, 'u': user.username, 'email': email.strip().lower()}
     return signing.dumps(payload, salt=EMAIL_CONFIRM_SALT)
 
+def _obter_logo_email_url(request) -> str:
+    return request.build_absolute_uri('/static/icone.png')
 
-def enviar_email_seguro(assunto: str, mensagem: str, destinatario: str) -> bool:
+
+def _formatar_data_hora_seguranca() -> str:
+    return timezone.localtime(timezone.now()).strftime('%d/%m/%Y às %H:%M (Brasília)')
+
+
+def encerrar_todas_sessoes_usuario(user_id: int):
+    """Invalida todas as sessões ativas do usuário em outros dispositivos após troca de senha."""
+    alvo = str(user_id)
+    for sessao in Session.objects.filter(expire_date__gte=timezone.now()).iterator():
+        try:
+            dados = sessao.get_decoded()
+            if str(dados.get('_auth_user_id', '')) == alvo:
+                sessao.delete()
+        except Exception:
+            continue
+
+
+def enviar_email_seguro(
+    assunto: str,
+    mensagem: str,
+    destinatario: str,
+    mensagem_html: str | None = None,
+) -> bool:
     resend_api_key = os.environ.get('RESEND_API_KEY', '').strip()
     remetente = settings.DEFAULT_FROM_EMAIL
+    destinatario_limpo = destinatario.strip()
 
     if resend_api_key and not getattr(settings, 'EM_TESTE', False):
         try:
             resend.api_key = resend_api_key
             params = {
                 "from": remetente,
-                "to": [destinatario.strip()],
+                "to": [destinatario_limpo],
                 "subject": assunto,
                 "text": mensagem,
+                "headers": {"X-Entity-Ref-ID": str(uuid.uuid4())},
             }
+            if mensagem_html:
+                params["html"] = mensagem_html
+
             resposta = resend.Emails.send(params)
-            security_logger.info("E-mail enviado via Resend para %s (ID: %s)", destinatario, resposta)
+            security_logger.info("E-mail enviado via Resend para %s (ID: %s)", destinatario_limpo, resposta)
             return True
         except Exception as exc:
-            security_logger.warning("Falha ao enviar e-mail via Resend API para %s: %s", destinatario, str(exc))
+            security_logger.warning("Falha ao enviar e-mail via Resend API para %s: %s", destinatario_limpo, str(exc))
             return False
 
     try:
-        send_mail(
+        email_msg = EmailMultiAlternatives(
             subject=assunto,
-            message=mensagem,
+            body=mensagem,
             from_email=remetente,
-            recipient_list=[destinatario.strip()],
-            fail_silently=False,
+            to=[destinatario_limpo],
+            headers={"X-Entity-Ref-ID": str(uuid.uuid4())},
         )
+        if mensagem_html:
+            email_msg.attach_alternative(mensagem_html, "text/html")
+        email_msg.send(fail_silently=False)
         return True
     except Exception as exc:
-        security_logger.warning("Falha ao enviar e-mail (fallback) para %s: %s", destinatario, type(exc).__name__)
+        security_logger.warning("Falha ao enviar e-mail (fallback) para %s: %s", destinatario_limpo, type(exc).__name__)
         return False
 
 
 def disparar_email_confirmacao(request, user: User, email_destino: str) -> bool:
     token = gerar_token_confirmacao_email(user, email_destino)
     link = request.build_absolute_uri(reverse('confirmar_email', args=[token]))
-    assunto = "FinPro - Confirme seu endereço de e-mail"
-    corpo = (
-        f"Olá, {user.username}!\n\n"
-        f"Para confirmar seu e-mail no FinPro e habilitar a recuperação de senha, acesse o link abaixo:\n\n"
-        f"{link}\n\n"
-        f"Este link é válido por 24 horas. Se você não solicitou esta confirmação, ignore esta mensagem."
+    assunto, corpo_texto, corpo_html = construir_email_confirmacao(
+        username=user.username,
+        link_confirmacao=link,
+        logo_url=_obter_logo_email_url(request),
     )
-    return enviar_email_seguro(assunto, corpo, email_destino)
+    return enviar_email_seguro(assunto, corpo_texto, email_destino, mensagem_html=corpo_html)
 
 
 # ==========================================
@@ -937,11 +976,19 @@ def confirmar_email_view(request, token):
 @never_cache
 def recuperar_senha_view(request):
     if request.method == 'POST':
+        if request.POST.get('website_url_honeypot'):
+            security_logger.warning("Honeypot acionado em recuperar_senha pelo IP=%s", get_client_ip(request))
+            return redirect('login')
+
         identificador = (request.POST.get('identificador') or '').strip()
         bloqueado, ch_ip, ch_usr, t_bloq = verificar_bloqueio_ip(
             request, escopo='recuperar_senha', identificador_extra=identificador, max_tentativas=5, tempo_bloqueio=300
         )
         if bloqueado:
+            security_logger.warning(
+                "Bloqueio de rate limit em recuperar_senha IP=%s identificador=%s",
+                get_client_ip(request), identificador
+            )
             messages.error(request, 'Muitas solicitações realizadas. Aguarde 5 minutos.')
             return render(request, 'gestao/recuperar_senha.html', status=429)
 
@@ -957,19 +1004,18 @@ def recuperar_senha_view(request):
                 link = request.build_absolute_uri(
                     reverse('redefinir_senha_confirmar', kwargs={'uidb64': uidb64, 'token': token})
                 )
-                assunto = "FinPro - Redefinição de senha"
-                corpo = (
-                    f"Olá, {usuario.username}!\n\n"
-                    f"Recebemos uma solicitação para redefinir a senha da sua conta no FinPro.\n"
-                    f"Acesse o link seguro abaixo para criar uma nova senha:\n\n"
-                    f"{link}\n\n"
-                    f"Se você não solicitou a alteração, ignore este e-mail."
+                assunto, corpo_texto, corpo_html = construir_email_redefinicao_senha(
+                    username=usuario.username,
+                    link_redefinicao=link,
+                    ip_origem=get_client_ip(request),
+                    data_hora_str=_formatar_data_hora_seguranca(),
+                    logo_url=_obter_logo_email_url(request),
                 )
-                enviar_email_seguro(assunto, corpo, usuario.email)
+                enviar_email_seguro(assunto, corpo_texto, usuario.email, mensagem_html=corpo_html)
 
         messages.success(
             request,
-            'Se houver uma conta com e-mail cadastrado correspondente aos dados informados, enviamos o link de redefinição.'
+            'Se houver uma conta com e-mail cadastrado correspondente aos dados informados, enviamos um link seguro válido por 30 minutos.'
         )
         return redirect('login')
 
@@ -986,7 +1032,7 @@ def redefinir_senha_confirmar_view(request, uidb64, token):
 
     token_valido = usuario is not None and default_token_generator.check_token(usuario, token)
     if not token_valido:
-        messages.error(request, 'O link de redefinição de senha é inválido ou já foi utilizado.')
+        messages.error(request, 'O link de redefinição de senha é inválido, expirou (limite de 30 min) ou já foi utilizado.')
         return redirect('recuperar_senha')
 
     if request.method == 'POST':
@@ -995,14 +1041,32 @@ def redefinir_senha_confirmar_view(request, uidb64, token):
             form.save()
             if usuario.email and not is_email_confirmado(usuario):
                 marcar_email_como_confirmado(usuario, usuario.email)
+
+            encerrar_todas_sessoes_usuario(usuario.pk)
             request.session.pop('reenvio_pendente_uid', None)
-            security_logger.warning("Senha redefinida com sucesso via token para usuario=%s", usuario.username)
-            messages.success(request, 'Senha atualizada com sucesso! Faça login com sua nova senha.')
+
+            if usuario.email:
+                assunto_alerta, texto_alerta, html_alerta = construir_email_alerta_senha_alterada(
+                    username=usuario.username,
+                    ip_origem=get_client_ip(request),
+                    data_hora_str=_formatar_data_hora_seguranca(),
+                    link_recuperacao=request.build_absolute_uri(reverse('recuperar_senha')),
+                    logo_url=_obter_logo_email_url(request),
+                )
+                enviar_email_seguro(assunto_alerta, texto_alerta, usuario.email, mensagem_html=html_alerta)
+
+            security_logger.warning(
+                "Senha redefinida com sucesso e sessoes encerradas para usuario=%s IP=%s",
+                usuario.username, get_client_ip(request)
+            )
+            messages.success(request, 'Senha atualizada com sucesso! Por segurança, faça login novamente com a nova senha.')
             return redirect('login')
     else:
         form = SetPasswordForm(usuario)
 
-    return render(request, 'gestao/redefinir_senha.html', {'form': form, 'usuario_alvo': usuario})
+    response = render(request, 'gestao/redefinir_senha.html', {'form': form, 'usuario_alvo': usuario})
+    response['Referrer-Policy'] = 'no-referrer'
+    return response
 
 
 # ==========================================
